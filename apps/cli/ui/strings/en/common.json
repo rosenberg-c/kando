@@ -1,0 +1,23 @@
+{
+  "cli.env.load_error": "load .env.app: %v\n",
+  "cli.config.user_dir_error": "resolve user config dir: %v\n",
+  "cli.api.init_error": "initialize api client: %v\n",
+  "cli.login.failed": "login failed: %v\n",
+  "cli.login.success": "login successful",
+  "cli.me.failed": "me failed: %v\n",
+  "cli.logout.failed": "logout failed: %v\n",
+  "cli.logout.success": "logout successful",
+  "cli.flag.email_help": "User account email",
+  "cli.flag.password_stdin_help": "Read password from stdin",
+  "cli.validation.email_required": "email is required",
+  "cli.validation.password_required": "password is required",
+  "cli.password.stdin_read_error": "read password from stdin: %w",
+  "cli.password.read_error": "read password: %w",
+  "cli.password.prompt": "Password: ",
+  "cli.password.tty_required": "interactive password input requires tty; use --password-stdin",
+  "cli.usage.title": "Usage:",
+  "cli.usage.login": "  todo login --email <email>",
+  "cli.usage.me": "  todo me",
+  "cli.usage.logout": "  todo logout",
+  "cli.warning.insecure_base_url": "warning: TODO_API_BASE_URL uses insecure HTTP for non-localhost endpoint (%s); prefer HTTPS\n"
+}

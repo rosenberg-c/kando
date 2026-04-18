@@ -12,13 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"go_macos_todo/apps/cli/ui"
 	"go_macos_todo/internal/cli"
 	"go_macos_todo/internal/config"
 )
 
 func main() {
 	if err := config.LoadDotEnvIfPresent(".env.app"); err != nil {
-		fmt.Fprintf(os.Stderr, "load .env.app: %v\n", err)
+		fmt.Fprintf(os.Stderr, ui.T("cli.env.load_error"), err)
 		os.Exit(1)
 	}
 
@@ -29,7 +30,7 @@ func main() {
 
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "resolve user config dir: %v\n", err)
+		fmt.Fprintf(os.Stderr, ui.T("cli.config.user_dir_error"), err)
 		os.Exit(1)
 	}
 
@@ -42,7 +43,7 @@ func main() {
 
 	apiClient, err := cli.NewHTTPAPIClient(apiBaseURL, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "initialize api client: %v\n", err)
+		fmt.Fprintf(os.Stderr, ui.T("cli.api.init_error"), err)
 		os.Exit(1)
 	}
 
@@ -52,23 +53,23 @@ func main() {
 	switch os.Args[1] {
 	case "login":
 		if err := runLogin(ctx, service, os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "login failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, ui.T("cli.login.failed"), err)
 			os.Exit(1)
 		}
-		fmt.Println("login successful")
+		fmt.Println(ui.T("cli.login.success"))
 	case "me":
 		body, err := service.Me(ctx)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "me failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, ui.T("cli.me.failed"), err)
 			os.Exit(1)
 		}
 		fmt.Println(string(body))
 	case "logout":
 		if err := service.Logout(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "logout failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, ui.T("cli.logout.failed"), err)
 			os.Exit(1)
 		}
-		fmt.Println("logout successful")
+		fmt.Println(ui.T("cli.logout.success"))
 	default:
 		printUsage()
 		os.Exit(2)
@@ -79,15 +80,15 @@ func runLogin(ctx context.Context, service *cli.Service, args []string) error {
 	fs := flag.NewFlagSet("login", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
-	email := fs.String("email", "", "User account email")
-	passwordStdin := fs.Bool("password-stdin", false, "Read password from stdin")
+	email := fs.String("email", "", ui.T("cli.flag.email_help"))
+	passwordStdin := fs.Bool("password-stdin", false, ui.T("cli.flag.password_stdin_help"))
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if strings.TrimSpace(*email) == "" {
-		return fmt.Errorf("email is required")
+		return fmt.Errorf(ui.T("cli.validation.email_required"))
 	}
 
 	var password string
@@ -95,22 +96,22 @@ func runLogin(ctx context.Context, service *cli.Service, args []string) error {
 		reader := bufio.NewReader(os.Stdin)
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("read password from stdin: %w", err)
+			return fmt.Errorf(ui.T("cli.password.stdin_read_error"), err)
 		}
 		password = strings.TrimSpace(line)
 	} else {
-		fmt.Fprint(os.Stderr, "Password: ")
+		fmt.Fprint(os.Stderr, ui.T("cli.password.prompt"))
 		promptPassword, err := readPassword()
 		fmt.Fprintln(os.Stderr)
 		if err != nil {
-			return fmt.Errorf("read password: %w", err)
+			return fmt.Errorf(ui.T("cli.password.read_error"), err)
 		}
 
 		password = promptPassword
 	}
 
 	if password == "" {
-		return fmt.Errorf("password is required")
+		return fmt.Errorf(ui.T("cli.validation.password_required"))
 	}
 
 	return service.Login(ctx, *email, password)
@@ -119,7 +120,7 @@ func runLogin(ctx context.Context, service *cli.Service, args []string) error {
 func readPassword() (string, error) {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
-		return "", fmt.Errorf("interactive password input requires tty; use --password-stdin")
+		return "", fmt.Errorf(ui.T("cli.password.tty_required"))
 	}
 	defer tty.Close()
 
@@ -149,9 +150,10 @@ func readPassword() (string, error) {
 
 func printUsage() {
 	fmt.Println("Usage:")
-	fmt.Println("  todo login --email <email>")
-	fmt.Println("  todo me")
-	fmt.Println("  todo logout")
+	fmt.Println(ui.T("cli.usage.title"))
+	fmt.Println(ui.T("cli.usage.login"))
+	fmt.Println(ui.T("cli.usage.me"))
+	fmt.Println(ui.T("cli.usage.logout"))
 }
 
 func warnIfInsecureAPIBaseURL(rawURL string) {
@@ -173,5 +175,5 @@ func warnIfInsecureAPIBaseURL(rawURL string) {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "warning: TODO_API_BASE_URL uses insecure HTTP for non-localhost endpoint (%s); prefer HTTPS\n", rawURL)
+	fmt.Fprintf(os.Stderr, ui.T("cli.warning.insecure_base_url"), rawURL)
 }
