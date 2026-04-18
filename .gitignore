@@ -2,3 +2,4 @@
 .spicy
 bin/
 logs/
+.env
