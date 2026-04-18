@@ -322,3 +322,22 @@ Forbidden examples:
 * any client reading `APPWRITE_*` server secrets
 
 ---
+
+## 21. UI text must be externalized
+
+UI-facing copy must not be hardcoded in views/components.
+
+Rules:
+
+* define UI strings in resource files, grouped by feature/domain
+* use a shared lookup layer (for example `t("auth.login.title")`)
+* keep common shared labels in a small `common` namespace
+* avoid one giant global strings file and avoid per-file ad hoc string constants
+
+Suggested structure:
+
+* `ui/strings/en/common.json`
+* `ui/strings/en/auth.json`
+* `ui/strings/en/todos.json`
+
+---

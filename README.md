@@ -67,3 +67,15 @@ Use `--password-stdin` for non-interactive login in scripts.
 ## Auth docs
 
 See `docs/AUTH.md`.
+
+## UI text convention
+
+All user-facing UI text should be defined in externalized resource files, grouped by feature/domain rather than hardcoded in views.
+
+Example:
+
+```txt
+ui/strings/en/common.json
+ui/strings/en/auth.json
+ui/strings/en/todos.json
+```

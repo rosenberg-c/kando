@@ -72,6 +72,25 @@ macOS App ─┘
 
 ---
 
+### 5. UI text is externalized by feature
+
+* do not hardcode user-facing strings in views/components
+* store strings in resource files grouped by feature/domain
+* use one translation lookup layer across clients
+* keep a `common` namespace for shared labels
+
+Example layout:
+
+```txt
+ui/strings/
+  en/
+    common.json
+    auth.json
+    todos.json
+```
+
+---
+
 ## Project Structure
 
 ```txt id="0m1ry7"
