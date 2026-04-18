@@ -38,11 +38,11 @@ Docs:
 
 ---
 
-### 1. OpenAPI becomes the contract
+### 1. Backend code generates the API contract
 
-* Backend may be developed first
-* Once endpoints stabilize, `openapi.yaml` is the source of truth
-* All clients must follow the spec
+* Backend API code is the source of truth
+* `api/openapi.yaml` is exported from Huma operation definitions via `make generate`
+* Go CLI and Swift clients are generated from the same spec artifact
 
 ---
 
@@ -150,20 +150,19 @@ todo-app/
 
 ### Development phases
 
-#### Phase 1 — exploration
+#### Phase 1 — implement backend API
 
-* implement backend manually
-* CLI may use raw HTTP
+* add/update backend handlers, request/response contracts, and auth behavior
 
-#### Phase 2 — stabilization
+#### Phase 2 — generate contract and clients
 
-* define/refine OpenAPI spec
-* align handlers
+* run `make generate`
+* refresh generated OpenAPI spec and client SDKs
 
-#### Phase 3 — contract-first
+#### Phase 3 — consume generated clients
 
-* generate clients
-* spec becomes canonical
+* CLI uses generated Go client
+* macOS/iOS use generated Swift client
 
 ---
 
@@ -171,7 +170,8 @@ todo-app/
 
 Tool:
 
-* oapi-codegen
+* backend code -> OpenAPI: Huma operation registration + export (`cmd/gen_openapi`)
+* OpenAPI -> Go client: `oapi-codegen`
 
 ```bash id="z70yfh"
 make generate
@@ -232,7 +232,7 @@ make build
 ### Notes
 
 * All generation must go through `make generate`
-* Do not run generators manually
+* Do not manually edit generated OpenAPI/client artifacts
 * Keep Makefile as the single source of truth for tooling
 
 ---

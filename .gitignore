@@ -3,3 +3,5 @@
 bin/
 logs/
 .env*
+apps/macos/.build/
+apps/macos/.swiftpm/

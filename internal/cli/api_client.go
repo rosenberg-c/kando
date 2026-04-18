@@ -1,14 +1,14 @@
 package cli
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
+
+	generatedclient "go_macos_todo/internal/api/generated/client"
 )
 
 type APIClient interface {
@@ -25,101 +25,86 @@ type AuthTokens struct {
 }
 
 type HTTPAPIClient struct {
-	baseURL    string
-	httpClient *http.Client
+	client *generatedclient.ClientWithResponses
 }
 
-func NewHTTPAPIClient(baseURL string, httpClient *http.Client) *HTTPAPIClient {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
+func NewHTTPAPIClient(baseURL string, httpClient *http.Client) (*HTTPAPIClient, error) {
+	trimmedBaseURL := strings.TrimSuffix(baseURL, "/")
+
+	parsedURL, err := url.Parse(trimmedBaseURL)
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		return nil, fmt.Errorf("invalid api base URL: %q", baseURL)
 	}
 
-	return &HTTPAPIClient{
-		baseURL:    strings.TrimSuffix(baseURL, "/"),
-		httpClient: httpClient,
+	options := []generatedclient.ClientOption{}
+	if httpClient != nil {
+		options = append(options, generatedclient.WithHTTPClient(httpClient))
 	}
+
+	generated, err := generatedclient.NewClientWithResponses(parsedURL.String(), options...)
+	if err != nil {
+		return nil, fmt.Errorf("create generated api client: %w", err)
+	}
+
+	return &HTTPAPIClient{client: generated}, nil
 }
 
 func (c *HTTPAPIClient) Login(ctx context.Context, email, password string) (AuthTokens, []byte, int, error) {
-	payload := map[string]string{"email": email, "password": password}
-	return c.authRequest(ctx, http.MethodPost, "/auth/login", payload)
+	response, err := c.client.LoginWithResponse(ctx, generatedclient.LoginJSONRequestBody{
+		Email:    email,
+		Password: password,
+	})
+	if err != nil {
+		return AuthTokens{}, nil, 0, fmt.Errorf("login request: %w", err)
+	}
+
+	tokens := AuthTokens{}
+	if response.JSON200 != nil {
+		tokens = mapAuthTokens(*response.JSON200)
+	}
+
+	return tokens, response.Body, response.StatusCode(), nil
 }
 
 func (c *HTTPAPIClient) Refresh(ctx context.Context, refreshToken string) (AuthTokens, []byte, int, error) {
-	payload := map[string]string{"refreshToken": refreshToken}
-	return c.authRequest(ctx, http.MethodPost, "/auth/refresh", payload)
+	response, err := c.client.RefreshAuthWithResponse(ctx, generatedclient.RefreshAuthJSONRequestBody{RefreshToken: refreshToken})
+	if err != nil {
+		return AuthTokens{}, nil, 0, fmt.Errorf("refresh request: %w", err)
+	}
+
+	tokens := AuthTokens{}
+	if response.JSON200 != nil {
+		tokens = mapAuthTokens(*response.JSON200)
+	}
+
+	return tokens, response.Body, response.StatusCode(), nil
 }
 
 func (c *HTTPAPIClient) Logout(ctx context.Context, refreshToken string) ([]byte, int, error) {
-	payload := map[string]string{"refreshToken": refreshToken}
-	body, err := json.Marshal(payload)
+	response, err := c.client.LogoutWithResponse(ctx, generatedclient.LogoutJSONRequestBody{RefreshToken: refreshToken})
 	if err != nil {
-		return nil, 0, fmt.Errorf("marshal request: %w", err)
+		return nil, 0, fmt.Errorf("logout request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/logout", bytes.NewReader(body))
-	if err != nil {
-		return nil, 0, fmt.Errorf("create /auth/logout request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	return c.do(req)
+	return response.Body, response.StatusCode(), nil
 }
 
 func (c *HTTPAPIClient) GetMe(ctx context.Context, accessToken string) ([]byte, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/me", nil)
+	authorization := "Bearer " + accessToken
+	response, err := c.client.GetMeWithResponse(ctx, &generatedclient.GetMeParams{
+		Authorization: &authorization,
+	})
 	if err != nil {
-		return nil, 0, fmt.Errorf("create /me request: %w", err)
+		return nil, 0, fmt.Errorf("get /me request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	body, statusCode, err := c.do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return body, statusCode, nil
+	return response.Body, response.StatusCode(), nil
 }
 
-func (c *HTTPAPIClient) authRequest(ctx context.Context, method, path string, payload map[string]string) (AuthTokens, []byte, int, error) {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return AuthTokens{}, nil, 0, fmt.Errorf("marshal request: %w", err)
+func mapAuthTokens(tokens generatedclient.AuthTokens) AuthTokens {
+	return AuthTokens{
+		AccessToken:          tokens.AccessToken,
+		RefreshToken:         tokens.RefreshToken,
+		AccessTokenExpiresAt: tokens.AccessTokenExpiresAt,
 	}
-
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
-	if err != nil {
-		return AuthTokens{}, nil, 0, fmt.Errorf("create %s request: %w", path, err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	respBody, statusCode, err := c.do(req)
-	if err != nil {
-		return AuthTokens{}, nil, 0, err
-	}
-
-	var tokens AuthTokens
-	if statusCode >= 200 && statusCode < 300 {
-		if err := json.Unmarshal(respBody, &tokens); err != nil {
-			return AuthTokens{}, nil, 0, fmt.Errorf("decode %s response: %w", path, err)
-		}
-	}
-
-	return tokens, respBody, statusCode, nil
-}
-
-func (c *HTTPAPIClient) do(req *http.Request) ([]byte, int, error) {
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("request %s: %w", req.URL.Path, err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("read %s response: %w", req.URL.Path, err)
-	}
-
-	return body, resp.StatusCode, nil
 }

@@ -40,7 +40,13 @@ func main() {
 	}
 	warnIfInsecureAPIBaseURL(apiBaseURL)
 
-	service := cli.NewService(store, cli.NewHTTPAPIClient(apiBaseURL, nil))
+	apiClient, err := cli.NewHTTPAPIClient(apiBaseURL, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "initialize api client: %v\n", err)
+		os.Exit(1)
+	}
+
+	service := cli.NewService(store, apiClient)
 
 	ctx := context.Background()
 	switch os.Args[1] {
@@ -73,7 +79,7 @@ func runLogin(ctx context.Context, service *cli.Service, args []string) error {
 	fs := flag.NewFlagSet("login", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
-	email := fs.String("email", "", "Appwrite account email")
+	email := fs.String("email", "", "User account email")
 	passwordStdin := fs.Bool("password-stdin", false, "Read password from stdin")
 
 	if err := fs.Parse(args); err != nil {

@@ -2,6 +2,15 @@
 
 Minimal Go backend scaffold for the todo app.
 
+## API generation model
+
+- Backend code is the source of truth.
+- `make generate` performs:
+  - Huma route definitions in backend code -> `api/openapi.yaml`
+  - `api/openapi.yaml` -> generated Go client for CLI
+- Backend OpenAPI is exported from the same registered operations used at runtime
+- `make verify-generate` fails if generated artifacts are out of date
+
 ## Environment Setup
 
 1. Copy env template:
@@ -36,6 +45,7 @@ For non-local environments, use `https://...` for `TODO_API_BASE_URL`.
 ## Run
 
 ```bash
+make generate
 make run
 ```
 

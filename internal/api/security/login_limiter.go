@@ -1,4 +1,4 @@
-package handlers
+package security
 
 import (
 	"sync"

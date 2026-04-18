@@ -5,7 +5,14 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: build run run-cli test cli-install install-cli
+.PHONY: generate verify-generate build run run-cli test cli-install install-cli
+
+generate:
+	go run ./cmd/gen_openapi
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config api/oapi-codegen-client.yaml -o internal/api/generated/client/client.gen.go api/openapi.yaml
+
+verify-generate: generate
+	git diff --exit-code -- api/openapi.yaml internal/api/generated/client/client.gen.go
 
 build:
 	mkdir -p $(BIN_DIR)
