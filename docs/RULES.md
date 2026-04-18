@@ -261,6 +261,7 @@ Always answer:
 
 * return errors to callers
 * log only at boundaries (HTTP layer, CLI entrypoint, etc.)
+* use explicit, structured log messages with stable keys (for example `request_id=... route=... error=...`)
 * never log credentials, bearer tokens, refresh tokens, session secrets, or API keys
 * when logging external error payloads, use redacted summaries only
 

@@ -17,7 +17,11 @@ cp .env.app.example .env.app
 APPWRITE_ENDPOINT=https://<REGION>.cloud.appwrite.io/v1
 APPWRITE_PROJECT_ID=your_project_id
 APPWRITE_AUTH_API_KEY=your_server_key_with_sessions_write
+LOG_WARN_MB=5
+LOG_MAX_MB=10
 ```
+
+`LOG_WARN_MB` logs a startup warning when `logs/server.log` exceeds the threshold. `LOG_MAX_MB` fails startup when exceeded.
 
 3. Configure CLI app settings in `.env.app`:
 
