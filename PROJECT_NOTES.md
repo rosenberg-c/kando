@@ -25,6 +25,18 @@ All clients communicate through the same API.
 
 ## Core Principles
 
+### Authentication
+
+* Use Appwrite for authentication across clients
+* Treat Appwrite-issued identity/token data as the auth source of truth
+* Validate and map auth context at API boundaries before service logic
+
+Docs:
+
+* https://appwrite.io/docs
+
+---
+
 ### 1. OpenAPI becomes the contract
 
 * Backend may be developed first
