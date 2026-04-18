@@ -261,6 +261,8 @@ Always answer:
 
 * return errors to callers
 * log only at boundaries (HTTP layer, CLI entrypoint, etc.)
+* never log credentials, bearer tokens, refresh tokens, session secrets, or API keys
+* when logging external error payloads, use redacted summaries only
 
 ---
 
@@ -298,5 +300,24 @@ Guidelines:
 * test errors explicitly with `errors.Is`
 * keep tests fast and deterministic
 * if code is hard to test, simplify the design
+
+---
+
+## 20. Authentication is a server concern
+
+Authentication integration belongs only to the backend.
+
+Rules:
+
+* clients must authenticate through backend API endpoints only
+* clients must not call external auth providers directly
+* clients must not handle provider secrets, server API keys, or provider session management
+* backend owns token/session issuance, refresh, revocation, validation, and secret handling
+
+Forbidden examples:
+
+* `apps/cli` importing provider SDKs or `internal/appwrite`
+* `apps/macos` calling provider auth/session endpoints directly
+* any client reading `APPWRITE_*` server secrets
 
 ---

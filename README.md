@@ -7,14 +7,27 @@ Minimal Go backend scaffold for the todo app.
 1. Copy env template:
 
 ```bash
-cp .env.example .env
+cp .env.server.example .env.server
+cp .env.app.example .env.app
 ```
 
-2. Set your Appwrite auth API key in `.env`:
+2. Configure backend settings in `.env.server`:
 
 ```env
-APPWRITE_AUTH_API_KEY=your_real_key
+APPWRITE_ENDPOINT=https://<REGION>.cloud.appwrite.io/v1
+APPWRITE_PROJECT_ID=your_project_id
+APPWRITE_AUTH_API_KEY=your_server_key_with_sessions_write
 ```
+
+3. Configure CLI app settings in `.env.app`:
+
+```env
+TODO_API_BASE_URL=http://localhost:8080
+```
+
+For non-local environments, use `https://...` for `TODO_API_BASE_URL`.
+
+`APPWRITE_AUTH_API_KEY` is backend-only. Do not use it in the CLI or ship it in binaries.
 
 ## Run
 
@@ -23,3 +36,20 @@ make run
 ```
 
 Server starts on `http://localhost:8080` with `GET /hello`.
+
+## CLI auth
+
+```bash
+make install-cli
+todo login --email you@example.com
+todo me
+todo logout
+```
+
+The CLI stores auth state in user config and refreshes JWT on expiry or one-time `401` retry.
+The CLI talks only to the Go backend (`TODO_API_BASE_URL`) and does not call Appwrite directly.
+Use `--password-stdin` for non-interactive login in scripts.
+
+## Auth docs
+
+See `docs/AUTH.md`.

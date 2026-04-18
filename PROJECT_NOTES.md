@@ -30,6 +30,7 @@ All clients communicate through the same API.
 * Use Appwrite for authentication across clients
 * Treat Appwrite-issued identity/token data as the auth source of truth
 * Validate and map auth context at API boundaries before service logic
+* Authentication integration is backend-only; clients are auth-provider agnostic
 
 Docs:
 

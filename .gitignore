@@ -2,4 +2,4 @@
 .spicy
 bin/
 logs/
-.env
+.env*

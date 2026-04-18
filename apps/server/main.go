@@ -6,12 +6,19 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"go_macos_todo/internal/api/handlers"
 	"go_macos_todo/internal/api/middleware"
+	"go_macos_todo/internal/appwrite"
+	"go_macos_todo/internal/config"
 )
 
 func main() {
+	if err := config.LoadDotEnvIfPresent(".env.server"); err != nil {
+		log.Fatalf("load .env.server: %v", err)
+	}
+
 	logFile, err := setupLogging()
 	if err != nil {
 		log.Fatalf("configure logging: %v", err)
@@ -24,6 +31,20 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", handlers.HelloWorld)
+
+	appwriteEndpoint := os.Getenv("APPWRITE_ENDPOINT")
+	appwriteProjectID := os.Getenv("APPWRITE_PROJECT_ID")
+	appwriteAPIKey := os.Getenv("APPWRITE_AUTH_API_KEY")
+	if appwriteEndpoint == "" || appwriteProjectID == "" {
+		log.Println("auth disabled: set APPWRITE_ENDPOINT and APPWRITE_PROJECT_ID to enable auth routes")
+	} else {
+		appwriteClient := appwrite.NewClient(appwriteEndpoint, appwriteProjectID, appwriteAPIKey, nil)
+		loginLimiter := handlers.NewLoginRateLimiter(5, 10*time.Minute, 15*time.Minute)
+		mux.HandleFunc("/auth/login", handlers.AuthLogin(appwriteClient, loginLimiter))
+		mux.HandleFunc("/auth/refresh", handlers.AuthRefresh(appwriteClient))
+		mux.HandleFunc("/auth/logout", handlers.AuthLogout(appwriteClient))
+		mux.Handle("/me", middleware.Auth(appwriteClient, http.HandlerFunc(handlers.Me)))
+	}
 
 	server := &http.Server{
 		Addr:    ":8080",
