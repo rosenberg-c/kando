@@ -26,6 +26,12 @@ cp .env.app.example .env.app
 APPWRITE_ENDPOINT=https://<REGION>.cloud.appwrite.io/v1
 APPWRITE_PROJECT_ID=your_project_id
 APPWRITE_AUTH_API_KEY=your_server_key_with_sessions_write
+APPWRITE_DB_API_KEY=your_server_key_with_tablesdb/tables/columns/indexes read+write scopes
+APPWRITE_DB_ID=todo
+APPWRITE_DB_NAME=Todo
+APPWRITE_BOARDS_COLLECTION_ID=boards
+APPWRITE_COLUMNS_COLLECTION_ID=columns
+APPWRITE_TODOS_COLLECTION_ID=todos
 LOG_WARN_MB=5
 LOG_MAX_MB=10
 ```
@@ -40,7 +46,17 @@ TODO_API_BASE_URL=http://localhost:8080
 
 For non-local environments, use `https://...` for `TODO_API_BASE_URL`.
 
-`APPWRITE_AUTH_API_KEY` is backend-only. Do not use it in the CLI or ship it in binaries.
+`APPWRITE_AUTH_API_KEY` and `APPWRITE_DB_API_KEY` are backend-only. Do not use them in the CLI or ship them in binaries.
+
+### Bootstrap Appwrite schema
+
+Provision the database/collections/attributes/indexes via API:
+
+```bash
+make appwrite-bootstrap
+```
+
+This command is idempotent and safe to re-run.
 
 ## Run
 

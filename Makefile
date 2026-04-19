@@ -10,7 +10,7 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate build run run-cli run-macos open-macos open test test-macos-unit cli-install install-cli
+.PHONY: generate verify-generate build run run-cli run-macos open-macos open test test-macos-unit cli-install install-cli appwrite-bootstrap
 
 generate:
 	go run ./cmd/gen_openapi
@@ -26,6 +26,9 @@ build:
 
 run:
 	go run $(APP_SERVER)
+
+appwrite-bootstrap:
+	go run ./cmd/bootstrap_appwrite
 
 run-cli:
 	go run $(APP_CLI)
