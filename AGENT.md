@@ -1,6 +1,6 @@
 # AGENTS
 
-Before starting any task, read all files in `docs/`.
+Before starting any task, read all files in `docs/` and PROJECT_NOTES.md.
 
 ## Communication
 
