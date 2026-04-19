@@ -341,3 +341,22 @@ Suggested structure:
 * `ui/strings/en/todos.json`
 
 ---
+
+## 22. Prefer `Sendable` boundaries; scope `@MainActor` to UI state
+
+For Swift code (especially in `apps/macos`), default to concurrency-safe service boundaries.
+
+Rules:
+
+* prefer protocol and model boundaries that are `Sendable`
+* avoid `@MainActor` on service/network/storage protocols by default
+* use `@MainActor` for UI-facing state and updates (for example SwiftUI views, `ObservableObject` UI state)
+* if a type is `@MainActor`, document why main-thread affinity is required
+
+Rationale:
+
+* keeps network/storage work off the UI actor
+* reduces accidental serialization on the main thread
+* improves testability and compatibility with strict Swift concurrency checks
+
+---

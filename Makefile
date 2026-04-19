@@ -1,11 +1,16 @@
 APP_SERVER := ./apps/server
 APP_CLI := ./apps/cli
+APP_MACOS := ./apps/macos
+MACOS_XCODEPROJ := $(APP_MACOS)/Sources/TodoMacOS/TodoMacOS.xcodeproj
+MACOS_SCHEME := TodoMacOS
+MACOS_UNIT_SCHEME := TodoMacOSUnit
+MACOS_DERIVED := $(APP_MACOS)/.derived
 BIN_DIR := ./bin
 BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate build run run-cli test cli-install install-cli
+.PHONY: generate verify-generate build run run-cli run-macos open-macos open test test-macos-unit cli-install install-cli
 
 generate:
 	go run ./cmd/gen_openapi
@@ -25,6 +30,15 @@ run:
 run-cli:
 	go run $(APP_CLI)
 
+run-macos:
+	killall "$(MACOS_SCHEME)" >/dev/null 2>&1 || true
+	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
+
+open-macos:
+	open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
+
+open: open-macos
+
 cli-install:
 	mkdir -p $(LOCAL_BIN_DIR)
 	go build -o $(LOCAL_BIN_DIR)/todo $(APP_CLI)
@@ -33,3 +47,7 @@ install-cli: cli-install
 
 test:
 	go test ./...
+	$(MAKE) test-macos-unit
+
+test-macos-unit:
+	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_UNIT_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO

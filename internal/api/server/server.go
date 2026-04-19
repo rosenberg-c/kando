@@ -35,6 +35,16 @@ func NewAPI() (*http.ServeMux, huma.API) {
 	config.OpenAPIPath = ""
 	config.DocsPath = ""
 	config.SchemasPath = ""
+	if config.Components == nil {
+		config.Components = &huma.Components{}
+	}
+	config.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		"bearerAuth": {
+			Type:         "http",
+			Scheme:       "bearer",
+			BearerFormat: "JWT",
+		},
+	}
 
 	api := humago.New(mux, config)
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {

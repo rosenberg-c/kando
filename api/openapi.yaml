@@ -121,6 +121,11 @@ components:
         - userId
         - email
       type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
 info:
   title: Go MacOS Todo API
   version: 0.1.0

@@ -5,3 +5,8 @@ logs/
 .env*
 apps/macos/.build/
 apps/macos/.swiftpm/
+apps/macos/.derived/
+**/xcuserdata/
+*.xcuserstate
+.DS_Store
+apps/macos/Package.resolved
