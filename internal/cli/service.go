@@ -2,9 +2,17 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
+)
+
+var (
+	// ErrUnauthorized indicates backend-authenticated requests were rejected as unauthorized.
+	ErrUnauthorized = errors.New("unauthorized")
+	// ErrSessionMissing indicates required local session state is missing.
+	ErrSessionMissing = errors.New("session missing")
 )
 
 type Service struct {
@@ -70,6 +78,10 @@ func (s *Service) Me(ctx context.Context) ([]byte, error) {
 		}
 	}
 
+	if statusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("%w: /me failed with status %d: %s", ErrUnauthorized, statusCode, string(body))
+	}
+
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("/me failed with status %d: %s", statusCode, string(body))
 	}
@@ -87,12 +99,15 @@ func (s *Service) ensureAccessToken(ctx context.Context, state TokenState) (Toke
 
 func (s *Service) refreshAccessToken(ctx context.Context, state TokenState) (TokenState, error) {
 	if state.RefreshToken == "" {
-		return TokenState{}, fmt.Errorf("refresh token missing, run login")
+		return TokenState{}, fmt.Errorf("%w: refresh token missing, run login", ErrSessionMissing)
 	}
 
 	tokens, body, statusCode, err := s.api.Refresh(ctx, state.RefreshToken)
 	if err != nil {
 		return TokenState{}, err
+	}
+	if statusCode == http.StatusUnauthorized {
+		return TokenState{}, fmt.Errorf("%w: /auth/refresh failed with status %d: %s", ErrUnauthorized, statusCode, string(body))
 	}
 	if statusCode != http.StatusOK {
 		return TokenState{}, fmt.Errorf("/auth/refresh failed with status %d: %s", statusCode, string(body))
@@ -131,4 +146,20 @@ func (s *Service) Logout(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// ValidateSession verifies whether the locally stored session can access protected API endpoints.
+// It clears local token state and returns (false, nil) when the session is missing or unauthorized.
+func (s *Service) ValidateSession(ctx context.Context) (bool, error) {
+	_, err := s.Me(ctx)
+	if err == nil {
+		return true, nil
+	}
+
+	if errors.Is(err, ErrUnauthorized) || errors.Is(err, ErrSessionMissing) || errors.Is(err, ErrTokenStateNotFound) {
+		_ = s.store.Clear()
+		return false, nil
+	}
+
+	return false, err
 }

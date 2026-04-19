@@ -11,8 +11,7 @@ This project uses Appwrite as the authentication source of truth for all clients
 ## End-to-end flow
 
 1. CLI login
-   - User runs `todo login --email ...` and enters password at prompt.
-   - For automation, use `todo login --email ... --password-stdin`.
+   - User runs `todo` (or `todo tui`) and uses the Sign in flow.
    - CLI sends credentials to Go backend `POST /auth/login`.
    - Backend calls Appwrite to create session and JWT.
    - Backend returns access token + refresh token + expiry.
