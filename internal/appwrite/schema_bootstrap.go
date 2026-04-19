@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"go_macos_todo/internal/schema"
 )
 
 const (
@@ -70,125 +72,62 @@ func (c *Client) BootstrapKanbanSchema(ctx context.Context, cfg SchemaConfig) er
 		return fmt.Errorf("bootstrap schema requires server api key")
 	}
 
-	cfg = normalizeSchemaConfig(cfg)
+	definition := schema.KanbanAppwriteDatabase()
+	schema.ApplyAppwriteIDOverrides(&definition, schema.AppwriteIDOverrides{
+		DatabaseID:     cfg.DatabaseID,
+		DatabaseName:   cfg.DatabaseName,
+		BoardsTableID:  cfg.BoardsCollectionID,
+		ColumnsTableID: cfg.ColumnsCollectionID,
+		TodosTableID:   cfg.TodosCollectionID,
+	})
 
-	if err := c.ensureDatabase(ctx, cfg.DatabaseID, cfg.DatabaseName); err != nil {
-		return fmt.Errorf("ensure database %q: %w", cfg.DatabaseID, err)
+	if err := c.ensureDatabase(ctx, definition.ID, definition.Name); err != nil {
+		return fmt.Errorf("ensure database %q: %w", definition.ID, err)
 	}
 
-	collections := []collectionSpec{
-		{
-			ID:   cfg.BoardsCollectionID,
-			Name: "Boards",
-			Attrs: []attributeSpec{
-				varcharAttribute("ownerUserId", 64, true),
-				varcharAttribute("title", 120, true),
-				integerAttribute("boardVersion", true),
-				datetimeAttribute("createdAt", true),
-				datetimeAttribute("updatedAt", true),
-			},
-			Indexes: []indexSpec{
-				{Key: "boards_owner_updated", Type: "key", Attributes: []string{"ownerUserId", "updatedAt"}, Orders: []string{"ASC", "DESC"}},
-			},
-		},
-		{
-			ID:   cfg.ColumnsCollectionID,
-			Name: "Columns",
-			Attrs: []attributeSpec{
-				varcharAttribute("boardId", 64, true),
-				varcharAttribute("ownerUserId", 64, true),
-				varcharAttribute("title", 120, true),
-				integerAttribute("position", true),
-				datetimeAttribute("createdAt", true),
-				datetimeAttribute("updatedAt", true),
-			},
-			Indexes: []indexSpec{
-				{Key: "columns_board_position", Type: "key", Attributes: []string{"boardId", "position"}, Orders: []string{"ASC", "ASC"}},
-			},
-		},
-		{
-			ID:   cfg.TodosCollectionID,
-			Name: "Todos",
-			Attrs: []attributeSpec{
-				varcharAttribute("boardId", 64, true),
-				varcharAttribute("columnId", 64, true),
-				varcharAttribute("ownerUserId", 64, true),
-				varcharAttribute("title", 200, true),
-				varcharAttribute("description", 4000, true),
-				integerAttribute("position", true),
-				datetimeAttribute("createdAt", true),
-				datetimeAttribute("updatedAt", true),
-			},
-			Indexes: []indexSpec{
-				{Key: "todos_board_column_position", Type: "key", Attributes: []string{"boardId", "columnId", "position"}, Orders: []string{"ASC", "ASC", "ASC"}},
-			},
-		},
+	collections := make([]collectionSpec, 0, len(definition.Tables))
+	for _, table := range definition.Tables {
+		attrs := make([]attributeSpec, 0, len(table.Columns))
+		for _, column := range table.Columns {
+			attrs = append(attrs, attributeSpec{
+				Kind: column.Kind,
+				Key:  column.Key,
+				Payload: map[string]any{
+					"key":      column.Key,
+					"required": column.Required,
+					"array":    false,
+				},
+			})
+			if column.Kind == "string" {
+				attrs[len(attrs)-1].Payload["size"] = column.Size
+			}
+		}
+
+		indexes := make([]indexSpec, 0, len(table.Indexes))
+		for _, index := range table.Indexes {
+			indexes = append(indexes, indexSpec{
+				Key:        index.Key,
+				Type:       index.Type,
+				Attributes: index.Columns,
+				Orders:     index.Orders,
+			})
+		}
+
+		collections = append(collections, collectionSpec{
+			ID:      table.ID,
+			Name:    table.Name,
+			Attrs:   attrs,
+			Indexes: indexes,
+		})
 	}
 
 	for _, spec := range collections {
-		if err := c.ensureCollection(ctx, cfg.DatabaseID, spec); err != nil {
+		if err := c.ensureCollection(ctx, definition.ID, spec); err != nil {
 			return fmt.Errorf("ensure collection %q: %w", spec.ID, err)
 		}
 	}
 
 	return nil
-}
-
-func normalizeSchemaConfig(cfg SchemaConfig) SchemaConfig {
-	if strings.TrimSpace(cfg.DatabaseID) == "" {
-		cfg.DatabaseID = "todo"
-	}
-	if strings.TrimSpace(cfg.DatabaseName) == "" {
-		cfg.DatabaseName = "Todo"
-	}
-	if strings.TrimSpace(cfg.BoardsCollectionID) == "" {
-		cfg.BoardsCollectionID = "boards"
-	}
-	if strings.TrimSpace(cfg.ColumnsCollectionID) == "" {
-		cfg.ColumnsCollectionID = "columns"
-	}
-	if strings.TrimSpace(cfg.TodosCollectionID) == "" {
-		cfg.TodosCollectionID = "todos"
-	}
-
-	return cfg
-}
-
-func varcharAttribute(key string, size int, required bool) attributeSpec {
-	return attributeSpec{
-		Kind: "string",
-		Key:  key,
-		Payload: map[string]any{
-			"key":      key,
-			"size":     size,
-			"required": required,
-			"array":    false,
-		},
-	}
-}
-
-func integerAttribute(key string, required bool) attributeSpec {
-	return attributeSpec{
-		Kind: "integer",
-		Key:  key,
-		Payload: map[string]any{
-			"key":      key,
-			"required": required,
-			"array":    false,
-		},
-	}
-}
-
-func datetimeAttribute(key string, required bool) attributeSpec {
-	return attributeSpec{
-		Kind: "datetime",
-		Key:  key,
-		Payload: map[string]any{
-			"key":      key,
-			"required": required,
-			"array":    false,
-		},
-	}
 }
 
 func (c *Client) ensureDatabase(ctx context.Context, databaseID, databaseName string) error {

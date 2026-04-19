@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -9,10 +10,16 @@ import (
 
 	"go_macos_todo/internal/appwrite"
 	"go_macos_todo/internal/config"
-	"go_macos_todo/internal/schema"
 )
 
 func main() {
+	apply := flag.Bool("apply", false, "apply destructive prune operations")
+	flag.Parse()
+
+	if *apply && strings.TrimSpace(os.Getenv("APPWRITE_PRUNE_CONFIRM")) != "YES" {
+		log.Fatal("refusing destructive prune without APPWRITE_PRUNE_CONFIRM=YES")
+	}
+
 	if err := config.LoadDotEnvIfPresent(".env.server"); err != nil {
 		log.Fatalf("load .env.server: %v", err)
 	}
@@ -23,7 +30,6 @@ func main() {
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(os.Getenv("APPWRITE_AUTH_API_KEY"))
 	}
-
 	if endpoint == "" || projectID == "" || apiKey == "" {
 		log.Fatal("APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, and APPWRITE_DB_API_KEY (or APPWRITE_AUTH_API_KEY) are required")
 	}
@@ -37,23 +43,26 @@ func main() {
 		TodosCollectionID:   strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID")),
 	}
 
-	if err := client.BootstrapKanbanSchema(context.Background(), cfg); err != nil {
-		log.Fatalf("bootstrap appwrite schema: %v", err)
+	report, err := client.PruneKanbanSchema(context.Background(), cfg, appwrite.PruneOptions{Apply: *apply})
+	if err != nil {
+		log.Fatalf("prune appwrite schema: %v", err)
 	}
 
-	definition := schema.KanbanAppwriteDatabase()
-	schema.ApplyAppwriteIDOverrides(&definition, schema.AppwriteIDOverrides{
-		DatabaseID:     cfg.DatabaseID,
-		DatabaseName:   cfg.DatabaseName,
-		BoardsTableID:  cfg.BoardsCollectionID,
-		ColumnsTableID: cfg.ColumnsCollectionID,
-		TodosTableID:   cfg.TodosCollectionID,
-	})
-
-	tableIDs := make([]string, 0, len(definition.Tables))
-	for _, table := range definition.Tables {
-		tableIDs = append(tableIDs, table.ID)
+	if len(report.Planned) == 0 {
+		fmt.Println("appwrite prune: nothing to remove")
+		return
 	}
 
-	fmt.Printf("appwrite schema ready (db=%s, tables=%s)\n", definition.ID, strings.Join(tableIDs, ","))
+	mode := "dry-run"
+	if *apply {
+		mode = "applied"
+	}
+	fmt.Printf("appwrite prune (%s):\n", mode)
+	for _, step := range report.Planned {
+		fmt.Printf("- %s\n", step)
+	}
+
+	if !*apply {
+		fmt.Println("re-run with --apply to execute deletions")
+	}
 }

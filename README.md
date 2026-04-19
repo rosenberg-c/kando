@@ -58,6 +58,21 @@ make appwrite-bootstrap
 
 This command is idempotent and safe to re-run.
 
+### Prune Appwrite schema
+
+Preview removals for unused tables/columns/indexes:
+
+```bash
+make appwrite-prune
+```
+
+Apply deletions:
+
+```bash
+APPWRITE_PRUNE_CONFIRM=YES \
+make appwrite-prune-apply
+```
+
 ## Run
 
 ```bash

@@ -10,14 +10,15 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate build run run-cli run-macos open-macos open test test-macos-unit cli-install install-cli appwrite-bootstrap
+.PHONY: generate verify-generate build run run-cli run-macos open-macos open test test-macos-unit cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
 
 generate:
 	go run ./cmd/gen_openapi
 	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config api/oapi-codegen-client.yaml -o internal/api/generated/client/client.gen.go api/openapi.yaml
+	go run ./cmd/gen_appwrite_schema
 
 verify-generate: generate
-	git diff --exit-code -- api/openapi.yaml internal/api/generated/client/client.gen.go
+	git diff --exit-code -- api/openapi.yaml internal/api/generated/client/client.gen.go api/appwrite-schema.json
 
 build:
 	mkdir -p $(BIN_DIR)
@@ -29,6 +30,12 @@ run:
 
 appwrite-bootstrap:
 	go run ./cmd/bootstrap_appwrite
+
+appwrite-prune:
+	go run ./cmd/prune_appwrite_schema
+
+appwrite-prune-apply:
+	go run ./cmd/prune_appwrite_schema --apply
 
 run-cli:
 	go run $(APP_CLI)
