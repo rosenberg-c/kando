@@ -109,6 +109,8 @@ private struct LoggedInWorkspaceView: View {
     @State private var editingColumn: EditableColumn?
     @State private var creatingTodoInColumn: CreateTodoTarget?
     @State private var editingTodo: EditableTodo?
+    @State private var pendingColumnDeletion: EditableColumn?
+    @State private var pendingTodoDeletion: EditableTodo?
 
     private var canMutateBoard: Bool {
         board.board != nil && !board.isLoading
@@ -166,12 +168,12 @@ private struct LoggedInWorkspaceView: View {
                             isEnabled: canMutateBoard,
                             onRename: { editingColumn = EditableColumn(column: column) },
                             onDelete: {
-                                Task { await board.deleteColumn(columnID: column.id) }
+                                pendingColumnDeletion = EditableColumn(column: column)
                             },
                             onAddTodo: { creatingTodoInColumn = CreateTodoTarget(columnID: column.id) },
                             onEditTodo: { todo in editingTodo = EditableTodo(columnID: column.id, todo: todo) },
                             onDeleteTodo: { todo in
-                                Task { await board.deleteTodo(todoID: todo.id) }
+                                pendingTodoDeletion = EditableTodo(columnID: column.id, todo: todo)
                             }
                         )
                     }
@@ -270,6 +272,56 @@ private struct LoggedInWorkspaceView: View {
                     Task { await board.updateTodo(todoID: item.id, title: title, description: description) }
                 }
             )
+        }
+        .confirmationDialog(
+            Strings.t("board.column.delete.confirm.title"),
+            isPresented: Binding(
+                get: { pendingColumnDeletion != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingColumnDeletion = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(Strings.t("board.column.delete.confirm.action"), role: .destructive) {
+                guard let column = pendingColumnDeletion else { return }
+                Task { await board.deleteColumn(columnID: column.id) }
+                pendingColumnDeletion = nil
+            }
+            Button(Strings.t("common.cancel"), role: .cancel) {
+                pendingColumnDeletion = nil
+            }
+        } message: {
+            if let column = pendingColumnDeletion {
+                Text(Strings.f("board.column.delete.confirm.message", column.title))
+            }
+        }
+        .confirmationDialog(
+            Strings.t("board.todo.delete.confirm.title"),
+            isPresented: Binding(
+                get: { pendingTodoDeletion != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingTodoDeletion = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(Strings.t("board.todo.delete.confirm.action"), role: .destructive) {
+                guard let todo = pendingTodoDeletion else { return }
+                Task { await board.deleteTodo(todoID: todo.id) }
+                pendingTodoDeletion = nil
+            }
+            Button(Strings.t("common.cancel"), role: .cancel) {
+                pendingTodoDeletion = nil
+            }
+        } message: {
+            if let todo = pendingTodoDeletion {
+                Text(Strings.f("board.todo.delete.confirm.message", todo.title))
+            }
         }
     }
 

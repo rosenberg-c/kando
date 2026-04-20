@@ -54,6 +54,9 @@
 "board.column.status.created" = "Column created: %@.";
 "board.column.status.renamed" = "Column renamed: %@.";
 "board.column.status.deleted" = "Column deleted.";
+"board.column.delete.confirm.title" = "Delete column?";
+"board.column.delete.confirm.message" = "This will permanently delete the column \"%@\".";
+"board.column.delete.confirm.action" = "Delete column";
 
 "board.todo.add" = "Add todo";
 "board.todo.edit" = "Edit";
@@ -67,3 +70,6 @@
 "board.todo.status.created" = "Todo created: %@.";
 "board.todo.status.updated" = "Todo updated: %@.";
 "board.todo.status.deleted" = "Todo deleted.";
+"board.todo.delete.confirm.title" = "Delete todo?";
+"board.todo.delete.confirm.message" = "This will permanently delete \"%@\".";
+"board.todo.delete.confirm.action" = "Delete todo";
