@@ -13,6 +13,7 @@ import (
 )
 
 func TestCreateEmailPasswordSession(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-001
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +47,7 @@ func TestCreateEmailPasswordSession(t *testing.T) {
 }
 
 func TestCreateEmailPasswordSessionSendsAPIKeyHeader(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-002
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +66,7 @@ func TestCreateEmailPasswordSessionSendsAPIKeyHeader(t *testing.T) {
 }
 
 func TestCreateJWT(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-003
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +94,7 @@ func TestCreateJWT(t *testing.T) {
 }
 
 func TestVerifyJWT(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-004
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +124,7 @@ func TestVerifyJWT(t *testing.T) {
 }
 
 func TestVerifyJWTUnauthorized(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-005
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -138,6 +143,7 @@ func TestVerifyJWTUnauthorized(t *testing.T) {
 }
 
 func TestDeleteSession(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-006
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +168,7 @@ func TestDeleteSession(t *testing.T) {
 }
 
 func TestSummarizeExternalBodyRedactsSensitiveTerms(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-007
 	t.Parallel()
 
 	input := []byte(`{"message":"invalid token and jwt secret password"}`)
@@ -175,6 +182,7 @@ func TestSummarizeExternalBodyRedactsSensitiveTerms(t *testing.T) {
 }
 
 func TestSummarizeExternalBodyTruncates(t *testing.T) {
+	// Requirement: APPWRITE-AUTH-008
 	t.Parallel()
 
 	input := []byte(strings.Repeat("a", maxErrorDetailLen+50))

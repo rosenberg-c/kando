@@ -19,6 +19,7 @@ final class TodoMacOSUITestsLaunchTests: XCTestCase {
 
     @MainActor
     func testLaunch() throws {
+        // Requirement: TEST-UI-003
         let app = XCUIApplication()
         app.launch()
 

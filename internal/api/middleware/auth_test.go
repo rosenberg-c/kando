@@ -26,6 +26,7 @@ func (s *stubVerifier) VerifyJWT(_ context.Context, token string) (auth.Identity
 }
 
 func TestAuthRejectsMissingBearerToken(t *testing.T) {
+	// Requirement: MW-AUTH-001
 	verifier := &stubVerifier{}
 	handler := Auth(verifier, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("next handler should not be called")
@@ -42,6 +43,7 @@ func TestAuthRejectsMissingBearerToken(t *testing.T) {
 }
 
 func TestAuthPassesIdentityToContext(t *testing.T) {
+	// Requirement: MW-AUTH-002
 	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
 
 	handler := Auth(verifier, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +73,7 @@ func TestAuthPassesIdentityToContext(t *testing.T) {
 }
 
 func TestAuthRejectsUnauthorizedVerifierError(t *testing.T) {
+	// Requirement: MW-AUTH-003
 	verifier := &stubVerifier{err: auth.ErrUnauthorized}
 	handler := Auth(verifier, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("next handler should not be called")
@@ -88,6 +91,7 @@ func TestAuthRejectsUnauthorizedVerifierError(t *testing.T) {
 }
 
 func TestAuthRejectsVerifierErrors(t *testing.T) {
+	// Requirement: MW-AUTH-004
 	verifier := &stubVerifier{err: errors.New("network")}
 	handler := Auth(verifier, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("next handler should not be called")

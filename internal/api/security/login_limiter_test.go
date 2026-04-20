@@ -6,6 +6,7 @@ import (
 )
 
 func TestLoginRateLimiterBlocksAfterMaxFailures(t *testing.T) {
+	// Requirement: SEC-LOGIN-002
 	limiter := NewLoginRateLimiter(2, time.Minute, time.Minute)
 	now := time.Now()
 	limiter.now = func() time.Time { return now }
@@ -24,6 +25,7 @@ func TestLoginRateLimiterBlocksAfterMaxFailures(t *testing.T) {
 }
 
 func TestLoginRateLimiterEvictsWhenMaxEntriesReached(t *testing.T) {
+	// Requirement: SEC-LOGIN-003
 	limiter := NewLoginRateLimiter(5, time.Minute, time.Minute)
 	limiter.maxEntries = 2
 	now := time.Now()

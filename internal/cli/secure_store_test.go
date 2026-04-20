@@ -40,6 +40,7 @@ func (s *memorySecretStore) Delete() error {
 }
 
 func TestSecureTokenStoreKeepsRefreshTokenOutOfStateFile(t *testing.T) {
+	// Requirement: CLI-003
 	t.Parallel()
 
 	tempDir := t.TempDir()
@@ -79,6 +80,7 @@ func TestSecureTokenStoreKeepsRefreshTokenOutOfStateFile(t *testing.T) {
 }
 
 func TestSecureTokenStoreLoadFailsWhenSecretStoreFails(t *testing.T) {
+	// Requirement: CLI-004
 	t.Parallel()
 
 	tempDir := t.TempDir()
@@ -97,6 +99,7 @@ func TestSecureTokenStoreLoadFailsWhenSecretStoreFails(t *testing.T) {
 }
 
 func TestSecureTokenStoreClearDeletesKeychainBeforeStateFile(t *testing.T) {
+	// Requirement: CLI-005
 	t.Parallel()
 
 	tempDir := t.TempDir()

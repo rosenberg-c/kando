@@ -7,6 +7,7 @@ import (
 )
 
 func TestMemoryRepositoryCRUDAndReindex(t *testing.T) {
+	// Requirements: COL-002, COL-004, TODO-002, TODO-003, TODO-004
 	t.Parallel()
 
 	ctx := context.Background()
@@ -115,6 +116,7 @@ func TestMemoryRepositoryCRUDAndReindex(t *testing.T) {
 }
 
 func TestMemoryRepositoryOwnershipEnforcement(t *testing.T) {
+	// Requirement: API-003
 	t.Parallel()
 
 	ctx := context.Background()

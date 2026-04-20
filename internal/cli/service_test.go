@@ -80,6 +80,7 @@ func (s *stubAPI) Logout(_ context.Context, _ string) ([]byte, int, error) {
 }
 
 func TestServiceLoginStoresTokens(t *testing.T) {
+	// Requirement: CLI-009
 	t.Parallel()
 
 	api := &stubAPI{loginTokens: AuthTokens{AccessToken: "access-1", RefreshToken: "refresh-1", AccessTokenExpiresAt: time.Now().Add(10 * time.Minute)}}
@@ -99,6 +100,7 @@ func TestServiceLoginStoresTokens(t *testing.T) {
 }
 
 func TestServiceMeRefreshesOnUnauthorizedAndRetries(t *testing.T) {
+	// Requirement: CLI-010
 	t.Parallel()
 
 	now := time.Now()
@@ -127,6 +129,7 @@ func TestServiceMeRefreshesOnUnauthorizedAndRetries(t *testing.T) {
 }
 
 func TestServiceLogoutClearsState(t *testing.T) {
+	// Requirement: CLI-011
 	t.Parallel()
 
 	store := &memoryStore{has: true, state: TokenState{RefreshToken: "refresh-1"}}

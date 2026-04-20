@@ -24,6 +24,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testExample() throws {
+        // Requirement: TEST-UI-001
         // UI tests must launch the application that they test.
         let app = XCUIApplication()
         app.launch()
@@ -33,6 +34,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testLaunchPerformance() throws {
+        // Requirement: TEST-UI-002
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()

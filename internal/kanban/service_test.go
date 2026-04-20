@@ -68,6 +68,7 @@ func (s *serviceRepoStub) DeleteTodo(context.Context, string, string, string) (B
 }
 
 func TestServiceDeleteColumnWithTodosReturnsConflict(t *testing.T) {
+	// Requirement: COL-RULE-001
 	t.Parallel()
 
 	stub := &serviceRepoStub{
@@ -88,6 +89,7 @@ func TestServiceDeleteColumnWithTodosReturnsConflict(t *testing.T) {
 }
 
 func TestServiceDeleteColumnWithoutTodosDelegates(t *testing.T) {
+	// Requirement: COL-003
 	t.Parallel()
 
 	stub := &serviceRepoStub{

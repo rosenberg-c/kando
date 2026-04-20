@@ -56,6 +56,7 @@ func (s *stubVerifier) VerifyJWT(context.Context, string) (auth.Identity, error)
 }
 
 func TestHelloReturnsTextPlain(t *testing.T) {
+	// Requirement: PUBLIC-001
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -75,6 +76,7 @@ func TestHelloReturnsTextPlain(t *testing.T) {
 }
 
 func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
+	// Requirement: SEC-LOGIN-001
 	t.Parallel()
 
 	issuer := &stubIssuer{sessionSecret: "session-1", jwt: "jwt-1", expiresAt: time.Now().Add(10 * time.Minute)}
@@ -101,6 +103,7 @@ func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
 }
 
 func TestOpenAPIDefinesHelloAsTextPlain(t *testing.T) {
+	// Requirement: PUBLIC-002
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -122,6 +125,7 @@ func TestOpenAPIDefinesHelloAsTextPlain(t *testing.T) {
 }
 
 func TestKanbanRoutesRequireBearerToken(t *testing.T) {
+	// Requirement: API-003
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -149,6 +153,7 @@ func TestKanbanRoutesRequireBearerToken(t *testing.T) {
 }
 
 func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
+	// Requirement: API-003
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -174,6 +179,7 @@ func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
 }
 
 func TestKanbanRouteReturnsNotFoundForMissingResources(t *testing.T) {
+	// Requirement: API-003
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -204,6 +210,7 @@ func TestKanbanRouteReturnsNotFoundForMissingResources(t *testing.T) {
 }
 
 func TestKanbanValidationReturnsBadRequest(t *testing.T) {
+	// Requirement: API-003
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -237,6 +244,7 @@ func TestKanbanValidationReturnsBadRequest(t *testing.T) {
 }
 
 func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
+	// Requirement: PUBLIC-003
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -284,6 +292,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 }
 
 func TestKanbanBoardColumnTodoCRUD(t *testing.T) {
+	// Requirements: BOARD-001, BOARD-002, COL-001, TODO-001
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -331,6 +340,7 @@ func TestKanbanBoardColumnTodoCRUD(t *testing.T) {
 }
 
 func TestKanbanDeleteColumnWithTodosReturnsConflict(t *testing.T) {
+	// Requirements: COL-RULE-001, COL-RULE-002
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
