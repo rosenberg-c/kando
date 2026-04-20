@@ -16,6 +16,7 @@ import (
 	apiserver "go_macos_todo/internal/api/server"
 	"go_macos_todo/internal/appwrite"
 	"go_macos_todo/internal/config"
+	"go_macos_todo/internal/kanban"
 )
 
 const (
@@ -44,14 +45,28 @@ func main() {
 	appwriteEndpoint := os.Getenv("APPWRITE_ENDPOINT")
 	appwriteProjectID := os.Getenv("APPWRITE_PROJECT_ID")
 	appwriteAPIKey := os.Getenv("APPWRITE_AUTH_API_KEY")
-	deps := apiserver.Dependencies{}
+	appwriteDBAPIKey := strings.TrimSpace(os.Getenv("APPWRITE_DB_API_KEY"))
+	deps := apiserver.Dependencies{KanbanRepo: kanban.NewService(kanban.NewMemoryRepository())}
 	if appwriteEndpoint == "" || appwriteProjectID == "" {
 		log.Println("auth disabled: set APPWRITE_ENDPOINT and APPWRITE_PROJECT_ID to enable auth routes")
 	} else {
-		appwriteClient := appwrite.NewClient(appwriteEndpoint, appwriteProjectID, appwriteAPIKey, nil)
-		deps.Issuer = appwriteClient
-		deps.Verifier = appwriteClient
+		authClient := appwrite.NewClient(appwriteEndpoint, appwriteProjectID, appwriteAPIKey, nil)
+		deps.Issuer = authClient
+		deps.Verifier = authClient
 		deps.LoginLimiter = security.NewLoginRateLimiter(5, 10*time.Minute, 15*time.Minute)
+
+		if appwriteDBAPIKey == "" {
+			appwriteDBAPIKey = appwriteAPIKey
+			log.Println("APPWRITE_DB_API_KEY is not set; using APPWRITE_AUTH_API_KEY for kanban repository")
+		}
+
+		dbClient := appwrite.NewClient(appwriteEndpoint, appwriteProjectID, appwriteDBAPIKey, nil)
+		deps.KanbanRepo = kanban.NewService(appwrite.NewKanbanRepository(dbClient, appwrite.KanbanRepositoryConfig{
+			DatabaseID: strings.TrimSpace(os.Getenv("APPWRITE_DB_ID")),
+			BoardsID:   strings.TrimSpace(os.Getenv("APPWRITE_BOARDS_COLLECTION_ID")),
+			ColumnsID:  strings.TrimSpace(os.Getenv("APPWRITE_COLUMNS_COLLECTION_ID")),
+			TodosID:    strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID")),
+		}))
 	}
 	apiserver.Register(api, deps)
 

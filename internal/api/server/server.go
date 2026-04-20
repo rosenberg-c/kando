@@ -12,6 +12,7 @@ import (
 
 	"go_macos_todo/internal/api/security"
 	"go_macos_todo/internal/auth"
+	"go_macos_todo/internal/kanban"
 )
 
 type TokenIssuer interface {
@@ -24,6 +25,7 @@ type Dependencies struct {
 	Issuer       TokenIssuer
 	Verifier     auth.Verifier
 	LoginLimiter *security.LoginRateLimiter
+	KanbanRepo   kanban.Repository
 }
 
 // remoteAddrContextKey stores the request remote address for auth rate-limit keying.
@@ -57,6 +59,7 @@ func NewAPI() (*http.ServeMux, huma.API) {
 func Register(api huma.API, deps Dependencies) {
 	registerPublic(api, deps)
 	registerAuth(api, deps)
+	registerKanban(api, deps)
 }
 
 func loginRateLimitKey(email, remoteAddr string) string {

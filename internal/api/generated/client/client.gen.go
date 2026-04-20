@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -43,6 +44,62 @@ type AuthTokens struct {
 	AccessToken          string    `json:"accessToken"`
 	AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
 	RefreshToken         string    `json:"refreshToken"`
+}
+
+// Board defines model for Board.
+type Board struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema       *string            `json:"$schema,omitempty"`
+	BoardVersion int64              `json:"boardVersion"`
+	CreatedAt    time.Time          `json:"createdAt"`
+	Id           openapi_types.UUID `json:"id"`
+	OwnerUserId  string             `json:"ownerUserId"`
+	Title        string             `json:"title"`
+	UpdatedAt    time.Time          `json:"updatedAt"`
+}
+
+// BoardDetailsResponse defines model for BoardDetailsResponse.
+type BoardDetailsResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema  *string   `json:"$schema,omitempty"`
+	Board   Board     `json:"board"`
+	Columns *[]Column `json:"columns"`
+	Todos   *[]Todo   `json:"todos"`
+}
+
+// Column defines model for Column.
+type Column struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema    *string            `json:"$schema,omitempty"`
+	BoardId   openapi_types.UUID `json:"boardId"`
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+	Position  int64              `json:"position"`
+	Title     string             `json:"title"`
+	UpdatedAt time.Time          `json:"updatedAt"`
+}
+
+// CreateBoardRequest defines model for CreateBoardRequest.
+type CreateBoardRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema *string `json:"$schema,omitempty"`
+	Title  string  `json:"title"`
+}
+
+// CreateColumnRequest defines model for CreateColumnRequest.
+type CreateColumnRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema *string `json:"$schema,omitempty"`
+	Title  string  `json:"title"`
+}
+
+// CreateTodoRequest defines model for CreateTodoRequest.
+type CreateTodoRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema      *string            `json:"$schema,omitempty"`
+	ColumnId    openapi_types.UUID `json:"columnId"`
+	Description string             `json:"description"`
+	Title       string             `json:"title"`
 }
 
 // ErrorDetail defines model for ErrorDetail.
@@ -89,6 +146,97 @@ type MeResponse struct {
 	UserId string  `json:"userId"`
 }
 
+// Todo defines model for Todo.
+type Todo struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema      *string            `json:"$schema,omitempty"`
+	BoardId     openapi_types.UUID `json:"boardId"`
+	ColumnId    openapi_types.UUID `json:"columnId"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Description string             `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+	Position    int64              `json:"position"`
+	Title       string             `json:"title"`
+	UpdatedAt   time.Time          `json:"updatedAt"`
+}
+
+// UpdateBoardRequest defines model for UpdateBoardRequest.
+type UpdateBoardRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema *string `json:"$schema,omitempty"`
+	Title  string  `json:"title"`
+}
+
+// UpdateColumnRequest defines model for UpdateColumnRequest.
+type UpdateColumnRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema *string `json:"$schema,omitempty"`
+	Title  string  `json:"title"`
+}
+
+// UpdateTodoRequest defines model for UpdateTodoRequest.
+type UpdateTodoRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema      *string `json:"$schema,omitempty"`
+	Description string  `json:"description"`
+	Title       string  `json:"title"`
+}
+
+// ListBoardsParams defines parameters for ListBoards.
+type ListBoardsParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// CreateBoardParams defines parameters for CreateBoard.
+type CreateBoardParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// DeleteBoardParams defines parameters for DeleteBoard.
+type DeleteBoardParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// GetBoardParams defines parameters for GetBoard.
+type GetBoardParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// UpdateBoardParams defines parameters for UpdateBoard.
+type UpdateBoardParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// CreateColumnParams defines parameters for CreateColumn.
+type CreateColumnParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// DeleteColumnParams defines parameters for DeleteColumn.
+type DeleteColumnParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// UpdateColumnParams defines parameters for UpdateColumn.
+type UpdateColumnParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// CreateTodoParams defines parameters for CreateTodo.
+type CreateTodoParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// DeleteTodoParams defines parameters for DeleteTodo.
+type DeleteTodoParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// UpdateTodoParams defines parameters for UpdateTodo.
+type UpdateTodoParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // GetMeParams defines parameters for GetMe.
 type GetMeParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -102,6 +250,24 @@ type LogoutJSONRequestBody = AuthRefreshRequest
 
 // RefreshAuthJSONRequestBody defines body for RefreshAuth for application/json ContentType.
 type RefreshAuthJSONRequestBody = AuthRefreshRequest
+
+// CreateBoardJSONRequestBody defines body for CreateBoard for application/json ContentType.
+type CreateBoardJSONRequestBody = CreateBoardRequest
+
+// UpdateBoardJSONRequestBody defines body for UpdateBoard for application/json ContentType.
+type UpdateBoardJSONRequestBody = UpdateBoardRequest
+
+// CreateColumnJSONRequestBody defines body for CreateColumn for application/json ContentType.
+type CreateColumnJSONRequestBody = CreateColumnRequest
+
+// UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
+type UpdateColumnJSONRequestBody = UpdateColumnRequest
+
+// CreateTodoJSONRequestBody defines body for CreateTodo for application/json ContentType.
+type CreateTodoJSONRequestBody = CreateTodoRequest
+
+// UpdateTodoJSONRequestBody defines body for UpdateTodo for application/json ContentType.
+type UpdateTodoJSONRequestBody = UpdateTodoRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -191,6 +357,51 @@ type ClientInterface interface {
 
 	RefreshAuth(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListBoards request
+	ListBoards(ctx context.Context, params *ListBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateBoardWithBody request with any body
+	CreateBoardWithBody(ctx context.Context, params *CreateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateBoard(ctx context.Context, params *CreateBoardParams, body CreateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteBoard request
+	DeleteBoard(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetBoard request
+	GetBoard(ctx context.Context, boardId string, params *GetBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateBoardWithBody request with any body
+	UpdateBoardWithBody(ctx context.Context, boardId string, params *UpdateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateBoard(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateColumnWithBody request with any body
+	CreateColumnWithBody(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateColumn(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteColumn request
+	DeleteColumn(ctx context.Context, boardId string, columnId string, params *DeleteColumnParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateColumnWithBody request with any body
+	UpdateColumnWithBody(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateTodoWithBody request with any body
+	CreateTodoWithBody(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateTodo(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteTodo request
+	DeleteTodo(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTodoWithBody request with any body
+	UpdateTodoWithBody(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateTodo(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetHello request
 	GetHello(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -260,6 +471,210 @@ func (c *Client) RefreshAuthWithBody(ctx context.Context, contentType string, bo
 
 func (c *Client) RefreshAuth(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRefreshAuthRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListBoards(ctx context.Context, params *ListBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBoardsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateBoardWithBody(ctx context.Context, params *CreateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateBoardRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateBoard(ctx context.Context, params *CreateBoardParams, body CreateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateBoardRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteBoard(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteBoardRequest(c.Server, boardId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetBoard(ctx context.Context, boardId string, params *GetBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBoardRequest(c.Server, boardId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateBoardWithBody(ctx context.Context, boardId string, params *UpdateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateBoardRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateBoard(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateBoardRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateColumnWithBody(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateColumnRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateColumn(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateColumnRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteColumn(ctx context.Context, boardId string, columnId string, params *DeleteColumnParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteColumnRequest(c.Server, boardId, columnId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateColumnWithBody(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateColumnRequestWithBody(c.Server, boardId, columnId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateColumnRequest(c.Server, boardId, columnId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateTodoWithBody(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTodoRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateTodo(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTodoRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteTodo(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTodoRequest(c.Server, boardId, todoId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateTodoWithBody(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTodoRequestWithBody(c.Server, boardId, todoId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateTodo(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTodoRequest(c.Server, boardId, todoId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -414,6 +829,637 @@ func NewRefreshAuthRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewListBoardsRequest generates requests for ListBoards
+func NewListBoardsRequest(server string, params *ListBoardsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCreateBoardRequest calls the generic CreateBoard builder with application/json body
+func NewCreateBoardRequest(server string, params *CreateBoardParams, body CreateBoardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateBoardRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateBoardRequestWithBody generates requests for CreateBoard with any type of body
+func NewCreateBoardRequestWithBody(server string, params *CreateBoardParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteBoardRequest generates requests for DeleteBoard
+func NewDeleteBoardRequest(server string, boardId string, params *DeleteBoardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetBoardRequest generates requests for GetBoard
+func NewGetBoardRequest(server string, boardId string, params *GetBoardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewUpdateBoardRequest calls the generic UpdateBoard builder with application/json body
+func NewUpdateBoardRequest(server string, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateBoardRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewUpdateBoardRequestWithBody generates requests for UpdateBoard with any type of body
+func NewUpdateBoardRequestWithBody(server string, boardId string, params *UpdateBoardParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCreateColumnRequest calls the generic CreateColumn builder with application/json body
+func NewCreateColumnRequest(server string, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateColumnRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewCreateColumnRequestWithBody generates requests for CreateColumn with any type of body
+func NewCreateColumnRequestWithBody(server string, boardId string, params *CreateColumnParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/columns", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteColumnRequest generates requests for DeleteColumn
+func NewDeleteColumnRequest(server string, boardId string, columnId string, params *DeleteColumnParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "columnId", runtime.ParamLocationPath, columnId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/columns/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewUpdateColumnRequest calls the generic UpdateColumn builder with application/json body
+func NewUpdateColumnRequest(server string, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateColumnRequestWithBody(server, boardId, columnId, params, "application/json", bodyReader)
+}
+
+// NewUpdateColumnRequestWithBody generates requests for UpdateColumn with any type of body
+func NewUpdateColumnRequestWithBody(server string, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "columnId", runtime.ParamLocationPath, columnId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/columns/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCreateTodoRequest calls the generic CreateTodo builder with application/json body
+func NewCreateTodoRequest(server string, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateTodoRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewCreateTodoRequestWithBody generates requests for CreateTodo with any type of body
+func NewCreateTodoRequestWithBody(server string, boardId string, params *CreateTodoParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/todos", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteTodoRequest generates requests for DeleteTodo
+func NewDeleteTodoRequest(server string, boardId string, todoId string, params *DeleteTodoParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "todoId", runtime.ParamLocationPath, todoId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/todos/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewUpdateTodoRequest calls the generic UpdateTodo builder with application/json body
+func NewUpdateTodoRequest(server string, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateTodoRequestWithBody(server, boardId, todoId, params, "application/json", bodyReader)
+}
+
+// NewUpdateTodoRequestWithBody generates requests for UpdateTodo with any type of body
+func NewUpdateTodoRequestWithBody(server string, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "todoId", runtime.ParamLocationPath, todoId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/todos/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetHelloRequest generates requests for GetHello
 func NewGetHelloRequest(server string) (*http.Request, error) {
 	var err error
@@ -541,6 +1587,51 @@ type ClientWithResponsesInterface interface {
 
 	RefreshAuthWithResponse(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error)
 
+	// ListBoardsWithResponse request
+	ListBoardsWithResponse(ctx context.Context, params *ListBoardsParams, reqEditors ...RequestEditorFn) (*ListBoardsResponse, error)
+
+	// CreateBoardWithBodyWithResponse request with any body
+	CreateBoardWithBodyWithResponse(ctx context.Context, params *CreateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateBoardResponse, error)
+
+	CreateBoardWithResponse(ctx context.Context, params *CreateBoardParams, body CreateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateBoardResponse, error)
+
+	// DeleteBoardWithResponse request
+	DeleteBoardWithResponse(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*DeleteBoardResponse, error)
+
+	// GetBoardWithResponse request
+	GetBoardWithResponse(ctx context.Context, boardId string, params *GetBoardParams, reqEditors ...RequestEditorFn) (*GetBoardResponse, error)
+
+	// UpdateBoardWithBodyWithResponse request with any body
+	UpdateBoardWithBodyWithResponse(ctx context.Context, boardId string, params *UpdateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateBoardResponse, error)
+
+	UpdateBoardWithResponse(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateBoardResponse, error)
+
+	// CreateColumnWithBodyWithResponse request with any body
+	CreateColumnWithBodyWithResponse(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateColumnResponse, error)
+
+	CreateColumnWithResponse(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateColumnResponse, error)
+
+	// DeleteColumnWithResponse request
+	DeleteColumnWithResponse(ctx context.Context, boardId string, columnId string, params *DeleteColumnParams, reqEditors ...RequestEditorFn) (*DeleteColumnResponse, error)
+
+	// UpdateColumnWithBodyWithResponse request with any body
+	UpdateColumnWithBodyWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
+
+	UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
+
+	// CreateTodoWithBodyWithResponse request with any body
+	CreateTodoWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error)
+
+	CreateTodoWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error)
+
+	// DeleteTodoWithResponse request
+	DeleteTodoWithResponse(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*DeleteTodoResponse, error)
+
+	// UpdateTodoWithBodyWithResponse request with any body
+	UpdateTodoWithBodyWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error)
+
+	UpdateTodoWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error)
+
 	// GetHelloWithResponse request
 	GetHelloWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHelloResponse, error)
 
@@ -610,6 +1701,256 @@ func (r RefreshAuthResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RefreshAuthResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListBoardsResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]Board
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ListBoardsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListBoardsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Board
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateBoardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteBoardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *BoardDetailsResponse
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBoardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Board
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateBoardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateColumnResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Column
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateColumnResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateColumnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteColumnResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteColumnResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteColumnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateColumnResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Column
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateColumnResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateColumnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateTodoResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Todo
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateTodoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateTodoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteTodoResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteTodoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteTodoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateTodoResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Todo
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateTodoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateTodoResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -712,6 +2053,153 @@ func (c *ClientWithResponses) RefreshAuthWithResponse(ctx context.Context, body 
 	return ParseRefreshAuthResponse(rsp)
 }
 
+// ListBoardsWithResponse request returning *ListBoardsResponse
+func (c *ClientWithResponses) ListBoardsWithResponse(ctx context.Context, params *ListBoardsParams, reqEditors ...RequestEditorFn) (*ListBoardsResponse, error) {
+	rsp, err := c.ListBoards(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListBoardsResponse(rsp)
+}
+
+// CreateBoardWithBodyWithResponse request with arbitrary body returning *CreateBoardResponse
+func (c *ClientWithResponses) CreateBoardWithBodyWithResponse(ctx context.Context, params *CreateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateBoardResponse, error) {
+	rsp, err := c.CreateBoardWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateBoardResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateBoardWithResponse(ctx context.Context, params *CreateBoardParams, body CreateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateBoardResponse, error) {
+	rsp, err := c.CreateBoard(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateBoardResponse(rsp)
+}
+
+// DeleteBoardWithResponse request returning *DeleteBoardResponse
+func (c *ClientWithResponses) DeleteBoardWithResponse(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*DeleteBoardResponse, error) {
+	rsp, err := c.DeleteBoard(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteBoardResponse(rsp)
+}
+
+// GetBoardWithResponse request returning *GetBoardResponse
+func (c *ClientWithResponses) GetBoardWithResponse(ctx context.Context, boardId string, params *GetBoardParams, reqEditors ...RequestEditorFn) (*GetBoardResponse, error) {
+	rsp, err := c.GetBoard(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBoardResponse(rsp)
+}
+
+// UpdateBoardWithBodyWithResponse request with arbitrary body returning *UpdateBoardResponse
+func (c *ClientWithResponses) UpdateBoardWithBodyWithResponse(ctx context.Context, boardId string, params *UpdateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateBoardResponse, error) {
+	rsp, err := c.UpdateBoardWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateBoardResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateBoardWithResponse(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateBoardResponse, error) {
+	rsp, err := c.UpdateBoard(ctx, boardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateBoardResponse(rsp)
+}
+
+// CreateColumnWithBodyWithResponse request with arbitrary body returning *CreateColumnResponse
+func (c *ClientWithResponses) CreateColumnWithBodyWithResponse(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateColumnResponse, error) {
+	rsp, err := c.CreateColumnWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateColumnResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateColumnWithResponse(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateColumnResponse, error) {
+	rsp, err := c.CreateColumn(ctx, boardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateColumnResponse(rsp)
+}
+
+// DeleteColumnWithResponse request returning *DeleteColumnResponse
+func (c *ClientWithResponses) DeleteColumnWithResponse(ctx context.Context, boardId string, columnId string, params *DeleteColumnParams, reqEditors ...RequestEditorFn) (*DeleteColumnResponse, error) {
+	rsp, err := c.DeleteColumn(ctx, boardId, columnId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteColumnResponse(rsp)
+}
+
+// UpdateColumnWithBodyWithResponse request with arbitrary body returning *UpdateColumnResponse
+func (c *ClientWithResponses) UpdateColumnWithBodyWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error) {
+	rsp, err := c.UpdateColumnWithBody(ctx, boardId, columnId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateColumnResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error) {
+	rsp, err := c.UpdateColumn(ctx, boardId, columnId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateColumnResponse(rsp)
+}
+
+// CreateTodoWithBodyWithResponse request with arbitrary body returning *CreateTodoResponse
+func (c *ClientWithResponses) CreateTodoWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error) {
+	rsp, err := c.CreateTodoWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTodoResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateTodoWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error) {
+	rsp, err := c.CreateTodo(ctx, boardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTodoResponse(rsp)
+}
+
+// DeleteTodoWithResponse request returning *DeleteTodoResponse
+func (c *ClientWithResponses) DeleteTodoWithResponse(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*DeleteTodoResponse, error) {
+	rsp, err := c.DeleteTodo(ctx, boardId, todoId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteTodoResponse(rsp)
+}
+
+// UpdateTodoWithBodyWithResponse request with arbitrary body returning *UpdateTodoResponse
+func (c *ClientWithResponses) UpdateTodoWithBodyWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error) {
+	rsp, err := c.UpdateTodoWithBody(ctx, boardId, todoId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTodoResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateTodoWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error) {
+	rsp, err := c.UpdateTodo(ctx, boardId, todoId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTodoResponse(rsp)
+}
+
 // GetHelloWithResponse request returning *GetHelloResponse
 func (c *ClientWithResponses) GetHelloWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHelloResponse, error) {
 	rsp, err := c.GetHello(ctx, reqEditors...)
@@ -805,6 +2293,348 @@ func ParseRefreshAuthResponse(rsp *http.Response) (*RefreshAuthResponse, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AuthTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListBoardsResponse parses an HTTP response from a ListBoardsWithResponse call
+func ParseListBoardsResponse(rsp *http.Response) (*ListBoardsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListBoardsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Board
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateBoardResponse parses an HTTP response from a CreateBoardWithResponse call
+func ParseCreateBoardResponse(rsp *http.Response) (*CreateBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Board
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteBoardResponse parses an HTTP response from a DeleteBoardWithResponse call
+func ParseDeleteBoardResponse(rsp *http.Response) (*DeleteBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBoardResponse parses an HTTP response from a GetBoardWithResponse call
+func ParseGetBoardResponse(rsp *http.Response) (*GetBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BoardDetailsResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateBoardResponse parses an HTTP response from a UpdateBoardWithResponse call
+func ParseUpdateBoardResponse(rsp *http.Response) (*UpdateBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Board
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateColumnResponse parses an HTTP response from a CreateColumnWithResponse call
+func ParseCreateColumnResponse(rsp *http.Response) (*CreateColumnResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateColumnResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Column
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteColumnResponse parses an HTTP response from a DeleteColumnWithResponse call
+func ParseDeleteColumnResponse(rsp *http.Response) (*DeleteColumnResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteColumnResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateColumnResponse parses an HTTP response from a UpdateColumnWithResponse call
+func ParseUpdateColumnResponse(rsp *http.Response) (*UpdateColumnResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateColumnResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Column
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateTodoResponse parses an HTTP response from a CreateTodoWithResponse call
+func ParseCreateTodoResponse(rsp *http.Response) (*CreateTodoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateTodoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Todo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteTodoResponse parses an HTTP response from a DeleteTodoWithResponse call
+func ParseDeleteTodoResponse(rsp *http.Response) (*DeleteTodoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteTodoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateTodoResponse parses an HTTP response from a UpdateTodoWithResponse call
+func ParseUpdateTodoResponse(rsp *http.Response) (*UpdateTodoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateTodoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Todo
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
