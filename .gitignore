@@ -3,10 +3,10 @@
 bin/
 logs/
 .env*
-apps/macos/.build/
-apps/macos/.swiftpm/
-apps/macos/.derived/
+apps/apple/.build/
+apps/apple/.swiftpm/
+apps/apple/.derived/
 **/xcuserdata/
 *.xcuserstate
 .DS_Store
-apps/macos/Package.resolved
+apps/apple/Package.resolved

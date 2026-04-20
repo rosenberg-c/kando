@@ -204,7 +204,7 @@ Tool:
 
 * Swift OpenAPI Generator
 
-Run from `apps/macos`.
+Run from `apps/apple`.
 
 ---
 

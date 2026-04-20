@@ -30,7 +30,7 @@ let package = Package(
         .executableTarget(
             name: "TodoMacOS",
             dependencies: ["TodoAPIClient"],
-            path: "Sources/TodoMacOS/TodoMacOS",
+            path: "Sources/Todo/TodoMacOS",
             exclude: [
                 "TodoMacOS.entitlements",
             ],

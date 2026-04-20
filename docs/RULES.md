@@ -318,7 +318,7 @@ Rules:
 Forbidden examples:
 
 * `apps/cli` importing provider SDKs or `internal/appwrite`
-* `apps/macos` calling provider auth/session endpoints directly
+* `apps/apple` calling provider auth/session endpoints directly
 * any client reading `APPWRITE_*` server secrets
 
 ---
@@ -344,7 +344,7 @@ Suggested structure:
 
 ## 22. Prefer `Sendable` boundaries; scope `@MainActor` to UI state
 
-For Swift code (especially in `apps/macos`), default to concurrency-safe service boundaries.
+For Swift code (especially in `apps/apple`), default to concurrency-safe service boundaries.
 
 Rules:
 

@@ -23,16 +23,16 @@ make generate
 ## Session model boundary
 
 The app persists auth/session data using an app-owned `PersistedSession` model in
-`Sources/TodoMacOS/TodoMacOS/SessionStore.swift`.
+`Sources/Todo/TodoMacOS/SessionStore.swift`.
 
-Generated OpenAPI types are mapped in `GeneratedAuthAPI` (`Sources/TodoMacOS/TodoMacOS/GeneratedAuthAPI.swift`).
+Generated OpenAPI types are mapped in `GeneratedAuthAPI` (`Sources/Todo/TodoMacOS/GeneratedAuthAPI.swift`).
 
-`AuthSessionViewModel` depends on the app-owned `AuthAPI` boundary (`Sources/TodoMacOS/TodoMacOS/AuthAPI.swift`) and app-owned auth token model (`AuthSessionTokens`), keeping view-model and session storage logic decoupled from generated client schema details.
+`AuthSessionViewModel` depends on the app-owned `AuthAPI` boundary (`Sources/Todo/TodoMacOS/AuthAPI.swift`) and app-owned auth token model (`AuthSessionTokens`), keeping view-model and session storage logic decoupled from generated client schema details.
 
 ## Build/check
 
 ```bash
-swift build --package-path apps/macos
+swift build --package-path apps/apple
 make run-macos
 make test-macos-unit
 ```
@@ -54,5 +54,5 @@ If Xcode prompts about signing, set your own team in the target Signing settings
 UI-facing strings are externalized in resource files:
 
 ```txt
-Sources/TodoMacOS/TodoMacOS/Localizable.strings
+Sources/Todo/TodoMacOS/Localizable.strings
 ```

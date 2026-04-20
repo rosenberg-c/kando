@@ -1,7 +1,7 @@
 APP_SERVER := ./apps/server
 APP_CLI := ./apps/cli
-APP_MACOS := ./apps/macos
-MACOS_XCODEPROJ := $(APP_MACOS)/Sources/TodoMacOS/TodoMacOS.xcodeproj
+APP_MACOS := ./apps/apple
+MACOS_XCODEPROJ := $(APP_MACOS)/Sources/Todo/TodoMacOS.xcodeproj
 MACOS_SCHEME := TodoMacOS
 MACOS_UNIT_SCHEME := TodoMacOSUnit
 MACOS_DERIVED := $(APP_MACOS)/.derived
