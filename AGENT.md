@@ -219,6 +219,14 @@ For failures:
 
 ---
 
+### Do not commit changes
+
+* stage files when needed for review
+* do not create commits
+* let the user author/finalize commits
+
+---
+
 ### Highlight risky changes
 
 Call out changes affecting:
