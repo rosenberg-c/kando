@@ -219,14 +219,14 @@ final class AuthSessionViewModel: ObservableObject {
         if env["XCTestConfigurationFilePath"] != nil
             || env["TODO_UITEST_MODE"] == "1"
             || env["TODO_DISABLE_KEYCHAIN"] == "1"
-            || env["TODO_UITEST_SIGNED_IN"] == "1" {
+            || shouldUseUITestSignedInSession(environment: env) {
             return EphemeralSessionStore()
         }
         return KeychainSessionStore()
     }
 
     private static func shouldUseUITestSignedInSession(environment: [String: String]) -> Bool {
-        environment["TODO_UITEST_SIGNED_IN"] == "1"
+        environment["TODO_UITEST_MODE"] == "1" && environment["TODO_UITEST_SIGNED_IN"] == "1"
     }
     private func setSessionExpiredStatus() {
         statusIsError = true

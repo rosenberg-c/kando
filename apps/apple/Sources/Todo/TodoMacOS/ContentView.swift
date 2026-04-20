@@ -13,10 +13,6 @@ struct ContentView: View {
     @AppStorage("signin.keepSignedIn") private var keepSignedIn = true
     private let processEnvironment = ProcessInfo.processInfo.environment
 
-    private var isUITestRuntime: Bool {
-        processEnvironment["XCTestConfigurationFilePath"] != nil || processEnvironment["TODO_UITEST_MODE"] == "1"
-    }
-
     private var canSubmit: Bool {
         !auth.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !auth.password.isEmpty && !auth.isSigningIn
     }
