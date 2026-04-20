@@ -23,6 +23,9 @@ cp .env.app.example .env.app
 2. Configure backend settings in `.env.server`:
 
 ```env
+KANBAN_REPOSITORY=memory
+SQLITE_PATH=./data/kanban.db
+
 APPWRITE_ENDPOINT=https://<REGION>.cloud.appwrite.io/v1
 APPWRITE_PROJECT_ID=your_project_id
 APPWRITE_AUTH_API_KEY=your_server_key_with_sessions_write
@@ -35,6 +38,14 @@ APPWRITE_TODOS_COLLECTION_ID=todos
 LOG_WARN_MB=5
 LOG_MAX_MB=10
 ```
+
+Set `KANBAN_REPOSITORY` to one of:
+
+- `memory` (default when Appwrite env is not set)
+- `sqlite` (stores data in `SQLITE_PATH`)
+- `appwrite` (default when Appwrite env is set)
+
+`APPWRITE_*` values are required only when using Appwrite auth/repository.
 
 `LOG_WARN_MB` logs a startup warning when `logs/server.log` exceeds the threshold. `LOG_MAX_MB` fails startup when exceeded.
 

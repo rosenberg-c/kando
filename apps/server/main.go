@@ -45,7 +45,25 @@ func main() {
 	appwriteEndpoint := os.Getenv("APPWRITE_ENDPOINT")
 	appwriteProjectID := os.Getenv("APPWRITE_PROJECT_ID")
 	appwriteAPIKey := os.Getenv("APPWRITE_AUTH_API_KEY")
-	appwriteDBAPIKey := strings.TrimSpace(os.Getenv("APPWRITE_DB_API_KEY"))
+	kanbanRepositoryMode := strings.ToLower(strings.TrimSpace(os.Getenv("KANBAN_REPOSITORY")))
+	if kanbanRepositoryMode == "" {
+		if appwriteEndpoint != "" && appwriteProjectID != "" {
+			kanbanRepositoryMode = "appwrite"
+		} else {
+			kanbanRepositoryMode = "memory"
+		}
+	}
+
+	var kanbanCloser io.Closer
+	defer func() {
+		if kanbanCloser == nil {
+			return
+		}
+		if closeErr := kanbanCloser.Close(); closeErr != nil {
+			log.Printf("close kanban repository: %v", closeErr)
+		}
+	}()
+
 	deps := apiserver.Dependencies{KanbanRepo: kanban.NewService(kanban.NewMemoryRepository())}
 	if appwriteEndpoint == "" || appwriteProjectID == "" {
 		log.Println("auth disabled: set APPWRITE_ENDPOINT and APPWRITE_PROJECT_ID to enable auth routes")
@@ -54,7 +72,31 @@ func main() {
 		deps.Issuer = authClient
 		deps.Verifier = authClient
 		deps.LoginLimiter = security.NewLoginRateLimiter(5, 10*time.Minute, 15*time.Minute)
+	}
 
+	switch kanbanRepositoryMode {
+	case "memory":
+		deps.KanbanRepo = kanban.NewService(kanban.NewMemoryRepository())
+		log.Println("kanban repository backend: memory")
+	case "sqlite":
+		sqlitePath := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
+		if sqlitePath == "" {
+			sqlitePath = filepath.Join("data", "kanban.db")
+		}
+
+		repo, repoErr := kanban.NewSQLiteRepository(sqlitePath)
+		if repoErr != nil {
+			log.Fatalf("initialize sqlite kanban repository: %v", repoErr)
+		}
+		kanbanCloser = repo
+		deps.KanbanRepo = kanban.NewService(repo)
+		log.Printf("kanban repository backend: sqlite (%s)", sqlitePath)
+	case "appwrite":
+		if appwriteEndpoint == "" || appwriteProjectID == "" {
+			log.Fatal("KANBAN_REPOSITORY=appwrite requires APPWRITE_ENDPOINT and APPWRITE_PROJECT_ID")
+		}
+
+		appwriteDBAPIKey := strings.TrimSpace(os.Getenv("APPWRITE_DB_API_KEY"))
 		if appwriteDBAPIKey == "" {
 			appwriteDBAPIKey = appwriteAPIKey
 			log.Println("APPWRITE_DB_API_KEY is not set; using APPWRITE_AUTH_API_KEY for kanban repository")
@@ -67,6 +109,9 @@ func main() {
 			ColumnsID:  strings.TrimSpace(os.Getenv("APPWRITE_COLUMNS_COLLECTION_ID")),
 			TodosID:    strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID")),
 		}))
+		log.Println("kanban repository backend: appwrite")
+	default:
+		log.Fatalf("unsupported KANBAN_REPOSITORY=%q (valid: memory, sqlite, appwrite)", kanbanRepositoryMode)
 	}
 	apiserver.Register(api, deps)
 
