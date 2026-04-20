@@ -12,13 +12,13 @@ Status values:
 
 | Requirement ID | Coverage Type | Test References | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `AUTH-001` | API unit/integration | `internal/api/server/server_test.go` (`TestLoginBlockedReturnsRetryAfter`) | Partial | Login route behavior covered, but successful sign-in flow assertion is limited. |
-| `AUTH-002` | Swift unit/UI | - | Gap | No macOS automated test currently for restore-on-launch behavior. |
-| `AUTH-003` | Swift unit/UI | - | Gap | No automated refresh-token lifecycle test in app layer yet. |
-| `AUTH-004` | Swift UI | - | Gap | Signed-out view state not currently automated. |
+| `AUTH-001` | API + Swift unit | `internal/api/server/server_test.go` (`TestLoginReturnsTokensOnSuccess`), `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`signOutRevokesAfterSignInWithoutKeepSignedIn`) | Covered | Successful email/password sign-in behavior is validated in backend and app flow. |
+| `AUTH-002` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`restoreSessionUsesPersistedValidToken`) | Covered | Persisted valid session restore path is validated. |
+| `AUTH-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`restoreSessionRefreshesWhenAccessTokenExpired`) | Covered | Expired access token refresh path is validated. |
+| `AUTH-004` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`restoreSessionSkipsWhenNoPersistedSession`) | Covered | Missing persisted session keeps app signed out. |
 | `BOARD-001` | API integration | `internal/api/server/server_test.go` (`TestKanbanBoardColumnTodoCRUD`) | Covered | Board retrieval after auth and seeded data is validated. |
 | `BOARD-002` | API integration | `internal/api/server/server_test.go` (`TestKanbanBoardColumnTodoCRUD`) | Covered | Response includes board + columns + todos. |
-| `BOARD-003` | Swift UI | - | Gap | No automated UI-state test for disabled actions while loading/unready. |
+| `BOARD-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`mutationActionsEnabledOnlyWhenBoardReady`) | Covered | Mutation availability toggles based on board readiness/loading state. |
 | `BOARD-004` | Swift unit/UI | - | Gap | Manual refresh action not currently under automated test. |
 | `COL-001` | Repository/API | `internal/kanban/contracttest/repository_contract.go` (`ValidationAndConflict`), `internal/api/server/server_test.go` (`TestKanbanBoardColumnTodoCRUD`) | Covered | Non-empty title and create flow validated via contract/API tests. |
 | `COL-002` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`) | Covered | Rename path validated in memory repo tests. |
@@ -30,7 +30,7 @@ Status values:
 | `COL-DEL-004` | Swift UI | - | Gap | Confirm-delete behavior not currently tested. |
 | `COL-RULE-001` | Domain/API | `internal/kanban/service_test.go` (`TestServiceDeleteColumnWithTodosReturnsConflict`), `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTodosReturnsConflict`) | Covered | Domain and HTTP conflict behavior validated. |
 | `COL-RULE-002` | API integration | `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTodosReturnsConflict`) | Covered | Explicit `409` asserted. |
-| `COL-RULE-003` | Swift UI | - | Gap | UI surfacing of conflict lacks automated assertion. |
+| `COL-RULE-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`deleteColumnConflictSurfacesStatusAndDebugDiagnostics`) | Covered | View model surfaces conflict status/error text for column-delete rule violations. |
 | `TODO-001` | Repository/API | `internal/kanban/contracttest/repository_contract.go` (`CRUD`/`ValidationAndConflict`), `internal/api/server/server_test.go` (`TestKanbanBoardColumnTodoCRUD`) | Covered | Create and title validation are covered. |
 | `TODO-002` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`) | Covered | Update todo path validated. |
 | `TODO-003` | Repository/API | `internal/kanban/memory_repository_test.go`, `internal/kanban/contracttest/repository_contract.go` (`CRUD`) | Covered | Delete path validated. |
@@ -42,7 +42,7 @@ Status values:
 | `API-001` | Repository/API contract | `internal/kanban/repository_contract_test.go`, `internal/api/server/server_test.go` | Covered | Shared service + API CRUD contract validates backend source-of-truth behavior. |
 | `API-002` | Build-time generation | `make generate`, generated clients in repo | Partial | Enforced by workflow/convention; no dedicated failing test when client usage diverges. |
 | `API-003` | API integration | `internal/api/server/server_test.go` (`TestKanbanRoutesRequireBearerToken`, `TestKanbanRouteReturnsForbiddenForOtherOwner`, `TestKanbanRouteReturnsNotFoundForMissingResources`, `TestKanbanValidationReturnsBadRequest`, `TestKanbanDeleteColumnWithTodosReturnsConflict`) | Covered | 401/403/404/400/409 mappings asserted. |
-| `API-004` | Swift unit/UI | - | Gap | Diagnostics are implemented but not currently automated in app tests. |
+| `API-004` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`deleteColumnConflictSurfacesStatusAndDebugDiagnostics`) | Covered | Operation/status/detail diagnostics are asserted through view-model debug output. |
 | `APPWRITE-001` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` | Covered | Same repository contract suite runs against Appwrite (opt-in). |
 | `APPWRITE-002` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` | Partial | Pagination code path exercised indirectly; no targeted pagination boundary test. |
 | `APPWRITE-003` | Integration test harness | `internal/kanban/repository_contract_appwrite_integration_test.go`, `Makefile` (`test-appwrite-integration`) | Covered | Env-gated and opt-in behavior is explicit. |

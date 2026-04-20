@@ -102,6 +102,48 @@ func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
 	}
 }
 
+func TestLoginReturnsTokensOnSuccess(t *testing.T) {
+	// Requirement: AUTH-001
+	t.Parallel()
+
+	expiresAt := time.Now().UTC().Add(15 * time.Minute).Round(0)
+	issuer := &stubIssuer{sessionSecret: "session-1", jwt: "jwt-1", expiresAt: expiresAt}
+	limiter := security.NewLoginRateLimiter(5, time.Minute, time.Minute)
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: limiter})
+
+	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "secret"})
+	request := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+	request.RemoteAddr = "127.0.0.1:12345"
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response struct {
+		AccessToken          string    `json:"accessToken"`
+		RefreshToken         string    `json:"refreshToken"`
+		AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	if response.AccessToken != "jwt-1" {
+		t.Fatalf("accessToken = %q, want %q", response.AccessToken, "jwt-1")
+	}
+	if response.RefreshToken != "session-1" {
+		t.Fatalf("refreshToken = %q, want %q", response.RefreshToken, "session-1")
+	}
+	if !response.AccessTokenExpiresAt.Equal(expiresAt) {
+		t.Fatalf("accessTokenExpiresAt = %s, want %s", response.AccessTokenExpiresAt, expiresAt)
+	}
+}
+
 func TestOpenAPIDefinesHelloAsTextPlain(t *testing.T) {
 	// Requirement: PUBLIC-002
 	t.Parallel()

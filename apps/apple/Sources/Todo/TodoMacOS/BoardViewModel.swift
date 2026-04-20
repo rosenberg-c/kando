@@ -10,6 +10,10 @@ final class BoardViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var debugMessage = ""
 
+    var canMutateBoardActions: Bool {
+        board != nil && !isLoading
+    }
+
     private let api: any KanbanAPI
     private let accessTokenProvider: @MainActor () async -> String?
     private let baseURLProvider: @MainActor () -> URL?

@@ -112,10 +112,6 @@ private struct LoggedInWorkspaceView: View {
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTodoDeletion: EditableTodo?
 
-    private var canMutateBoard: Bool {
-        board.board != nil && !board.isLoading
-    }
-
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
         self.onSignOut = onSignOut
@@ -156,7 +152,7 @@ private struct LoggedInWorkspaceView: View {
                     Task { await board.createColumn(title: title) }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!canMutateBoard)
+                .disabled(!board.canMutateBoardActions)
             }
 
             ScrollView(.horizontal) {
@@ -165,7 +161,7 @@ private struct LoggedInWorkspaceView: View {
                         ColumnCard(
                             column: column,
                             todos: board.todos(for: column.id),
-                            isEnabled: canMutateBoard,
+                            isEnabled: board.canMutateBoardActions,
                             onRename: { editingColumn = EditableColumn(column: column) },
                             onDelete: {
                                 pendingColumnDeletion = EditableColumn(column: column)
