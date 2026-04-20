@@ -20,8 +20,8 @@ private struct LenientISO8601DateTranscoder: DateTranscoder {
 }
 
 public enum TodoAPIClientFactory {
-    public static func makeClient(baseURL: URL) -> Client {
+    public static func makeClient(baseURL: URL, middlewares: [any ClientMiddleware] = []) -> Client {
         let configuration = Configuration(dateTranscoder: LenientISO8601DateTranscoder())
-        return Client(serverURL: baseURL, configuration: configuration, transport: URLSessionTransport())
+        return Client(serverURL: baseURL, configuration: configuration, transport: URLSessionTransport(), middlewares: middlewares)
     }
 }

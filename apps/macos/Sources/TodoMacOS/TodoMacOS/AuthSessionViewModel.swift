@@ -90,15 +90,10 @@ final class AuthSessionViewModel: ObservableObject {
         }
 
         do {
-            if let tokens = try await authAPI.refreshTokens(refreshToken: session.refreshToken, baseURL: baseURL) {
-                let refreshed = PersistedSession.fromSessionTokens(email: session.email, tokens)
-                sessionStore.save(refreshed)
+            if let refreshed = try await refreshSession(session: session, baseURL: baseURL) {
                 apply(session: refreshed)
                 return
             }
-
-            sessionStore.clear()
-            setSessionExpiredStatus()
         } catch {
             statusIsError = true
             statusMessage = Strings.f("session.restore.network_error", error.localizedDescription)
@@ -109,6 +104,37 @@ final class AuthSessionViewModel: ObservableObject {
     func retrySessionRestore() async {
         didRestoreSession = false
         await restoreSessionIfNeeded()
+    }
+
+    func currentAPIBaseURL() -> URL? {
+        apiBaseURL()
+    }
+
+    func validAccessToken() async -> String? {
+        guard let session = currentSession ?? sessionStore.load() else {
+            return nil
+        }
+
+        if session.accessTokenExpiresAt > now().addingTimeInterval(30) {
+            currentSession = session
+            return session.accessToken
+        }
+
+        guard let baseURL = apiBaseURL() else {
+            return nil
+        }
+
+        do {
+            if let refreshed = try await refreshSession(session: session, baseURL: baseURL) {
+                return refreshed.accessToken
+            }
+            return nil
+        } catch {
+            statusIsError = true
+            statusMessage = Strings.f("session.restore.network_error", error.localizedDescription)
+            canRetryRestore = true
+            return nil
+        }
     }
 
     func signOut() async {
@@ -151,6 +177,19 @@ final class AuthSessionViewModel: ObservableObject {
 
     private func apiBaseURL() -> URL? {
         URL(string: ProcessInfo.processInfo.environment["TODO_API_BASE_URL"] ?? "http://localhost:8080")
+    }
+
+    private func refreshSession(session: PersistedSession, baseURL: URL) async throws -> PersistedSession? {
+        guard let tokens = try await authAPI.refreshTokens(refreshToken: session.refreshToken, baseURL: baseURL) else {
+            sessionStore.clear()
+            setSessionExpiredStatus()
+            return nil
+        }
+
+        let refreshed = PersistedSession.fromSessionTokens(email: session.email, tokens)
+        sessionStore.save(refreshed)
+        currentSession = refreshed
+        return refreshed
     }
 
     private static func defaultSessionStore() -> any AuthSessionStoring {

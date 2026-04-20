@@ -24,3 +24,46 @@
 "loggedin.title" = "Logged in";
 "loggedin.subtitle" = "You are signed in as %@.";
 "loggedin.signout" = "Sign out";
+"common.cancel" = "Cancel";
+
+"board.title" = "Board";
+"board.default.title" = "My Board";
+"board.loading" = "Loading board...";
+"board.refresh" = "Refresh";
+"board.status.loaded" = "Board loaded.";
+
+"board.error.unauthorized" = "Your session is not valid. Please sign in again.";
+"board.error.http" = "Request failed (HTTP %d).";
+"board.error.http_title" = "Request failed (HTTP %d): %@";
+"board.error.http_detail" = "Request failed (HTTP %d): %@ — %@";
+"board.error.invalid_response" = "The server returned an invalid response.";
+"board.error.network" = "Network error: %@";
+"board.dev.title" = "Developer details";
+"board.dev.copy" = "Copy details";
+"board.dev.base_url" = "baseURL=%@";
+"board.dev.board_id" = "boardID=%@";
+
+"board.column.add.placeholder" = "Column title";
+"board.column.add.submit" = "Add column";
+"board.column.rename" = "Rename";
+"board.column.delete" = "Delete";
+"board.column.edit.title" = "Rename column";
+"board.column.edit.submit" = "Save";
+"board.column.todo_count" = "%d todos";
+"board.column.validation.title_required" = "Column title is required.";
+"board.column.status.created" = "Column created: %@.";
+"board.column.status.renamed" = "Column renamed: %@.";
+"board.column.status.deleted" = "Column deleted.";
+
+"board.todo.add" = "Add todo";
+"board.todo.edit" = "Edit";
+"board.todo.delete" = "Delete";
+"board.todo.title.placeholder" = "Todo title";
+"board.todo.create.title" = "Create todo";
+"board.todo.create.submit" = "Create";
+"board.todo.edit.title" = "Edit todo";
+"board.todo.edit.submit" = "Save";
+"board.todo.validation.title_required" = "Todo title is required.";
+"board.todo.status.created" = "Todo created: %@.";
+"board.todo.status.updated" = "Todo updated: %@.";
+"board.todo.status.deleted" = "Todo deleted.";

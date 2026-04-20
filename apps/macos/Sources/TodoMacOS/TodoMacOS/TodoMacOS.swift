@@ -12,6 +12,7 @@ struct TodoMacOS: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }

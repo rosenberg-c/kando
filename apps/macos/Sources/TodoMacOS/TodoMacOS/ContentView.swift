@@ -5,6 +5,7 @@
 //  Created by christian on 2026-04-18.
 //
 
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -18,7 +19,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if auth.isSignedIn {
-                LoggedInView(email: auth.signedInEmail) {
+                LoggedInWorkspaceView(auth: auth) {
                     Task {
                         await auth.signOut()
                     }
@@ -69,6 +70,7 @@ struct ContentView: View {
                         Text(auth.statusMessage)
                             .font(.caption)
                             .foregroundStyle(auth.statusIsError ? .red : .green)
+                            .textSelection(.enabled)
                     }
 
                     if auth.canRetryRestore {
@@ -91,32 +93,399 @@ struct ContentView: View {
                 .frame(width: 420)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
             await auth.restoreSessionIfNeeded()
         }
     }
 }
 
-private struct LoggedInView: View {
-    let email: String
+private struct LoggedInWorkspaceView: View {
+    @ObservedObject var auth: AuthSessionViewModel
     let onSignOut: () -> Void
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("loggedin.title")
-                .font(.largeTitle.weight(.semibold))
+    @StateObject private var board: BoardViewModel
+    @State private var newColumnTitle = ""
+    @State private var editingColumn: EditableColumn?
+    @State private var creatingTodoInColumn: CreateTodoTarget?
+    @State private var editingTodo: EditableTodo?
 
-            Text(Strings.f("loggedin.subtitle", email))
+    private var canMutateBoard: Bool {
+        board.board != nil && !board.isLoading
+    }
+
+    init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
+        self.auth = auth
+        self.onSignOut = onSignOut
+        _board = StateObject(wrappedValue: BoardViewModel(
+            accessTokenProvider: { await auth.validAccessToken() },
+            baseURLProvider: { auth.currentAPIBaseURL() }
+        ))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Text(board.board?.title ?? Strings.t("board.title"))
+                    .font(.largeTitle.weight(.semibold))
+
+                Spacer()
+
+                Button("board.refresh") {
+                    Task { await board.reloadBoard() }
+                }
+                .buttonStyle(.bordered)
+
+                Button("loggedin.signout", action: onSignOut)
+                    .buttonStyle(.bordered)
+            }
+
+            Text(Strings.f("loggedin.subtitle", auth.signedInEmail))
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Button("loggedin.signout", action: onSignOut)
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+            HStack(spacing: 10) {
+                TextField("board.column.add.placeholder", text: $newColumnTitle)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("board.column.add.submit") {
+                    let title = newColumnTitle
+                    newColumnTitle = ""
+                    Task { await board.createColumn(title: title) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canMutateBoard)
+            }
+
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(board.columns, id: \.id) { column in
+                        ColumnCard(
+                            column: column,
+                            todos: board.todos(for: column.id),
+                            isEnabled: canMutateBoard,
+                            onRename: { editingColumn = EditableColumn(column: column) },
+                            onDelete: {
+                                Task { await board.deleteColumn(columnID: column.id) }
+                            },
+                            onAddTodo: { creatingTodoInColumn = CreateTodoTarget(columnID: column.id) },
+                            onEditTodo: { todo in editingTodo = EditableTodo(columnID: column.id, todo: todo) },
+                            onDeleteTodo: { todo in
+                                Task { await board.deleteTodo(todoID: todo.id) }
+                            }
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if board.isLoading {
+                ProgressView("board.loading")
+                    .controlSize(.small)
+            }
+
+            if !board.statusMessage.isEmpty {
+                Text(board.statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(board.statusIsError ? .red : .green)
+                    .textSelection(.enabled)
+            }
+
+            if board.statusIsError || !board.debugMessage.isEmpty {
+                DisclosureGroup(Strings.t("board.dev.title")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Spacer()
+                            Button(Strings.t("board.dev.copy")) {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(devDiagnosticText, forType: .string)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+
+                        Text(Strings.f("board.dev.base_url", auth.currentAPIBaseURL()?.absoluteString ?? "(nil)"))
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+
+                        if let boardID = board.board?.id {
+                            Text(Strings.f("board.dev.board_id", boardID))
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                        }
+
+                        if !board.debugMessage.isEmpty {
+                            Text(board.debugMessage)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .font(.caption)
+            }
+
+            Spacer(minLength: 0)
         }
         .padding(24)
+        .frame(minWidth: 980, minHeight: 620)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .task {
+            await board.loadBoardIfNeeded()
+        }
+        .sheet(item: $editingColumn) { item in
+            ColumnEditorSheet(
+                title: Strings.t("board.column.edit.title"),
+                submitLabel: Strings.t("board.column.edit.submit"),
+                initialTitle: item.title,
+                onSubmit: { title in
+                    Task { await board.renameColumn(columnID: item.id, title: title) }
+                }
+            )
+        }
+        .sheet(item: $creatingTodoInColumn) { target in
+            TodoEditorSheet(
+                title: Strings.t("board.todo.create.title"),
+                submitLabel: Strings.t("board.todo.create.submit"),
+                initialTitle: "",
+                initialDescription: "",
+                onSubmit: { title, description in
+                    Task { await board.createTodo(columnID: target.columnID, title: title, description: description) }
+                }
+            )
+        }
+        .sheet(item: $editingTodo) { item in
+            TodoEditorSheet(
+                title: Strings.t("board.todo.edit.title"),
+                submitLabel: Strings.t("board.todo.edit.submit"),
+                initialTitle: item.title,
+                initialDescription: item.description,
+                onSubmit: { title, description in
+                    Task { await board.updateTodo(todoID: item.id, title: title, description: description) }
+                }
+            )
+        }
+    }
+
+    private var devDiagnosticText: String {
+        var lines: [String] = [
+            Strings.f("board.dev.base_url", auth.currentAPIBaseURL()?.absoluteString ?? "(nil)")
+        ]
+
+        if let boardID = board.board?.id {
+            lines.append(Strings.f("board.dev.board_id", boardID))
+        }
+
+        if !board.statusMessage.isEmpty {
+            lines.append("status=\(board.statusMessage)")
+        }
+
+        if !board.debugMessage.isEmpty {
+            lines.append(board.debugMessage)
+        }
+
+        return lines.joined(separator: "\n")
+    }
+}
+
+private struct ColumnCard: View {
+    let column: KanbanColumn
+    let todos: [KanbanTodo]
+    let isEnabled: Bool
+    let onRename: () -> Void
+    let onDelete: () -> Void
+    let onAddTodo: () -> Void
+    let onEditTodo: (KanbanTodo) -> Void
+    let onDeleteTodo: (KanbanTodo) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(column.title)
+                    .font(.headline)
+                Spacer()
+                Text(Strings.f("board.column.todo_count", todos.count))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Button("board.column.rename", action: onRename)
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled)
+                Button("board.column.delete", action: onDelete)
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(todos, id: \.id) { todo in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(todo.title)
+                            .font(.subheadline.weight(.semibold))
+                        if !todo.description.isEmpty {
+                            Text(todo.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                        }
+                        HStack(spacing: 8) {
+                            Button("board.todo.edit") { onEditTodo(todo) }
+                                .buttonStyle(.bordered)
+                                .disabled(!isEnabled)
+                            Button("board.todo.delete") { onDeleteTodo(todo) }
+                                .buttonStyle(.bordered)
+                                .disabled(!isEnabled)
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+            }
+
+            Button("board.todo.add", action: onAddTodo)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(!isEnabled)
+        }
+        .padding(12)
+        .frame(width: 280, alignment: .topLeading)
+        .background(Color(NSColor.windowBackgroundColor))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+private struct ColumnEditorSheet: View {
+    let title: String
+    let submitLabel: String
+    let initialTitle: String
+    let onSubmit: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var inputTitle: String
+
+    init(title: String, submitLabel: String, initialTitle: String, onSubmit: @escaping (String) -> Void) {
+        self.title = title
+        self.submitLabel = submitLabel
+        self.initialTitle = initialTitle
+        self.onSubmit = onSubmit
+        _inputTitle = State(initialValue: initialTitle)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+            TextField("board.column.add.placeholder", text: $inputTitle)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Spacer()
+                Button("common.cancel") { dismiss() }
+                Button(submitLabel) {
+                    onSubmit(inputTitle)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
         .frame(width: 420)
     }
+}
+
+private struct TodoEditorSheet: View {
+    let title: String
+    let submitLabel: String
+    let initialTitle: String
+    let initialDescription: String
+    let onSubmit: (String, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var inputTitle: String
+    @State private var inputDescription: String
+
+    init(title: String, submitLabel: String, initialTitle: String, initialDescription: String, onSubmit: @escaping (String, String) -> Void) {
+        self.title = title
+        self.submitLabel = submitLabel
+        self.initialTitle = initialTitle
+        self.initialDescription = initialDescription
+        self.onSubmit = onSubmit
+        _inputTitle = State(initialValue: initialTitle)
+        _inputDescription = State(initialValue: initialDescription)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+
+            TextField("board.todo.title.placeholder", text: $inputTitle)
+                .textFieldStyle(.roundedBorder)
+
+            TextEditor(text: $inputDescription)
+                .font(.body)
+                .frame(height: 110)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
+
+            HStack {
+                Spacer()
+                Button("common.cancel") { dismiss() }
+                Button(submitLabel) {
+                    onSubmit(inputTitle, inputDescription)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+    }
+}
+
+private struct EditableColumn: Identifiable {
+    let id: String
+    let title: String
+
+    init(column: KanbanColumn) {
+        id = column.id
+        title = column.title
+    }
+}
+
+private struct EditableTodo: Identifiable {
+    let id: String
+    let columnID: String
+    let title: String
+    let description: String
+
+    init(columnID: String, todo: KanbanTodo) {
+        id = todo.id
+        self.columnID = columnID
+        title = todo.title
+        description = todo.description
+    }
+}
+
+private struct CreateTodoTarget: Identifiable {
+    let columnID: String
+    var id: String { columnID }
 }
 
 #Preview {
