@@ -11,6 +11,11 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var auth = AuthSessionViewModel()
     @AppStorage("signin.keepSignedIn") private var keepSignedIn = true
+    private let processEnvironment = ProcessInfo.processInfo.environment
+
+    private var isUITestRuntime: Bool {
+        processEnvironment["XCTestConfigurationFilePath"] != nil || processEnvironment["TODO_UITEST_MODE"] == "1"
+    }
 
     private var canSubmit: Bool {
         !auth.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !auth.password.isEmpty && !auth.isSigningIn
@@ -95,7 +100,11 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
-            await auth.restoreSessionIfNeeded()
+            if processEnvironment["TODO_UITEST_SIGNED_IN"] == "1" {
+                auth.applyUITestSignedInSession(email: processEnvironment["TODO_UITEST_EMAIL"] ?? "ui-test@example.com")
+            } else {
+                await auth.restoreSessionIfNeeded()
+            }
         }
     }
 }
@@ -115,7 +124,15 @@ private struct LoggedInWorkspaceView: View {
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
         self.onSignOut = onSignOut
+        let api: any KanbanAPI
+        let env = ProcessInfo.processInfo.environment
+        if env["TODO_UITEST_MOCK_BOARD"] == "1" || env["XCTestConfigurationFilePath"] != nil || env["TODO_UITEST_MODE"] == "1" {
+            api = UITestKanbanAPI()
+        } else {
+            api = GeneratedKanbanAPI()
+        }
         _board = StateObject(wrappedValue: BoardViewModel(
+            api: api,
             accessTokenProvider: { await auth.validAccessToken() },
             baseURLProvider: { auth.currentAPIBaseURL() }
         ))
@@ -370,6 +387,7 @@ private struct ColumnCard: View {
                 Button("board.column.delete", action: onDelete)
                     .buttonStyle(.bordered)
                     .disabled(!isEnabled)
+                    .accessibilityIdentifier("column-delete-\(column.id)")
             }
 
             Divider()
@@ -392,6 +410,7 @@ private struct ColumnCard: View {
                             Button("board.todo.delete") { onDeleteTodo(todo) }
                                 .buttonStyle(.bordered)
                                 .disabled(!isEnabled)
+                                .accessibilityIdentifier("todo-delete-\(todo.id)")
                         }
                     }
                     .padding(10)

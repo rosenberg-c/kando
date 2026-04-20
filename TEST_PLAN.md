@@ -8,9 +8,7 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 
 - `API-002`
 - `BOARD-004`
-- `COL-DEL-001`, `COL-DEL-002`, `COL-DEL-003`, `COL-DEL-004`
-- `TODO-DEL-001`, `TODO-DEL-002`, `TODO-DEL-003`, `TODO-DEL-004`
-- `UX-001`, `UX-002`, `UX-003`
+- `UX-001`, `UX-002`
 
 ## Phase 1: High Value / Low Effort
 
@@ -21,10 +19,11 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 
 ## Phase 2: Core UX Safety
 
-- Add XCUITests for delete confirmation flows:
+- Status: done
+- Added XCUITests for delete confirmation flows:
   - `COL-DEL-*`
   - `TODO-DEL-*`
-- Assertions per flow:
+- Added assertions for each flow:
   - Dialog appears with expected title/content.
   - Cancel is a no-op.
   - Confirm executes delete action.

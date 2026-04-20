@@ -25,6 +25,11 @@ final class AuthSessionViewModel: ObservableObject {
         self.sessionStore = sessionStore ?? AuthSessionViewModel.defaultSessionStore()
         self.now = now
         self.authAPI = authAPI ?? GeneratedAuthAPI()
+
+        let env = ProcessInfo.processInfo.environment
+        if Self.shouldUseUITestSignedInSession(environment: env) {
+            applyUITestSignedInSession(email: env["TODO_UITEST_EMAIL"] ?? "ui-test@example.com")
+        }
     }
 
     func signIn(keepSignedIn: Bool) async {
@@ -167,6 +172,23 @@ final class AuthSessionViewModel: ObservableObject {
         }
     }
 
+    func applyUITestSignedInSession(email: String) {
+        let session = PersistedSession(
+            email: email,
+            accessToken: "uitest-access-token",
+            refreshToken: "uitest-refresh-token",
+            accessTokenExpiresAt: Date.distantFuture
+        )
+        currentSession = session
+        self.email = email
+        signedInEmail = email
+        isSignedIn = true
+        isSigningIn = false
+        statusMessage = ""
+        statusIsError = false
+        canRetryRestore = false
+    }
+
     private func apply(session: PersistedSession) {
         currentSession = session
         email = session.email
@@ -193,10 +215,18 @@ final class AuthSessionViewModel: ObservableObject {
     }
 
     private static func defaultSessionStore() -> any AuthSessionStoring {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+        let env = ProcessInfo.processInfo.environment
+        if env["XCTestConfigurationFilePath"] != nil
+            || env["TODO_UITEST_MODE"] == "1"
+            || env["TODO_DISABLE_KEYCHAIN"] == "1"
+            || env["TODO_UITEST_SIGNED_IN"] == "1" {
             return EphemeralSessionStore()
         }
         return KeychainSessionStore()
+    }
+
+    private static func shouldUseUITestSignedInSession(environment: [String: String]) -> Bool {
+        environment["TODO_UITEST_SIGNED_IN"] == "1"
     }
     private func setSessionExpiredStatus() {
         statusIsError = true

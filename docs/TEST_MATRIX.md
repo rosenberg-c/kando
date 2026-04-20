@@ -24,10 +24,10 @@ Status values:
 | `COL-002` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`) | Covered | Rename path validated in memory repo tests. |
 | `COL-003` | Repository/API | `internal/kanban/memory_repository_test.go`, `internal/kanban/contracttest/repository_contract.go` (`CRUD`) | Covered | Delete path validated for valid state. |
 | `COL-004` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`) | Covered | Reindex behavior checked after deletion. |
-| `COL-DEL-001` | Swift UI | - | Gap | Confirmation dialog added; no automated UI test yet. |
-| `COL-DEL-002` | Swift UI | - | Gap | Dialog content includes title in code, not currently tested. |
-| `COL-DEL-003` | Swift UI | - | Gap | Cancel-no-op behavior not currently tested. |
-| `COL-DEL-004` | Swift UI | - | Gap | Confirm-delete behavior not currently tested. |
+| `COL-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Column delete is gated by explicit confirmation in UI. |
+| `COL-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. |
+| `COL-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the column unchanged. |
+| `COL-DEL-004` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Confirm path executes deletion and removes column from UI. |
 | `COL-RULE-001` | Domain/API | `internal/kanban/service_test.go` (`TestServiceDeleteColumnWithTodosReturnsConflict`), `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTodosReturnsConflict`) | Covered | Domain and HTTP conflict behavior validated. |
 | `COL-RULE-002` | API integration | `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTodosReturnsConflict`) | Covered | Explicit `409` asserted. |
 | `COL-RULE-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`deleteColumnConflictSurfacesStatusAndDebugDiagnostics`) | Covered | View model surfaces conflict status/error text for column-delete rule violations. |
@@ -35,10 +35,10 @@ Status values:
 | `TODO-002` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`) | Covered | Update todo path validated. |
 | `TODO-003` | Repository/API | `internal/kanban/memory_repository_test.go`, `internal/kanban/contracttest/repository_contract.go` (`CRUD`) | Covered | Delete path validated. |
 | `TODO-004` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`) | Covered | Reindex behavior checked after deletion. |
-| `TODO-DEL-001` | Swift UI | - | Gap | Confirmation dialog added; no automated UI test yet. |
-| `TODO-DEL-002` | Swift UI | - | Gap | Dialog content includes todo title in code, not currently tested. |
-| `TODO-DEL-003` | Swift UI | - | Gap | Cancel-no-op behavior not currently tested. |
-| `TODO-DEL-004` | Swift UI | - | Gap | Confirm-delete behavior not currently tested. |
+| `TODO-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Todo delete is gated by explicit confirmation in UI. |
+| `TODO-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. |
+| `TODO-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the todo unchanged. |
+| `TODO-DEL-004` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Confirm path executes deletion and removes todo from UI. |
 | `API-001` | Repository/API contract | `internal/kanban/repository_contract_test.go`, `internal/api/server/server_test.go` | Covered | Shared service + API CRUD contract validates backend source-of-truth behavior. |
 | `API-002` | Build-time generation | `make generate`, generated clients in repo | Partial | Enforced by workflow/convention; no dedicated failing test when client usage diverges. |
 | `API-003` | API integration | `internal/api/server/server_test.go` (`TestKanbanRoutesRequireBearerToken`, `TestKanbanRouteReturnsForbiddenForOtherOwner`, `TestKanbanRouteReturnsNotFoundForMissingResources`, `TestKanbanValidationReturnsBadRequest`, `TestKanbanDeleteColumnWithTodosReturnsConflict`) | Covered | 401/403/404/400/409 mappings asserted. |
@@ -82,7 +82,7 @@ Status values:
 | `TEST-UI-003` | UI launch artifact | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITestsLaunchTests.swift` (`testLaunch`) | Covered | Launch screenshot artifact baseline. |
 | `UX-001` | Swift UI | - | Gap | Top-leading layout is implemented but not UI-tested. |
 | `UX-002` | Swift UI | - | Gap | Selectable/copyable text behavior not UI-tested. |
-| `UX-003` | Swift UI | - | Gap | Destructive confirmation flows are implemented but not UI-tested. |
+| `UX-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`, `testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Destructive actions require and honor confirmation flows. |
 
 ## Next Test Additions (Recommended)
 

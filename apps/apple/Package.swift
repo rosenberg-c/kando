@@ -9,7 +9,6 @@ let package = Package(
     ],
     products: [
         .library(name: "TodoAPIClient", targets: ["TodoAPIClient"]),
-        .executable(name: "TodoMacOSApp", targets: ["TodoMacOS"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-openapi-generator", from: "1.11.1"),
