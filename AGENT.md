@@ -162,6 +162,12 @@ Separate:
 
 Avoid leaking framework or generated types across layers.
 
+For cross-request invariants (for example single-board-per-user), require atomicity:
+
+* define atomic operations in the repository contract
+* implement atomic behavior per storage backend
+* do not rely on process-local service locks as the primary guarantee
+
 ---
 
 ## Research and documentation
