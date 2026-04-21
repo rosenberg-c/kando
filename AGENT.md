@@ -2,6 +2,8 @@
 
 Before starting any task, read all files in `docs/` and PROJECT_NOTES.md.
 
+A question is not a change request!!
+
 ## Communication
 
 ### Clarify when it matters
