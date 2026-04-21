@@ -1,0 +1,2 @@
+- Add a dedicated move-validation message in `apps/apple/Sources/Todo/TodoMacOS/BoardViewModel.swift` instead of using `board.error.invalid_response` for negative destination positions.
+- Reduce UI-test coupling to rendered count text in `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` by exposing a structured accessibility value for task counts.
