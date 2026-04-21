@@ -59,6 +59,7 @@ struct TodoMacOSTests {
     }
 
     @Test func restoreSessionClearsAndSetsExpiredStatusWhenRefreshFails() async {
+        // Requirement: UX-002
         let expired = PersistedSession(
             email: "alice@example.com",
             accessToken: "access-token",

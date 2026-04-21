@@ -382,7 +382,7 @@ func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
 }
 
 func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
-	// Requirements: API-003, COL-RULE-001, COL-RULE-002
+	// Requirements: API-003, API-004, COL-RULE-001, COL-RULE-002
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -401,6 +401,20 @@ func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 
 	if recorder.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+
+	var problem struct {
+		Status int    `json:"status"`
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("decode conflict response: %v body=%s", err, recorder.Body.String())
+	}
+	if problem.Status != http.StatusConflict {
+		t.Fatalf("problem.status = %d, want %d", problem.Status, http.StatusConflict)
+	}
+	if strings.TrimSpace(problem.Detail) == "" {
+		t.Fatalf("problem.detail = %q, want non-empty", problem.Detail)
 	}
 }
 

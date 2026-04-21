@@ -8,6 +8,8 @@ Status values:
 - `Partial`: related tests exist but do not fully validate the requirement end-to-end.
 - `Gap`: no automated test currently mapped.
 
+For UI-facing requirements, Notes include platform applicability as `Platforms: macOS=<state>; iOS=<state>; TUI=<state>`.
+
 ## Coverage Map
 
 | Requirement ID | Coverage Type | Test References | Status | Notes |
@@ -15,7 +17,7 @@ Status values:
 | `API-001` | Repository/API contract | `internal/api/server/server_test.go` (`TestKanbanBoardColumnTaskCRUD`), `internal/kanban/repository_contract_test.go` (`TestRepositoryContractMemoryService`), `internal/kanban/repository_contract_test.go` (`TestRepositoryContractSQLiteService`) | Covered | Shared service + API CRUD contract validates backend source-of-truth behavior. |
 | `API-002` | Build-time generation | `make generate`, generated clients in repo | Partial | Enforced by workflow/convention; no dedicated failing test when client usage diverges. |
 | `API-003` | API integration | `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTasksReturnsConflict`), `internal/api/server/server_test.go` (`TestKanbanRouteReturnsForbiddenForOtherOwner`), `internal/api/server/server_test.go` (`TestKanbanRouteReturnsNotFoundForMissingResources`), `internal/api/server/server_test.go` (`TestKanbanRoutesRequireBearerToken`), `internal/api/server/server_test.go` (`TestKanbanValidationReturnsBadRequest`) | Covered | 401/403/404/400/409 mappings asserted. |
-| `API-004` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteColumnConflictSurfacesStatusAndDebugDiagnostics`) | Covered | Operation/status/detail diagnostics are asserted through view-model debug output. |
+| `API-004` | API integration | `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTasksReturnsConflict`) | Covered | Conflict error responses include stable `status` and non-empty `detail` fields. |
 | `APPWRITE-001` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Covered | Same repository contract suite runs against Appwrite (opt-in). |
 | `APPWRITE-002` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Partial | Pagination code path exercised indirectly; no targeted pagination boundary test. |
 | `APPWRITE-003` | Integration test harness | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Covered | Env-gated and opt-in behavior is explicit. |
@@ -33,8 +35,8 @@ Status values:
 | `AUTH-004` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`restoreSessionSkipsWhenNoPersistedSession`) | Covered | Missing persisted session keeps app signed out. |
 | `BOARD-001` | API integration | `internal/api/server/server_test.go` (`TestKanbanBoardColumnTaskCRUD`) | Covered | Board retrieval after auth and seeded data is validated. |
 | `BOARD-002` | API integration | `internal/api/server/server_test.go` (`TestKanbanBoardColumnTaskCRUD`) | Covered | Response includes board + columns + tasks. |
-| `BOARD-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`mutationActionsEnabledOnlyWhenBoardReady`) | Covered | Mutation availability toggles based on board readiness/loading state. |
-| `BOARD-004` | Swift unit/UI | - | Gap | Manual refresh action not currently under automated test. |
+| `BOARD-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`mutationActionsEnabledOnlyWhenBoardReady`) | Covered | Mutation availability toggles based on board readiness/loading state. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `BOARD-004` | Swift unit/UI | - | Gap | Manual refresh action not currently under automated test. Platforms: macOS=Gap; iOS=Planned; TUI=N/A. |
 | `CLI-001` | CLI client unit | `internal/cli/api_client_test.go` (`TestNewHTTPAPIClientRejectsInvalidBaseURL`) | Covered | Invalid base URL is rejected. |
 | `CLI-002` | CLI client unit | `internal/cli/api_client_test.go` (`TestHTTPAPIClientLoginUsesTypedResponseParsing`) | Covered | Typed login response parsing is asserted. |
 | `CLI-003` | CLI storage unit | `internal/cli/secure_store_test.go` (`TestSecureTokenStoreKeepsRefreshTokenOutOfStateFile`) | Covered | Refresh token is kept out of plaintext state file. |
@@ -50,13 +52,13 @@ Status values:
 | `COL-002` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`), `internal/kanban/sqlite_repository_test.go` (`TestSQLiteRepositoryCRUDAndReindex`) | Covered | Rename path validated in memory repo tests. |
 | `COL-003` | Repository/API | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`), `internal/kanban/service_test.go` (`TestServiceDeleteColumnWithoutTasksDelegates`), `internal/kanban/sqlite_repository_test.go` (`TestSQLiteRepositoryCRUDAndReindex`) | Covered | Delete path validated for valid state. |
 | `COL-004` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`), `internal/kanban/sqlite_repository_test.go` (`TestSQLiteRepositoryCRUDAndReindex`) | Covered | Reindex behavior checked after deletion. |
-| `COL-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Column delete is gated by explicit confirmation in UI. |
-| `COL-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. |
-| `COL-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the column unchanged. |
-| `COL-DEL-004` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Confirm path executes deletion and removes column from UI. |
+| `COL-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Column delete is gated by explicit confirmation in UI. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `COL-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `COL-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the column unchanged. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `COL-DEL-004` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Confirm path executes deletion and removes column from UI. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
 | `COL-RULE-001` | Domain/API | `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTasksReturnsConflict`), `internal/kanban/repository_contract_test.go` (`TestRepositoryContractMemoryService`), `internal/kanban/repository_contract_test.go` (`TestRepositoryContractSQLiteService`), `internal/kanban/service_test.go` (`TestServiceDeleteColumnWithTasksReturnsConflict`) | Covered | Domain and HTTP conflict behavior for non-empty columns is validated. |
 | `COL-RULE-002` | API integration | `internal/api/server/server_test.go` (`TestKanbanDeleteColumnWithTasksReturnsConflict`) | Covered | Explicit `409` asserted. |
-| `COL-RULE-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteColumnConflictSurfacesStatusAndDebugDiagnostics`) | Covered | View model surfaces conflict status/error text for column-delete rule violations. |
+| `COL-RULE-003` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteColumnConflictSurfacesStatusDetails`) | Covered | View model surfaces conflict status/error text for column-delete rule violations. |
 | `PUBLIC-001` | API integration | `internal/api/server/server_test.go` (`TestHelloReturnsTextPlain`) | Covered | `/hello` returns `200` and `text/plain`. |
 | `PUBLIC-002` | OpenAPI unit | `internal/api/server/server_test.go` (`TestOpenAPIDefinesHelloAsTextPlain`) | Covered | OpenAPI content type contract is asserted. |
 | `PUBLIC-003` | OpenAPI unit | `internal/api/server/server_test.go` (`TestOpenAPIDefinesKanbanPaths`) | Covered | Kanban path/method presence is asserted. |
@@ -73,21 +75,21 @@ Status values:
 | `TASK-002` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`), `internal/kanban/sqlite_repository_test.go` (`TestSQLiteRepositoryCRUDAndReindex`) | Covered | Update task path validated. |
 | `TASK-003` | Repository/API | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`), `internal/kanban/sqlite_repository_test.go` (`TestSQLiteRepositoryCRUDAndReindex`) | Covered | Delete path validated. |
 | `TASK-004` | Repository | `internal/kanban/memory_repository_test.go` (`TestMemoryRepositoryCRUDAndReindex`), `internal/kanban/sqlite_repository_test.go` (`TestSQLiteRepositoryCRUDAndReindex`) | Covered | Reindex behavior checked after deletion. |
-| `TASK-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Task delete is gated by explicit confirmation in UI. |
-| `TASK-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. |
-| `TASK-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the task unchanged. |
-| `TASK-DEL-004` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Confirm path executes deletion and removes the task from UI. |
-| `TEST-UI-001` | UI smoke | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testExample`) | Covered | Baseline app-launch smoke test. |
-| `TEST-UI-002` | UI perf smoke | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testLaunchPerformance`) | Covered | Launch performance metric baseline. |
-| `TEST-UI-003` | UI launch artifact | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITestsLaunchTests.swift` (`testLaunch`) | Covered | Launch screenshot artifact baseline. |
-| `UX-001` | Swift UI | - | Gap | Top-leading layout is implemented but not UI-tested. |
-| `UX-002` | Swift UI | - | Gap | Selectable/copyable text behavior not UI-tested. |
-| `UX-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`, `testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Destructive actions require and honor confirmation flows. |
+| `TASK-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Task delete is gated by explicit confirmation in UI. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `TASK-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `TASK-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the task unchanged. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `TASK-DEL-004` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`) | Covered | Confirm path executes deletion and removes the task from UI. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `TEST-UI-001` | UI smoke | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testExample`) | Covered | Baseline app-launch smoke test. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `TEST-UI-002` | UI perf smoke | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testLaunchPerformance`) | Covered | Launch performance metric baseline. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `TEST-UI-003` | UI launch artifact | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITestsLaunchTests.swift` (`testLaunch`) | Covered | Launch screenshot artifact baseline. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `UX-001` | Swift UI | - | Gap | Top-leading layout is implemented but not UI-tested. Platforms: macOS=Gap; iOS=Planned; TUI=N/A. |
+| `UX-002` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteColumnConflictSurfacesStatusDetails`), `apps/apple/Sources/Todo/TodoMacOSTests/TodoMacOSTests.swift` (`restoreSessionClearsAndSetsExpiredStatusWhenRefreshFails`) | Covered | UI-facing status state is asserted for board conflict and session-expired flows. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `UX-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTodoConfirmationCancelAndConfirm`, `testDeleteColumnConfirmationCancelAndConfirm`) | Covered | Destructive actions require and honor confirmation flows. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `UX-004` | Swift unit | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteColumnConflictSurfacesStatusDetails`) | Covered | API failure context is surfaced in client state for user-visible feedback. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
 
 ## Next Test Additions (Recommended)
 
 - Add board refresh action test coverage (`BOARD-004`).
 - Add `apps/apple` UI assertions for top-leading workspace anchor (`UX-001`).
-- Add `apps/apple` UI test coverage for selectable/copyable diagnostics text (`UX-002`).
 - Add a CI guard that enforces generated client artifacts are up to date (`API-002`).
 - Add targeted Appwrite pagination boundary coverage (`APPWRITE-002`).

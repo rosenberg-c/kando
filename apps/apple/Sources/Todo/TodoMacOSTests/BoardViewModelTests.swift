@@ -44,8 +44,8 @@ struct BoardViewModelTests {
         #expect(viewModel.canMutateBoardActions)
     }
 
-    @Test func deleteColumnConflictSurfacesStatusAndDebugDiagnostics() async {
-        // Requirements: COL-RULE-003, API-004
+    @Test func deleteColumnConflictSurfacesStatusDetails() async {
+        // Requirements: COL-RULE-003, UX-002, UX-004
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
