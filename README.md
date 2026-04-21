@@ -26,6 +26,15 @@ make verify-test-matrix   # fail if docs/TEST_MATRIX.md is out of date
 make test                 # go tests + matrix verify + macOS unit tests
 ```
 
+## macOS test runtime flags
+
+UI tests launch the app with test-safe runtime flags so they do not require keychain access or a real backend/database:
+
+- `TODO_TEST_MODE=1`
+- `TODO_DISABLE_KEYCHAIN=1`
+- `TODO_UITEST_MODE=1`
+- `TODO_UITEST_MOCK_BOARD=1`
+
 ## Environment Setup
 
 1. Copy env template:

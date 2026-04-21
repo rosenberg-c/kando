@@ -26,7 +26,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testExample() throws {
         // Requirement: TEST-UI-001
         // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+        let app = configuredAppForUITests()
         app.launch()
 
         // Use XCTAssert and related functions to verify your tests produce the correct results.
@@ -37,7 +37,8 @@ final class TodoMacOSUITests: XCTestCase {
         // Requirement: TEST-UI-002
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            let app = configuredAppForUITests()
+            app.launch()
         }
     }
 
@@ -103,13 +104,9 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     private func launchSignedInApp() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
-        app.launchEnvironment["TODO_UITEST_MODE"] = "1"
-        app.launchEnvironment["TODO_DISABLE_KEYCHAIN"] = "1"
-        app.launchEnvironment["TODO_UITEST_SIGNED_IN"] = "1"
-        app.launchEnvironment["TODO_UITEST_MOCK_BOARD"] = "1"
-        app.launchEnvironment["TODO_UITEST_EMAIL"] = "ui-test@example.com"
+        let app = configuredAppForUITests()
+        app.launchEnvironment[UITestEnvKey.signedIn] = "1"
+        app.launchEnvironment[UITestEnvKey.email] = "ui-test@example.com"
         app.launch()
         app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5), "Expected app window after launch")

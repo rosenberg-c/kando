@@ -216,9 +216,7 @@ final class AuthSessionViewModel: ObservableObject {
 
     private static func defaultSessionStore() -> any AuthSessionStoring {
         let env = ProcessInfo.processInfo.environment
-        if env["XCTestConfigurationFilePath"] != nil
-            || env["TODO_UITEST_MODE"] == "1"
-            || env["TODO_DISABLE_KEYCHAIN"] == "1"
+        if RuntimeFlags.shouldDisableKeychain(environment: env)
             || shouldUseUITestSignedInSession(environment: env) {
             return EphemeralSessionStore()
         }

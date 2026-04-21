@@ -122,7 +122,7 @@ private struct LoggedInWorkspaceView: View {
         self.onSignOut = onSignOut
         let api: any KanbanAPI
         let env = ProcessInfo.processInfo.environment
-        if env["TODO_UITEST_MOCK_BOARD"] == "1" || env["XCTestConfigurationFilePath"] != nil || env["TODO_UITEST_MODE"] == "1" {
+        if RuntimeFlags.shouldUseMockBoard(environment: env) {
             api = UITestKanbanAPI()
         } else {
             api = GeneratedKanbanAPI()
