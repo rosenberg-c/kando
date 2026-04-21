@@ -10,12 +10,16 @@ type serviceRepoStub struct {
 	details           BoardDetails
 	createBoardResult Board
 	deleteColumnBoard Board
+	moveTaskTask      Task
+	moveTaskBoard     Board
 	createBoardCalls  int
 	getBoardCalls     int
 	deleteColumnCalls int
+	moveTaskCalls     int
 	createBoardErr    error
 	getBoardErr       error
 	deleteColumnErr   error
+	moveTaskErr       error
 }
 
 func (s *serviceRepoStub) ListBoardsByOwner(context.Context, string) ([]Board, error) {
@@ -71,7 +75,11 @@ func (s *serviceRepoStub) UpdateTask(context.Context, string, string, string, st
 }
 
 func (s *serviceRepoStub) MoveTask(context.Context, string, string, string, string, int) (Task, Board, error) {
-	panic("unexpected call")
+	s.moveTaskCalls++
+	if s.moveTaskErr != nil {
+		return Task{}, Board{}, s.moveTaskErr
+	}
+	return s.moveTaskTask, s.moveTaskBoard, nil
 }
 
 func (s *serviceRepoStub) DeleteTask(context.Context, string, string, string) (Board, error) {
@@ -138,5 +146,46 @@ func TestServiceCreateBoardDelegatesAtomicConflict(t *testing.T) {
 	}
 	if stub.createBoardCalls != 1 {
 		t.Fatalf("create board calls = %d, want 1", stub.createBoardCalls)
+	}
+}
+
+func TestServiceMoveTaskRejectsNegativePosition(t *testing.T) {
+	// Requirement: TASK-006
+	t.Parallel()
+
+	stub := &serviceRepoStub{}
+	svc := NewService(stub)
+
+	_, _, err := svc.MoveTask(context.Background(), "user-1", "board-1", "task-1", "column-2", -1)
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("move task err = %v, want ErrInvalidInput", err)
+	}
+	if stub.moveTaskCalls != 0 {
+		t.Fatalf("move task calls = %d, want 0", stub.moveTaskCalls)
+	}
+}
+
+func TestServiceMoveTaskDelegates(t *testing.T) {
+	// Requirement: TASK-005
+	t.Parallel()
+
+	stub := &serviceRepoStub{
+		moveTaskTask:  Task{ID: "task-1", ColumnID: "column-2", Position: 1},
+		moveTaskBoard: Board{ID: "board-1"},
+	}
+	svc := NewService(stub)
+
+	task, board, err := svc.MoveTask(context.Background(), "user-1", "board-1", "task-1", "column-2", 1)
+	if err != nil {
+		t.Fatalf("move task: %v", err)
+	}
+	if task.ColumnID != "column-2" || task.Position != 1 {
+		t.Fatalf("task = %+v, want moved task", task)
+	}
+	if board.ID != "board-1" {
+		t.Fatalf("board id = %q, want %q", board.ID, "board-1")
+	}
+	if stub.moveTaskCalls != 1 {
+		t.Fatalf("move task calls = %d, want 1", stub.moveTaskCalls)
 	}
 }

@@ -106,4 +106,83 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			t.Fatalf("cleanup board: %v", err)
 		}
 	})
+
+	t.Run("MoveTask", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		ownerUserID := "user-" + uuid.NewString()
+
+		board, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+
+		columnA, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "A")
+		if err != nil {
+			t.Fatalf("create column A: %v", err)
+		}
+		columnB, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "B")
+		if err != nil {
+			t.Fatalf("create column B: %v", err)
+		}
+
+		taskA0, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, columnA.ID, "A0", "")
+		if err != nil {
+			t.Fatalf("create task A0: %v", err)
+		}
+		taskA1, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, columnA.ID, "A1", "")
+		if err != nil {
+			t.Fatalf("create task A1: %v", err)
+		}
+		taskB0, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, columnB.ID, "B0", "")
+		if err != nil {
+			t.Fatalf("create task B0: %v", err)
+		}
+
+		movedTask, _, err := repo.MoveTask(ctx, ownerUserID, board.ID, taskA0.ID, columnB.ID, 1)
+		if err != nil {
+			t.Fatalf("move task: %v", err)
+		}
+		if movedTask.ColumnID != columnB.ID || movedTask.Position != 1 {
+			t.Fatalf("moved task = %+v, want column=%q position=1", movedTask, columnB.ID)
+		}
+
+		details, err := repo.GetBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("get board after move: %v", err)
+		}
+		tasksByID := make(map[string]kanban.Task, len(details.Tasks))
+		for _, task := range details.Tasks {
+			tasksByID[task.ID] = task
+		}
+		if got := tasksByID[taskA1.ID]; got.ColumnID != columnA.ID || got.Position != 0 {
+			t.Fatalf("task A1 = %+v, want column=%q position=0", got, columnA.ID)
+		}
+		if got := tasksByID[taskB0.ID]; got.ColumnID != columnB.ID || got.Position != 0 {
+			t.Fatalf("task B0 = %+v, want column=%q position=0", got, columnB.ID)
+		}
+		if got := tasksByID[taskA0.ID]; got.ColumnID != columnB.ID || got.Position != 1 {
+			t.Fatalf("task A0 = %+v, want column=%q position=1", got, columnB.ID)
+		}
+
+		if _, _, err := repo.MoveTask(ctx, ownerUserID, board.ID, taskA1.ID, columnB.ID, 99); !errors.Is(err, kanban.ErrInvalidInput) {
+			t.Fatalf("move task with invalid position err = %v, want ErrInvalidInput", err)
+		}
+
+		details, err = repo.GetBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("get board after invalid move: %v", err)
+		}
+		tasksByID = make(map[string]kanban.Task, len(details.Tasks))
+		for _, task := range details.Tasks {
+			tasksByID[task.ID] = task
+		}
+		if got := tasksByID[taskA1.ID]; got.ColumnID != columnA.ID || got.Position != 0 {
+			t.Fatalf("task A1 after invalid move = %+v, want column=%q position=0", got, columnA.ID)
+		}
+
+		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {
+			t.Fatalf("cleanup board: %v", err)
+		}
+	})
 }

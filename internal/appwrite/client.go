@@ -52,6 +52,10 @@ type accountResponse struct {
 	Email string `json:"email"`
 }
 
+type transactionResponse struct {
+	ID string `json:"$id"`
+}
+
 func (c *Client) CreateEmailPasswordSession(ctx context.Context, email, password string) (string, error) {
 	payload := map[string]string{
 		"email":    email,
@@ -140,6 +144,28 @@ func (c *Client) VerifyJWT(ctx context.Context, token string) (auth.Identity, er
 	}
 
 	return auth.Identity{UserID: response.ID, Email: response.Email}, nil
+}
+
+func (c *Client) createTransaction(ctx context.Context, ttlSeconds int) (string, error) {
+	var response transactionResponse
+	payload := map[string]any{"ttl": ttlSeconds}
+	if err := c.doServerJSON(ctx, http.MethodPost, "/tablesdb/transactions", payload, &response); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(response.ID) == "" {
+		return "", fmt.Errorf("appwrite transaction id missing")
+	}
+	return response.ID, nil
+}
+
+func (c *Client) commitTransaction(ctx context.Context, transactionID string) error {
+	payload := map[string]bool{"commit": true, "rollback": false}
+	return c.doServerJSON(ctx, http.MethodPatch, "/tablesdb/transactions/"+transactionID, payload, nil)
+}
+
+func (c *Client) rollbackTransaction(ctx context.Context, transactionID string) error {
+	payload := map[string]bool{"commit": false, "rollback": true}
+	return c.doServerJSON(ctx, http.MethodPatch, "/tablesdb/transactions/"+transactionID, payload, nil)
 }
 
 func (c *Client) do(req *http.Request, out any) error {

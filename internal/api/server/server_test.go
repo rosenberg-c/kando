@@ -419,6 +419,172 @@ func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 	}
 }
 
+func TestKanbanMoveTaskBetweenColumns(t *testing.T) {
+	// Requirements: API-005, TASK-005, TASK-006, TASK-007
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
+	mux, api := NewAPI()
+	Register(api, Dependencies{KanbanRepo: repo, Verifier: verifier})
+
+	boardID := createBoard(t, mux)
+	columnAID := createColumn(t, mux, boardID)
+	columnBID := createColumn(t, mux, boardID)
+	taskA0ID := createTask(t, mux, boardID, columnAID)
+	taskA1ID := createTask(t, mux, boardID, columnAID)
+	taskB0ID := createTask(t, mux, boardID, columnBID)
+
+	body := strings.NewReader(`{"destinationColumnId":"` + columnBID + `","destinationPosition":1}`)
+	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("move task status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var moved struct {
+		ID       string `json:"id"`
+		ColumnID string `json:"columnId"`
+		Position int    `json:"position"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &moved); err != nil {
+		t.Fatalf("decode move response: %v", err)
+	}
+	if moved.ID != taskA0ID {
+		t.Fatalf("moved id = %q, want %q", moved.ID, taskA0ID)
+	}
+	if moved.ColumnID != columnBID {
+		t.Fatalf("moved column = %q, want %q", moved.ColumnID, columnBID)
+	}
+	if moved.Position != 1 {
+		t.Fatalf("moved position = %d, want 1", moved.Position)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/boards/"+boardID, nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder = httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("get board status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+
+	var boardResponse struct {
+		Tasks []struct {
+			ID       string `json:"id"`
+			ColumnID string `json:"columnId"`
+			Position int    `json:"position"`
+		} `json:"tasks"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &boardResponse); err != nil {
+		t.Fatalf("decode board response: %v", err)
+	}
+
+	tasksByID := make(map[string]struct {
+		ColumnID string
+		Position int
+	}, len(boardResponse.Tasks))
+	for _, task := range boardResponse.Tasks {
+		tasksByID[task.ID] = struct {
+			ColumnID string
+			Position int
+		}{ColumnID: task.ColumnID, Position: task.Position}
+	}
+
+	if got := tasksByID[taskA1ID]; got.ColumnID != columnAID || got.Position != 0 {
+		t.Fatalf("task A1 = %+v, want column=%q position=0", got, columnAID)
+	}
+	if got := tasksByID[taskB0ID]; got.ColumnID != columnBID || got.Position != 0 {
+		t.Fatalf("task B0 = %+v, want column=%q position=0", got, columnBID)
+	}
+	if got := tasksByID[taskA0ID]; got.ColumnID != columnBID || got.Position != 1 {
+		t.Fatalf("task A0 = %+v, want column=%q position=1", got, columnBID)
+	}
+}
+
+func TestKanbanMoveTaskReturnsBadRequestForOutOfRangePosition(t *testing.T) {
+	// Requirement: API-005
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
+	mux, api := NewAPI()
+	Register(api, Dependencies{KanbanRepo: repo, Verifier: verifier})
+
+	boardID := createBoard(t, mux)
+	columnAID := createColumn(t, mux, boardID)
+	columnBID := createColumn(t, mux, boardID)
+	taskA0ID := createTask(t, mux, boardID, columnAID)
+
+	body := strings.NewReader(`{"destinationColumnId":"` + columnBID + `","destinationPosition":99}`)
+	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+}
+
+func TestKanbanMoveTaskReturnsNotFoundForMissingDestinationColumn(t *testing.T) {
+	// Requirement: API-005
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
+	mux, api := NewAPI()
+	Register(api, Dependencies{KanbanRepo: repo, Verifier: verifier})
+
+	boardID := createBoard(t, mux)
+	columnAID := createColumn(t, mux, boardID)
+	taskA0ID := createTask(t, mux, boardID, columnAID)
+
+	body := strings.NewReader(`{"destinationColumnId":"00000000-0000-0000-0000-000000000123","destinationPosition":0}`)
+	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusNotFound, recorder.Body.String())
+	}
+}
+
+func TestKanbanMoveTaskReturnsForbiddenForOtherOwner(t *testing.T) {
+	// Requirement: API-005
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	muxOwner, apiOwner := NewAPI()
+	Register(apiOwner, Dependencies{KanbanRepo: repo, Verifier: &stubVerifier{identity: auth.Identity{UserID: "owner", Email: "owner@example.com"}}})
+
+	boardID := createBoard(t, muxOwner)
+	columnAID := createColumn(t, muxOwner, boardID)
+	columnBID := createColumn(t, muxOwner, boardID)
+	taskA0ID := createTask(t, muxOwner, boardID, columnAID)
+
+	muxIntruder, apiIntruder := NewAPI()
+	Register(apiIntruder, Dependencies{KanbanRepo: repo, Verifier: &stubVerifier{identity: auth.Identity{UserID: "intruder", Email: "intruder@example.com"}}})
+
+	body := strings.NewReader(`{"destinationColumnId":"` + columnBID + `","destinationPosition":0}`)
+	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	muxIntruder.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+}
+
 func createBoard(t *testing.T, mux *http.ServeMux) string {
 	t.Helper()
 
