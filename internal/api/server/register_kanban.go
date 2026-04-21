@@ -127,7 +127,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 			return nil, err
 		}
 
-		board, err := repo.CreateBoard(ctx, identity.UserID, input.Body.Title)
+		board, err := repo.CreateBoardIfAbsent(ctx, identity.UserID, input.Body.Title)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}

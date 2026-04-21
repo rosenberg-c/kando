@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -85,24 +84,21 @@ func (r *MemoryRepository) GetBoard(_ context.Context, ownerUserID, boardID stri
 	return BoardDetails{Board: board, Columns: columns, Todos: todos}, nil
 }
 
-func (r *MemoryRepository) CreateBoard(_ context.Context, ownerUserID, title string) (Board, error) {
+func (r *MemoryRepository) CreateBoardIfAbsent(_ context.Context, ownerUserID, title string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	trimmedTitle := strings.TrimSpace(title)
-	if trimmedTitle == "" {
-		return Board{}, ErrInvalidInput
-	}
-
 	if len(r.ownerBoards[ownerUserID]) > 0 {
 		return Board{}, fmt.Errorf("single board per user: %w", ErrConflict)
 	}
+	return r.createBoardLocked(ownerUserID, title), nil
+}
 
+func (r *MemoryRepository) createBoardLocked(ownerUserID, title string) Board {
 	now := r.now().UTC()
 	board := Board{
 		ID:           uuid.NewString(),
 		OwnerUserID:  ownerUserID,
-		Title:        trimmedTitle,
+		Title:        title,
 		BoardVersion: 1,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -110,25 +106,19 @@ func (r *MemoryRepository) CreateBoard(_ context.Context, ownerUserID, title str
 	r.boards[board.ID] = board
 	r.ownerBoards[ownerUserID] = append(r.ownerBoards[ownerUserID], board.ID)
 	r.boardColumns[board.ID] = nil
-
-	return board, nil
+	return board
 }
 
 func (r *MemoryRepository) UpdateBoardTitle(_ context.Context, ownerUserID, boardID, title string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	trimmedTitle := strings.TrimSpace(title)
-	if trimmedTitle == "" {
-		return Board{}, ErrInvalidInput
-	}
-
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
 		return Board{}, err
 	}
 
-	board.Title = trimmedTitle
+	board.Title = title
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
 	return board, nil
@@ -160,11 +150,6 @@ func (r *MemoryRepository) CreateColumn(_ context.Context, ownerUserID, boardID,
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	trimmedTitle := strings.TrimSpace(title)
-	if trimmedTitle == "" {
-		return Column{}, Board{}, ErrInvalidInput
-	}
-
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
 		return Column{}, Board{}, err
@@ -176,7 +161,7 @@ func (r *MemoryRepository) CreateColumn(_ context.Context, ownerUserID, boardID,
 		ID:          uuid.NewString(),
 		BoardID:     board.ID,
 		OwnerUserID: ownerUserID,
-		Title:       trimmedTitle,
+		Title:       title,
 		Position:    position,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -194,11 +179,6 @@ func (r *MemoryRepository) UpdateColumnTitle(_ context.Context, ownerUserID, boa
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	trimmedTitle := strings.TrimSpace(title)
-	if trimmedTitle == "" {
-		return Column{}, Board{}, ErrInvalidInput
-	}
-
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
 		return Column{}, Board{}, err
@@ -212,7 +192,7 @@ func (r *MemoryRepository) UpdateColumnTitle(_ context.Context, ownerUserID, boa
 		return Column{}, Board{}, ErrForbidden
 	}
 
-	column.Title = trimmedTitle
+	column.Title = title
 	column.UpdatedAt = r.now().UTC()
 	r.columns[column.ID] = column
 
@@ -256,12 +236,6 @@ func (r *MemoryRepository) CreateTodo(_ context.Context, ownerUserID, boardID, c
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	trimmedTitle := strings.TrimSpace(title)
-	trimmedDescription := strings.TrimSpace(description)
-	if trimmedTitle == "" {
-		return Todo{}, Board{}, ErrInvalidInput
-	}
-
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
 		return Todo{}, Board{}, err
@@ -279,8 +253,8 @@ func (r *MemoryRepository) CreateTodo(_ context.Context, ownerUserID, boardID, c
 		BoardID:     boardID,
 		ColumnID:    columnID,
 		OwnerUserID: ownerUserID,
-		Title:       trimmedTitle,
-		Description: trimmedDescription,
+		Title:       title,
+		Description: description,
 		Position:    position,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -297,12 +271,6 @@ func (r *MemoryRepository) UpdateTodo(_ context.Context, ownerUserID, boardID, t
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	trimmedTitle := strings.TrimSpace(title)
-	trimmedDescription := strings.TrimSpace(description)
-	if trimmedTitle == "" {
-		return Todo{}, Board{}, ErrInvalidInput
-	}
-
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
 		return Todo{}, Board{}, err
@@ -316,8 +284,8 @@ func (r *MemoryRepository) UpdateTodo(_ context.Context, ownerUserID, boardID, t
 		return Todo{}, Board{}, ErrForbidden
 	}
 
-	todo.Title = trimmedTitle
-	todo.Description = trimmedDescription
+	todo.Title = title
+	todo.Description = description
 	todo.UpdatedAt = r.now().UTC()
 	r.todos[todo.ID] = todo
 

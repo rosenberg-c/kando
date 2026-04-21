@@ -34,8 +34,8 @@ func (r *trackedRepository) GetBoard(ctx context.Context, ownerUserID, boardID s
 	return r.repo.GetBoard(ctx, ownerUserID, boardID)
 }
 
-func (r *trackedRepository) CreateBoard(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
-	board, err := r.repo.CreateBoard(ctx, ownerUserID, title)
+func (r *trackedRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
+	board, err := r.repo.CreateBoardIfAbsent(ctx, ownerUserID, title)
 	if err != nil {
 		return kanban.Board{}, err
 	}

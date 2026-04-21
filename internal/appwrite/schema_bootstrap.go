@@ -208,7 +208,7 @@ func (c *Client) ensureIndex(ctx context.Context, databaseID, collectionID strin
 	}
 	err := c.doServerJSON(ctx, http.MethodPost, createPath, payload, nil)
 	if err != nil && !isAlreadyExists(err) {
-		return err
+		return explainIndexBootstrapError(err, collectionID, spec)
 	}
 
 	if err := c.waitUntilAvailable(ctx, fmt.Sprintf("/tablesdb/%s/tables/%s/indexes/%s", databaseID, collectionID, spec.Key)); err != nil {
@@ -216,6 +216,18 @@ func (c *Client) ensureIndex(ctx context.Context, databaseID, collectionID strin
 	}
 
 	return nil
+}
+
+func explainIndexBootstrapError(err error, collectionID string, spec indexSpec) error {
+	var apiErr *appwriteAPIError
+	if errors.As(err, &apiErr) {
+		detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
+		if spec.Type == "unique" && (strings.Contains(detail, "duplicate") || strings.Contains(detail, "already exists") || strings.Contains(detail, "unique")) {
+			return fmt.Errorf("create unique index %s.%s failed: existing rows violate uniqueness; clean duplicate data and rerun bootstrap: %w", collectionID, spec.Key, err)
+		}
+	}
+
+	return err
 }
 
 func (c *Client) waitUntilAvailable(ctx context.Context, path string) error {

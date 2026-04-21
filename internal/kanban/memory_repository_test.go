@@ -13,13 +13,9 @@ func TestMemoryRepositoryCRUDAndReindex(t *testing.T) {
 	ctx := context.Background()
 	repo := NewMemoryRepository()
 
-	board, err := repo.CreateBoard(ctx, "user-1", "Main")
+	board, err := repo.CreateBoardIfAbsent(ctx, "user-1", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
-	}
-
-	if _, err := repo.CreateBoard(ctx, "user-1", "Second"); !errors.Is(err, ErrConflict) {
-		t.Fatalf("create second board err = %v, want ErrConflict", err)
 	}
 
 	updatedBoard, err := repo.UpdateBoardTitle(ctx, "user-1", board.ID, "Main Updated")
@@ -122,7 +118,7 @@ func TestMemoryRepositoryOwnershipEnforcement(t *testing.T) {
 	ctx := context.Background()
 	repo := NewMemoryRepository()
 
-	board, err := repo.CreateBoard(ctx, "owner", "Main")
+	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
 	}

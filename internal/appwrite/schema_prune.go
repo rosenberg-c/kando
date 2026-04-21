@@ -217,8 +217,8 @@ func (c *Client) listAllIndexes(ctx context.Context, databaseID, tableID string)
 
 func withListQueries(path string, offset int) string {
 	values := url.Values{}
-	values.Add("queries[]", "limit("+strconv.Itoa(pruneListPageLimit)+")")
-	values.Add("queries[]", "offset("+strconv.Itoa(offset)+")")
+	values.Add("limit", strconv.Itoa(pruneListPageLimit))
+	values.Add("offset", strconv.Itoa(offset))
 	return path + "?" + values.Encode()
 }
 

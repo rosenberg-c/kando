@@ -8,9 +8,12 @@ import (
 
 type serviceRepoStub struct {
 	details           BoardDetails
+	createBoardResult Board
 	deleteColumnBoard Board
+	createBoardCalls  int
 	getBoardCalls     int
 	deleteColumnCalls int
+	createBoardErr    error
 	getBoardErr       error
 	deleteColumnErr   error
 }
@@ -27,8 +30,12 @@ func (s *serviceRepoStub) GetBoard(context.Context, string, string) (BoardDetail
 	return s.details, nil
 }
 
-func (s *serviceRepoStub) CreateBoard(context.Context, string, string) (Board, error) {
-	panic("unexpected call")
+func (s *serviceRepoStub) CreateBoardIfAbsent(context.Context, string, string) (Board, error) {
+	s.createBoardCalls++
+	if s.createBoardErr != nil {
+		return Board{}, s.createBoardErr
+	}
+	return s.createBoardResult, nil
 }
 
 func (s *serviceRepoStub) UpdateBoardTitle(context.Context, string, string, string) (Board, error) {
@@ -110,5 +117,23 @@ func TestServiceDeleteColumnWithoutTodosDelegates(t *testing.T) {
 	}
 	if stub.deleteColumnCalls != 1 {
 		t.Fatalf("delete column calls = %d, want 1", stub.deleteColumnCalls)
+	}
+}
+
+func TestServiceCreateBoardDelegatesAtomicConflict(t *testing.T) {
+	// Requirement: API-003
+	t.Parallel()
+
+	stub := &serviceRepoStub{
+		createBoardErr: ErrConflict,
+	}
+	svc := NewService(stub)
+
+	_, err := svc.CreateBoardIfAbsent(context.Background(), "user-1", "Main")
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("create board err = %v, want ErrConflict", err)
+	}
+	if stub.createBoardCalls != 1 {
+		t.Fatalf("create board calls = %d, want 1", stub.createBoardCalls)
 	}
 }

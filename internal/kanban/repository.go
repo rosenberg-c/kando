@@ -5,7 +5,7 @@ import "context"
 type Repository interface {
 	ListBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error)
 	GetBoard(ctx context.Context, ownerUserID, boardID string) (BoardDetails, error)
-	CreateBoard(ctx context.Context, ownerUserID, title string) (Board, error)
+	CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (Board, error)
 	UpdateBoardTitle(ctx context.Context, ownerUserID, boardID, title string) (Board, error)
 	DeleteBoard(ctx context.Context, ownerUserID, boardID string) error
 

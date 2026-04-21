@@ -14,13 +14,9 @@ func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
 	ctx := context.Background()
 	repo := newTestSQLiteRepository(t)
 
-	board, err := repo.CreateBoard(ctx, "user-1", "Main")
+	board, err := repo.CreateBoardIfAbsent(ctx, "user-1", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
-	}
-
-	if _, err := repo.CreateBoard(ctx, "user-1", "Second"); !errors.Is(err, ErrConflict) {
-		t.Fatalf("create second board err = %v, want ErrConflict", err)
 	}
 
 	updatedBoard, err := repo.UpdateBoardTitle(ctx, "user-1", board.ID, "Main Updated")
@@ -123,7 +119,7 @@ func TestSQLiteRepositoryOwnershipEnforcement(t *testing.T) {
 	ctx := context.Background()
 	repo := newTestSQLiteRepository(t)
 
-	board, err := repo.CreateBoard(ctx, "owner", "Main")
+	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
 	}
@@ -148,6 +144,47 @@ func TestSQLiteRepositoryOwnershipEnforcement(t *testing.T) {
 
 	if _, err := repo.DeleteTodo(ctx, "intruder", board.ID, todo.ID); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("delete todo err = %v, want ErrForbidden", err)
+	}
+}
+
+func TestSQLiteRepositoryGetBoardTodoOrderFollowsColumnPosition(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestSQLiteRepository(t)
+
+	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
+	if err != nil {
+		t.Fatalf("create board: %v", err)
+	}
+
+	columnA, _, err := repo.CreateColumn(ctx, "owner", board.ID, "A")
+	if err != nil {
+		t.Fatalf("create column A: %v", err)
+	}
+	columnB, _, err := repo.CreateColumn(ctx, "owner", board.ID, "B")
+	if err != nil {
+		t.Fatalf("create column B: %v", err)
+	}
+
+	if _, _, err := repo.CreateTodo(ctx, "owner", board.ID, columnB.ID, "B0", ""); err != nil {
+		t.Fatalf("create todo in column B: %v", err)
+	}
+	if _, _, err := repo.CreateTodo(ctx, "owner", board.ID, columnA.ID, "A0", ""); err != nil {
+		t.Fatalf("create todo in column A: %v", err)
+	}
+
+	details, err := repo.GetBoard(ctx, "owner", board.ID)
+	if err != nil {
+		t.Fatalf("get board: %v", err)
+	}
+
+	if len(details.Todos) != 2 {
+		t.Fatalf("todo count = %d, want 2", len(details.Todos))
+	}
+	if details.Todos[0].ColumnID != columnA.ID {
+		t.Fatalf("first todo column = %q, want %q", details.Todos[0].ColumnID, columnA.ID)
+	}
+	if details.Todos[1].ColumnID != columnB.ID {
+		t.Fatalf("second todo column = %q, want %q", details.Todos[1].ColumnID, columnB.ID)
 	}
 }
 

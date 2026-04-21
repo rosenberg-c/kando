@@ -132,7 +132,9 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 	sort.Slice(colRows, func(i, j int) bool { return colRows[i].Position < colRows[j].Position })
 
 	columnsOut := make([]kanban.Column, 0, len(colRows))
+	columnPositionByID := make(map[string]int, len(colRows))
 	for _, col := range colRows {
+		columnPositionByID[col.ID] = col.Position
 		columnsOut = append(columnsOut, mapColumnRow(col))
 	}
 
@@ -146,6 +148,14 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 		if todoRows[i].ColumnID == todoRows[j].ColumnID {
 			return todoRows[i].Position < todoRows[j].Position
 		}
+		leftPos, leftOK := columnPositionByID[todoRows[i].ColumnID]
+		rightPos, rightOK := columnPositionByID[todoRows[j].ColumnID]
+		if leftOK && rightOK && leftPos != rightPos {
+			return leftPos < rightPos
+		}
+		if leftOK != rightOK {
+			return leftOK
+		}
 		return todoRows[i].ColumnID < todoRows[j].ColumnID
 	})
 
@@ -157,27 +167,15 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 	return kanban.BoardDetails{Board: mapBoardRow(boardRow), Columns: columnsOut, Todos: todosOut}, nil
 }
 
-func (r *KanbanRepository) CreateBoard(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return kanban.Board{}, kanban.ErrInvalidInput
-	}
-
-	boards, err := r.ListBoardsByOwner(ctx, ownerUserID)
-	if err != nil {
-		return kanban.Board{}, err
-	}
-	if len(boards) > 0 {
-		return kanban.Board{}, kanban.ErrConflict
-	}
-
+func (r *KanbanRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
+	// Appwrite atomicity relies on uniqueness for ownerUserId in storage.
 	now := time.Now().UTC()
 	rowID := uuid.NewString()
 	payload := map[string]any{
 		"rowId": rowID,
 		"data": map[string]any{
 			"ownerUserId":  ownerUserID,
-			"title":        trimmed,
+			"title":        title,
 			"boardVersion": 1,
 			"createdAt":    now.Format(time.RFC3339),
 			"updatedAt":    now.Format(time.RFC3339),
@@ -196,11 +194,6 @@ func (r *KanbanRepository) CreateBoard(ctx context.Context, ownerUserID, title s
 }
 
 func (r *KanbanRepository) UpdateBoardTitle(ctx context.Context, ownerUserID, boardID, title string) (kanban.Board, error) {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return kanban.Board{}, kanban.ErrInvalidInput
-	}
-
 	row, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
 		return kanban.Board{}, err
@@ -208,7 +201,7 @@ func (r *KanbanRepository) UpdateBoardTitle(ctx context.Context, ownerUserID, bo
 
 	now := time.Now().UTC()
 	payload := map[string]any{"data": map[string]any{
-		"title":        trimmed,
+		"title":        title,
 		"boardVersion": row.BoardVersion + 1,
 		"updatedAt":    now.Format(time.RFC3339),
 	}}
@@ -255,10 +248,6 @@ func (r *KanbanRepository) DeleteBoard(ctx context.Context, ownerUserID, boardID
 }
 
 func (r *KanbanRepository) CreateColumn(ctx context.Context, ownerUserID, boardID, title string) (kanban.Column, kanban.Board, error) {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return kanban.Column{}, kanban.Board{}, kanban.ErrInvalidInput
-	}
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
 		return kanban.Column{}, kanban.Board{}, err
@@ -280,7 +269,7 @@ func (r *KanbanRepository) CreateColumn(ctx context.Context, ownerUserID, boardI
 	payload := map[string]any{"rowId": rowID, "data": map[string]any{
 		"boardId":     boardID,
 		"ownerUserId": ownerUserID,
-		"title":       trimmed,
+		"title":       title,
 		"position":    position,
 		"createdAt":   now.Format(time.RFC3339),
 		"updatedAt":   now.Format(time.RFC3339),
@@ -301,10 +290,6 @@ func (r *KanbanRepository) CreateColumn(ctx context.Context, ownerUserID, boardI
 }
 
 func (r *KanbanRepository) UpdateColumnTitle(ctx context.Context, ownerUserID, boardID, columnID, title string) (kanban.Column, kanban.Board, error) {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return kanban.Column{}, kanban.Board{}, kanban.ErrInvalidInput
-	}
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
 		return kanban.Column{}, kanban.Board{}, err
@@ -315,7 +300,7 @@ func (r *KanbanRepository) UpdateColumnTitle(ctx context.Context, ownerUserID, b
 	}
 
 	payload := map[string]any{"data": map[string]any{
-		"title":     trimmed,
+		"title":     title,
 		"updatedAt": time.Now().UTC().Format(time.RFC3339),
 	}}
 	if err := r.updateRow(ctx, r.columns, columnID, payload, nil); err != nil {
@@ -357,10 +342,6 @@ func (r *KanbanRepository) DeleteColumn(ctx context.Context, ownerUserID, boardI
 }
 
 func (r *KanbanRepository) CreateTodo(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (kanban.Todo, kanban.Board, error) {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return kanban.Todo{}, kanban.Board{}, kanban.ErrInvalidInput
-	}
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
 		return kanban.Todo{}, kanban.Board{}, err
@@ -386,8 +367,8 @@ func (r *KanbanRepository) CreateTodo(ctx context.Context, ownerUserID, boardID,
 		"boardId":     boardID,
 		"columnId":    columnID,
 		"ownerUserId": ownerUserID,
-		"title":       trimmed,
-		"description": strings.TrimSpace(description),
+		"title":       title,
+		"description": description,
 		"position":    position,
 		"createdAt":   now.Format(time.RFC3339),
 		"updatedAt":   now.Format(time.RFC3339),
@@ -408,10 +389,6 @@ func (r *KanbanRepository) CreateTodo(ctx context.Context, ownerUserID, boardID,
 }
 
 func (r *KanbanRepository) UpdateTodo(ctx context.Context, ownerUserID, boardID, todoID, title, description string) (kanban.Todo, kanban.Board, error) {
-	trimmed := strings.TrimSpace(title)
-	if trimmed == "" {
-		return kanban.Todo{}, kanban.Board{}, kanban.ErrInvalidInput
-	}
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
 		return kanban.Todo{}, kanban.Board{}, err
@@ -421,8 +398,8 @@ func (r *KanbanRepository) UpdateTodo(ctx context.Context, ownerUserID, boardID,
 	}
 
 	payload := map[string]any{"data": map[string]any{
-		"title":       trimmed,
-		"description": strings.TrimSpace(description),
+		"title":       title,
+		"description": description,
 		"updatedAt":   time.Now().UTC().Format(time.RFC3339),
 	}}
 	if err := r.updateRow(ctx, r.todos, todoID, payload, nil); err != nil {

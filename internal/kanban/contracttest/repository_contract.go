@@ -19,7 +19,7 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 		repo := makeRepo()
 		ownerUserID := "user-" + uuid.NewString()
 
-		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		board, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Main")
 		if err != nil {
 			t.Fatalf("create board: %v", err)
 		}
@@ -61,7 +61,7 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 		ownerUserID := "owner-" + uuid.NewString()
 		intruderUserID := "intruder-" + uuid.NewString()
 
-		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		board, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Main")
 		if err != nil {
 			t.Fatalf("create board: %v", err)
 		}
@@ -80,16 +80,16 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 		repo := makeRepo()
 		ownerUserID := "user-" + uuid.NewString()
 
-		if _, err := repo.CreateBoard(ctx, ownerUserID, "   "); !errors.Is(err, kanban.ErrInvalidInput) {
+		if _, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "   "); !errors.Is(err, kanban.ErrInvalidInput) {
 			t.Fatalf("create board err = %v, want ErrInvalidInput", err)
 		}
 
-		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		board, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Main")
 		if err != nil {
 			t.Fatalf("create board: %v", err)
 		}
 
-		if _, err := repo.CreateBoard(ctx, ownerUserID, "Second"); !errors.Is(err, kanban.ErrConflict) {
+		if _, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Second"); !errors.Is(err, kanban.ErrConflict) {
 			t.Fatalf("create second board err = %v, want ErrConflict", err)
 		}
 

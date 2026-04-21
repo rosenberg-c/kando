@@ -199,7 +199,7 @@ func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
-	board, err := repo.CreateBoard(context.Background(), "owner-user", "Main")
+	board, err := repo.CreateBoardIfAbsent(context.Background(), "owner-user", "Main")
 	if err != nil {
 		t.Fatalf("seed board: %v", err)
 	}
