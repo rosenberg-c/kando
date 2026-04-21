@@ -4,6 +4,9 @@
 - `TASK-002`: Users can edit task title and description.
 - `TASK-003`: Users can delete a task.
 - `TASK-004`: Task order is stable and reindexed after structural updates.
+- `TASK-005`: Users can move a task to a different column.
+- `TASK-006`: Users can place a moved task at a specific position in the destination column.
+- `TASK-007`: Moving a task preserves stable ordering in both source and destination columns after reindexing.
 
 ## Delete Task Confirmation
 
