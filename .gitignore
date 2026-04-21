@@ -6,6 +6,9 @@ logs/
 apps/apple/.build/
 apps/apple/.swiftpm/
 apps/apple/.derived/
+cmd/sync_test_matrix/swift_parser/.build/
+cmd/sync_test_matrix/swift_parser/.swiftpm/
+cmd/sync_test_matrix/swift_parser/Package.resolved
 **/xcuserdata/
 *.xcuserstate
 .DS_Store

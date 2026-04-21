@@ -121,7 +121,6 @@ func TestServiceDeleteColumnWithoutTasksDelegates(t *testing.T) {
 }
 
 func TestServiceCreateBoardDelegatesAtomicConflict(t *testing.T) {
-	// Requirement: API-003
 	t.Parallel()
 
 	stub := &serviceRepoStub{

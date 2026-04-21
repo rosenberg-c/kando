@@ -8,7 +8,7 @@ import (
 )
 
 func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
-	// Requirements: COL-002, COL-004, TASK-002, TASK-003, TASK-004
+	// Requirements: COL-002, COL-003, COL-004, TASK-002, TASK-003, TASK-004
 	t.Parallel()
 
 	ctx := context.Background()
@@ -113,7 +113,6 @@ func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
 }
 
 func TestSQLiteRepositoryOwnershipEnforcement(t *testing.T) {
-	// Requirement: API-003
 	t.Parallel()
 
 	ctx := context.Background()

@@ -11,6 +11,21 @@ Minimal Go backend scaffold for the task app.
 - Backend OpenAPI is exported from the same registered operations used at runtime
 - `make verify-generate` fails if generated artifacts are out of date
 
+## Requirement-driven development (RDD)
+
+- Requirements are defined and versioned in `docs/requirements/*.md`.
+- Automated tests map back to requirements using `Requirement:` / `Requirements:` tags in test files.
+- `docs/TEST_MATRIX.md` is the traceability map from requirement IDs to test references.
+- `make test` now includes `make verify-test-matrix` to fail when the matrix is stale.
+
+Useful commands:
+
+```bash
+make sync-test-matrix     # regenerate docs/TEST_MATRIX.md from requirement/test tags
+make verify-test-matrix   # fail if docs/TEST_MATRIX.md is out of date
+make test                 # go tests + matrix verify + macOS unit tests
+```
+
 ## Environment Setup
 
 1. Copy env template:

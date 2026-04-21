@@ -334,7 +334,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 }
 
 func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
-	// Requirements: BOARD-001, BOARD-002, COL-001, TASK-001
+	// Requirements: API-001, BOARD-001, BOARD-002, COL-001, TASK-001
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -382,7 +382,7 @@ func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
 }
 
 func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
-	// Requirements: COL-RULE-001, COL-RULE-002
+	// Requirements: API-003, COL-RULE-001, COL-RULE-002
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())

@@ -10,7 +10,7 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate build run run-cli run-macos open-macos open test test-macos-unit test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build run run-cli run-macos open-macos open test test-macos-unit test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
 
 generate:
 	go run ./cmd/gen_openapi
@@ -19,6 +19,12 @@ generate:
 
 verify-generate: generate
 	git diff --exit-code -- api/openapi.yaml internal/api/generated/client/client.gen.go api/appwrite-schema.json
+
+sync-test-matrix:
+	go run ./cmd/sync_test_matrix -apply
+
+verify-test-matrix:
+	go run ./cmd/sync_test_matrix
 
 build:
 	mkdir -p $(BIN_DIR)
@@ -57,6 +63,7 @@ install-cli: cli-install
 
 test:
 	go test ./...
+	$(MAKE) verify-test-matrix
 	$(MAKE) test-macos-unit
 
 test-macos-unit:

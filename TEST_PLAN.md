@@ -30,10 +30,11 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 
 ## Phase 3: Session Lifecycle
 
-- Add `AuthSessionViewModel` tests for:
-  - `AUTH-002`: restore existing session.
-  - `AUTH-003`: refresh expired token.
-  - `AUTH-004`: signed-out state when session is missing/invalid.
+- Status: done
+- Added `AuthSessionViewModel` tests for:
+  - `AUTH-002`: restore existing session (`restoreSessionUsesPersistedValidToken`).
+  - `AUTH-003`: refresh expired token (`restoreSessionRefreshesWhenAccessTokenExpired`).
+  - `AUTH-004`: signed-out state when session is missing/invalid (`restoreSessionSkipsWhenNoPersistedSession`).
 
 ## Phase 4: Remaining Platform and Contract Checks
 
