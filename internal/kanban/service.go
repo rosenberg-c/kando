@@ -89,6 +89,13 @@ func (s *Service) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, 
 	return s.repo.UpdateTask(ctx, ownerUserID, boardID, taskID, trimmedTitle, strings.TrimSpace(description))
 }
 
+func (s *Service) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
+	if destinationPosition < 0 {
+		return Task{}, Board{}, ErrInvalidInput
+	}
+	return s.repo.MoveTask(ctx, ownerUserID, boardID, taskID, destinationColumnID, destinationPosition)
+}
+
 func (s *Service) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	return s.repo.DeleteTask(ctx, ownerUserID, boardID, taskID)
 }

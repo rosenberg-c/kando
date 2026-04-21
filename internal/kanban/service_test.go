@@ -70,6 +70,10 @@ func (s *serviceRepoStub) UpdateTask(context.Context, string, string, string, st
 	panic("unexpected call")
 }
 
+func (s *serviceRepoStub) MoveTask(context.Context, string, string, string, string, int) (Task, Board, error) {
+	panic("unexpected call")
+}
+
 func (s *serviceRepoStub) DeleteTask(context.Context, string, string, string) (Board, error) {
 	panic("unexpected call")
 }

@@ -286,7 +286,7 @@ func TestKanbanValidationReturnsBadRequest(t *testing.T) {
 }
 
 func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
-	// Requirement: PUBLIC-003
+	// Requirements: PUBLIC-003, PUBLIC-004
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -331,6 +331,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/tasks", http.MethodPost)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodPatch)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodDelete)
+	assertPathMethod("/boards/{boardId}/tasks/{taskId}/move", http.MethodPatch)
 }
 
 func TestKanbanBoardColumnTaskCRUD(t *testing.T) {

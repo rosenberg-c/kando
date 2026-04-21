@@ -80,6 +80,13 @@ type updateTaskInput struct {
 	Body          contracts.UpdateTaskRequest
 }
 
+type moveTaskInput struct {
+	Authorization string `header:"Authorization"`
+	BoardID       string `path:"boardId"`
+	TaskID        string `path:"taskId"`
+	Body          contracts.MoveTaskRequest
+}
+
 type taskPathInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
@@ -310,6 +317,26 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
+		OperationID: "moveTask",
+		Method:      http.MethodPatch,
+		Path:        "/boards/{boardId}/tasks/{taskId}/move",
+		Summary:     "Move a task",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *moveTaskInput) (*taskOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		task, _, err := repo.MoveTask(ctx, identity.UserID, input.BoardID, input.TaskID, input.Body.DestinationColumnID, input.Body.DestinationPosition)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return &taskOutput{Body: toContractTask(task)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID:   "deleteTask",
 		Method:        http.MethodDelete,
 		Path:          "/boards/{boardId}/tasks/{taskId}",
@@ -361,6 +388,8 @@ func mapKanbanError(err error) error {
 		return huma.Error404NotFound("not found")
 	case errors.Is(err, kanban.ErrConflict):
 		return huma.Error409Conflict("conflict")
+	case errors.Is(err, kanban.ErrNotImplemented):
+		return huma.Error501NotImplemented("not implemented")
 	default:
 		return huma.Error500InternalServerError("internal error")
 	}

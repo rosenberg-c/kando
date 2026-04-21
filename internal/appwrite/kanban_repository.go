@@ -416,6 +416,10 @@ func (r *KanbanRepository) UpdateTask(ctx context.Context, ownerUserID, boardID,
 	return mapTaskRow(task), mapBoardRow(board), nil
 }
 
+func (r *KanbanRepository) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (kanban.Task, kanban.Board, error) {
+	return kanban.Task{}, kanban.Board{}, kanban.ErrNotImplemented
+}
+
 func (r *KanbanRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Board, error) {
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {

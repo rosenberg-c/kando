@@ -294,6 +294,10 @@ func (r *MemoryRepository) UpdateTask(_ context.Context, ownerUserID, boardID, t
 	return task, board, nil
 }
 
+func (r *MemoryRepository) MoveTask(_ context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
+	return Task{}, Board{}, ErrNotImplemented
+}
+
 func (r *MemoryRepository) DeleteTask(_ context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

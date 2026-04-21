@@ -441,6 +441,10 @@ func (r *SQLiteRepository) UpdateTask(ctx context.Context, ownerUserID, boardID,
 	return task, board, nil
 }
 
+func (r *SQLiteRepository) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
+	return Task{}, Board{}, ErrNotImplemented
+}
+
 func (r *SQLiteRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
