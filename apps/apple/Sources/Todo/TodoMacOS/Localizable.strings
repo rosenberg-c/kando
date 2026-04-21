@@ -69,6 +69,7 @@
 "board.task.validation.title_required" = "Task title is required.";
 "board.task.status.created" = "Task created: %@.";
 "board.task.status.updated" = "Task updated: %@.";
+"board.task.status.moved" = "Task moved.";
 "board.task.status.deleted" = "Task deleted.";
 "board.task.delete.confirm.title" = "Delete task?";
 "board.task.delete.confirm.message" = "This will permanently delete \"%@\".";

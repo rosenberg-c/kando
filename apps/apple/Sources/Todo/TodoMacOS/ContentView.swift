@@ -7,6 +7,7 @@
 
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var auth = AuthSessionViewModel()
@@ -116,6 +117,7 @@ private struct LoggedInWorkspaceView: View {
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
+    @State private var draggingTaskID: String?
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -184,7 +186,17 @@ private struct LoggedInWorkspaceView: View {
                             onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
                             onDeleteTask: { task in
                                 pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
-                            }
+                            },
+                            onMoveTask: { taskID, destinationColumnID, destinationPosition in
+                                Task {
+                                    await board.moveTask(
+                                        taskID: taskID,
+                                        destinationColumnID: destinationColumnID,
+                                        destinationPosition: destinationPosition
+                                    )
+                                }
+                            },
+                            draggingTaskID: $draggingTaskID
                         )
                     }
                 }
@@ -365,16 +377,20 @@ private struct ColumnCard: View {
     let onAddTask: () -> Void
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let onMoveTask: (String, String, Int) -> Void
+    @Binding var draggingTaskID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(column.title)
                     .font(.headline)
+                    .accessibilityIdentifier("column-title-\(column.id)")
                 Spacer()
                 Text(Strings.f("board.column.task_count", tasks.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("column-task-count-\(column.id)")
             }
 
             HStack(spacing: 8) {
@@ -394,6 +410,7 @@ private struct ColumnCard: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(task.title)
                             .font(.subheadline.weight(.semibold))
+                            .accessibilityIdentifier("task-title-\(task.id)")
                         if !task.description.isEmpty {
                             Text(task.description)
                                 .font(.caption)
@@ -414,6 +431,16 @@ private struct ColumnCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .onDrag {
+                        draggingTaskID = task.id
+                        return NSItemProvider(object: task.id as NSString)
+                    }
+                    .onDrop(of: [UTType.text], delegate: TaskCardDropDelegate(
+                        destinationColumnID: column.id,
+                        destinationPosition: task.position,
+                        onMoveTask: onMoveTask,
+                        draggingTaskID: $draggingTaskID
+                    ))
                 }
             }
 
@@ -425,6 +452,12 @@ private struct ColumnCard: View {
         .padding(12)
         .frame(width: 280, alignment: .topLeading)
         .background(Color(NSColor.windowBackgroundColor))
+        .onDrop(of: [UTType.text], delegate: ColumnDropDelegate(
+            destinationColumnID: column.id,
+            destinationPosition: tasks.count,
+            onMoveTask: onMoveTask,
+            draggingTaskID: $draggingTaskID
+        ))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color(NSColor.separatorColor), lineWidth: 1)
@@ -550,6 +583,66 @@ private struct EditableTask: Identifiable {
 private struct CreateTaskTarget: Identifiable {
     let columnID: String
     var id: String { columnID }
+}
+
+private struct TaskCardDropDelegate: DropDelegate {
+    let destinationColumnID: String
+    let destinationPosition: Int
+    let onMoveTask: (String, String, Int) -> Void
+    @Binding var draggingTaskID: String?
+
+    func performDrop(info: DropInfo) -> Bool {
+        TaskDropHandler.performMove(
+            providers: info.itemProviders(for: [UTType.text]),
+            destinationColumnID: destinationColumnID,
+            destinationPosition: destinationPosition,
+            onMoveTask: onMoveTask,
+            draggingTaskID: $draggingTaskID
+        )
+    }
+}
+
+private struct ColumnDropDelegate: DropDelegate {
+    let destinationColumnID: String
+    let destinationPosition: Int
+    let onMoveTask: (String, String, Int) -> Void
+    @Binding var draggingTaskID: String?
+
+    func performDrop(info: DropInfo) -> Bool {
+        TaskDropHandler.performMove(
+            providers: info.itemProviders(for: [UTType.text]),
+            destinationColumnID: destinationColumnID,
+            destinationPosition: destinationPosition,
+            onMoveTask: onMoveTask,
+            draggingTaskID: $draggingTaskID
+        )
+    }
+}
+
+private enum TaskDropHandler {
+    static func performMove(
+        providers: [NSItemProvider],
+        destinationColumnID: String,
+        destinationPosition: Int,
+        onMoveTask: @escaping (String, String, Int) -> Void,
+        draggingTaskID: Binding<String?>
+    ) -> Bool {
+        guard let provider = providers.first else { return false }
+        if let taskID = draggingTaskID.wrappedValue {
+            onMoveTask(taskID, destinationColumnID, destinationPosition)
+            draggingTaskID.wrappedValue = nil
+            return true
+        }
+
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let taskID = object as? String else { return }
+            DispatchQueue.main.async {
+                onMoveTask(taskID, destinationColumnID, destinationPosition)
+                draggingTaskID.wrappedValue = nil
+            }
+        }
+        return true
+    }
 }
 
 #Preview {

@@ -124,6 +124,47 @@ struct BoardViewModelTests {
         #expect(viewModel.debugMessage.contains("status=409"))
         #expect(viewModel.debugMessage.contains("detail=column has tasks"))
     }
+
+    @Test func moveTaskConflictSurfacesStatusDetails() async {
+        // Requirements: UX-006, API-005
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-1", title: "Backlog", position: 0),
+                KanbanColumn(id: "column-2", title: "Doing", position: 1)
+            ],
+            tasks: [KanbanTask(id: "task-1", columnID: "column-1", title: "Task", description: "", position: 0)]
+        )
+
+        let api = MockKanbanAPI(
+            ensureBoardHandler: { _, _, _ in board },
+            getBoardHandler: { _, _, _ in details },
+            moveTaskHandler: { _, _, _, _, _, _ in
+                throw KanbanAPIError.unexpectedStatus(
+                    code: 409,
+                    operation: "moveTask",
+                    title: "Conflict",
+                    detail: "invalid destination position"
+                )
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.moveTask(taskID: "task-1", destinationColumnID: "column-2", destinationPosition: 99)
+
+        #expect(viewModel.statusIsError)
+        #expect(viewModel.statusMessage.contains("409"))
+        #expect(viewModel.debugMessage.contains("operation=moveTask"))
+        #expect(viewModel.debugMessage.contains("status=409"))
+        #expect(viewModel.debugMessage.contains("detail=invalid destination position"))
+    }
 }
 
 private actor AsyncCounter {

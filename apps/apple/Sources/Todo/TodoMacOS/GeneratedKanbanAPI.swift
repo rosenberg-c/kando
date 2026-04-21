@@ -97,6 +97,18 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
+    func moveTask(boardID: String, taskID: String, destinationColumnID: String, destinationPosition: Int, accessToken: String, baseURL: URL) async throws {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.MoveTaskRequest(
+            destinationColumnId: destinationColumnID,
+            destinationPosition: Int64(destinationPosition)
+        )
+        let output = try await client.moveTask(path: .init(boardId: boardID, taskId: taskID), body: .json(payload))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "moveTask", model: problem(from: payload.body))
+        }
+    }
+
     private func authenticatedClient(baseURL: URL, accessToken: String) -> Client {
         TodoAPIClientFactory.makeClient(baseURL: baseURL, middlewares: [BearerAuthMiddleware(accessToken: accessToken)])
     }
@@ -143,6 +155,10 @@ struct GeneratedKanbanAPI: KanbanAPI {
             return model
         }
         if let body = body as? Operations.DeleteTask.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.MoveTask.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }

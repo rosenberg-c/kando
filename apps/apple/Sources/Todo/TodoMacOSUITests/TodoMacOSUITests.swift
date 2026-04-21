@@ -125,6 +125,42 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testDragTaskToAnotherColumn() throws {
+        // Requirement: UX-005
+        let app = launchSignedInApp()
+
+        let sourceTask = app.staticTexts["task-title-task-1"]
+        let destinationColumn = app.staticTexts["column-title-column-empty"]
+        let sourceCount = app.staticTexts["column-task-count-column-work"]
+        let destinationCount = app.staticTexts["column-task-count-column-empty"]
+        XCTAssertTrue(sourceTask.waitForExistence(timeout: 5), "Expected source task card")
+        XCTAssertTrue(destinationColumn.waitForExistence(timeout: 5), "Expected destination column card")
+        XCTAssertTrue(sourceCount.waitForExistence(timeout: 5), "Expected source column task count")
+        XCTAssertTrue(destinationCount.waitForExistence(timeout: 5), "Expected destination column task count")
+
+        let initialSourceCount = taskCount(from: sourceCount)
+        let initialDestinationCount = taskCount(from: destinationCount)
+        XCTAssertNotNil(initialSourceCount, "Expected parseable source count text")
+        XCTAssertNotNil(initialDestinationCount, "Expected parseable destination count text")
+        let expectedSourceCount = (initialSourceCount ?? 0) - 1
+        let expectedDestinationCount = (initialDestinationCount ?? 0) + 1
+
+        sourceTask.press(forDuration: 0.5, thenDragTo: destinationColumn)
+
+        let movedTask = app.staticTexts["task-title-task-1"]
+        XCTAssertTrue(movedTask.waitForExistence(timeout: 3), "Expected moved task to remain visible")
+
+        XCTAssertTrue(
+            waitForCountValue(element: sourceCount, equals: expectedSourceCount, timeout: 3),
+            "Expected source column count to become \(expectedSourceCount)"
+        )
+        XCTAssertTrue(
+            waitForCountValue(element: destinationCount, equals: expectedDestinationCount, timeout: 3),
+            "Expected destination column count to become \(expectedDestinationCount)"
+        )
+    }
+
+    @MainActor
     private func launchSignedInApp() -> XCUIApplication {
         let app = configuredAppForUITests()
         app.launchEnvironment[UITestEnvKey.signedIn] = "1"
@@ -133,5 +169,24 @@ final class TodoMacOSUITests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5), "Expected app window after launch")
         return app
+    }
+
+    private func taskCount(from element: XCUIElement) -> Int? {
+        let text = (element.value as? String) ?? element.label
+        let digits = text.split(whereSeparator: { !$0.isNumber })
+        guard let first = digits.first else { return nil }
+        return Int(first)
+    }
+
+    private func waitForCountValue(element: XCUIElement, equals expected: Int, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let current = taskCount(from: element)
+            if current == expected {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
     }
 }
