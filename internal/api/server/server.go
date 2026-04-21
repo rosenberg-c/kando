@@ -33,7 +33,7 @@ type remoteAddrContextKey struct{}
 
 func NewAPI() (*http.ServeMux, huma.API) {
 	mux := http.NewServeMux()
-	config := huma.DefaultConfig("Go MacOS Todo API", "0.1.0")
+	config := huma.DefaultConfig("Go MacOS Task API", "0.1.0")
 	config.OpenAPIPath = ""
 	config.DocsPath = ""
 	config.SchemasPath = ""

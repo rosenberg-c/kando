@@ -21,7 +21,7 @@ type Column struct {
 	UpdatedAt   time.Time
 }
 
-type Todo struct {
+type Task struct {
 	ID          string
 	BoardID     string
 	ColumnID    string
@@ -36,5 +36,5 @@ type Todo struct {
 type BoardDetails struct {
 	Board   Board
 	Columns []Column
-	Todos   []Todo
+	Tasks   []Task
 }

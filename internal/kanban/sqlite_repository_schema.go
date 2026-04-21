@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS columns (
 	FOREIGN KEY(board_id) REFERENCES boards(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS todos (
+CREATE TABLE IF NOT EXISTS tasks (
 	id TEXT PRIMARY KEY,
 	board_id TEXT NOT NULL,
 	column_id TEXT NOT NULL,
@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS todos (
 
 CREATE INDEX IF NOT EXISTS idx_boards_owner ON boards(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_columns_board_position ON columns(board_id, position);
-CREATE INDEX IF NOT EXISTS idx_todos_board ON todos(board_id);
-CREATE INDEX IF NOT EXISTS idx_todos_column_position ON todos(column_id, position);
+CREATE INDEX IF NOT EXISTS idx_tasks_board ON tasks(board_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_column_position ON tasks(column_id, position);
 `
 
 func (r *SQLiteRepository) initSchema(ctx context.Context) error {

@@ -13,7 +13,7 @@ type Repository interface {
 	UpdateColumnTitle(ctx context.Context, ownerUserID, boardID, columnID, title string) (Column, Board, error)
 	DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (Board, error)
 
-	CreateTodo(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Todo, Board, error)
-	UpdateTodo(ctx context.Context, ownerUserID, boardID, todoID, title, description string) (Todo, Board, error)
-	DeleteTodo(ctx context.Context, ownerUserID, boardID, todoID string) (Board, error)
+	CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error)
+	UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error)
+	DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error)
 }

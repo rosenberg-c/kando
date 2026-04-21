@@ -2,7 +2,7 @@
 
 ## Overview
 
-Todo application with:
+Task application with:
 
 * Go backend (HTTP API)
 * macOS app (Swift)
@@ -86,7 +86,7 @@ ui/strings/
   en/
     common.json
     auth.json
-    todos.json
+    tasks.json
 ```
 
 ---

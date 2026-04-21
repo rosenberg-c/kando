@@ -241,13 +241,13 @@ func TestKanbanRouteReturnsNotFoundForMissingResources(t *testing.T) {
 
 	recorder = httptest.NewRecorder()
 	body := strings.NewReader(`{"title":"x","description":"","columnId":"11111111-1111-1111-1111-111111111111"}`)
-	request = httptest.NewRequest(http.MethodPost, "/boards/not-found/todos", body)
+	request = httptest.NewRequest(http.MethodPost, "/boards/not-found/tasks", body)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	mux.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("todo status = %d, want %d", recorder.Code, http.StatusNotFound)
+		t.Fatalf("task status = %d, want %d", recorder.Code, http.StatusNotFound)
 	}
 }
 
@@ -275,13 +275,13 @@ func TestKanbanValidationReturnsBadRequest(t *testing.T) {
 	boardID := createBoard(t, mux)
 	recorder = httptest.NewRecorder()
 	body = strings.NewReader(`{"columnId":"11111111-1111-1111-1111-111111111111","title":"   ","description":""}`)
-	request = httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/todos", body)
+	request = httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks", body)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	mux.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusBadRequest {
-		t.Fatalf("todo bad request status = %d, want %d", recorder.Code, http.StatusBadRequest)
+		t.Fatalf("task bad request status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 }
 
@@ -328,13 +328,13 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/columns", http.MethodPost)
 	assertPathMethod("/boards/{boardId}/columns/{columnId}", http.MethodPatch)
 	assertPathMethod("/boards/{boardId}/columns/{columnId}", http.MethodDelete)
-	assertPathMethod("/boards/{boardId}/todos", http.MethodPost)
-	assertPathMethod("/boards/{boardId}/todos/{todoId}", http.MethodPatch)
-	assertPathMethod("/boards/{boardId}/todos/{todoId}", http.MethodDelete)
+	assertPathMethod("/boards/{boardId}/tasks", http.MethodPost)
+	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodPatch)
+	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodDelete)
 }
 
-func TestKanbanBoardColumnTodoCRUD(t *testing.T) {
-	// Requirements: BOARD-001, BOARD-002, COL-001, TODO-001
+func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
+	// Requirements: BOARD-001, BOARD-002, COL-001, TASK-001
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -344,7 +344,7 @@ func TestKanbanBoardColumnTodoCRUD(t *testing.T) {
 
 	boardID := createBoard(t, mux)
 	columnID := createColumn(t, mux, boardID)
-	todoID := createTodo(t, mux, boardID, columnID)
+	taskID := createTask(t, mux, boardID, columnID)
 
 	request := httptest.NewRequest(http.MethodGet, "/boards/"+boardID, nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -362,9 +362,9 @@ func TestKanbanBoardColumnTodoCRUD(t *testing.T) {
 		Columns []struct {
 			ID string `json:"id"`
 		} `json:"columns"`
-		Todos []struct {
+		Tasks []struct {
 			ID string `json:"id"`
-		} `json:"todos"`
+		} `json:"tasks"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode board response: %v", err)
@@ -376,12 +376,12 @@ func TestKanbanBoardColumnTodoCRUD(t *testing.T) {
 	if len(response.Columns) != 1 || response.Columns[0].ID != columnID {
 		t.Fatalf("columns = %+v, expected column %q", response.Columns, columnID)
 	}
-	if len(response.Todos) != 1 || response.Todos[0].ID != todoID {
-		t.Fatalf("todos = %+v, expected todo %q", response.Todos, todoID)
+	if len(response.Tasks) != 1 || response.Tasks[0].ID != taskID {
+		t.Fatalf("tasks = %+v, expected task %q", response.Tasks, taskID)
 	}
 }
 
-func TestKanbanDeleteColumnWithTodosReturnsConflict(t *testing.T) {
+func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 	// Requirements: COL-RULE-001, COL-RULE-002
 	t.Parallel()
 
@@ -392,7 +392,7 @@ func TestKanbanDeleteColumnWithTodosReturnsConflict(t *testing.T) {
 
 	boardID := createBoard(t, mux)
 	columnID := createColumn(t, mux, boardID)
-	_ = createTodo(t, mux, boardID, columnID)
+	_ = createTask(t, mux, boardID, columnID)
 
 	request := httptest.NewRequest(http.MethodDelete, "/boards/"+boardID+"/columns/"+columnID, nil)
 	request.Header.Set("Authorization", "Bearer token")
@@ -460,29 +460,29 @@ func createColumn(t *testing.T, mux *http.ServeMux, boardID string) string {
 	return response.ID
 }
 
-func createTodo(t *testing.T, mux *http.ServeMux, boardID, columnID string) string {
+func createTask(t *testing.T, mux *http.ServeMux, boardID, columnID string) string {
 	t.Helper()
 
 	body, _ := json.Marshal(map[string]string{"columnId": columnID, "title": "Ship feature", "description": "Backend first"})
-	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/todos", bytes.NewReader(body))
+	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
-		t.Fatalf("create todo status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+		t.Fatalf("create task status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 
 	var response struct {
 		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode todo create response: %v", err)
+		t.Fatalf("decode task create response: %v", err)
 	}
 
 	if response.ID == "" {
-		t.Fatal("expected todo id")
+		t.Fatal("expected task id")
 	}
 
 	return response.ID

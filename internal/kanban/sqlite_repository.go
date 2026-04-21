@@ -103,12 +103,12 @@ func (r *SQLiteRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 		return BoardDetails{}, err
 	}
 
-	todos, err := r.listTodos(ctx, boardID)
+	tasks, err := r.listTasks(ctx, boardID)
 	if err != nil {
 		return BoardDetails{}, err
 	}
 
-	return BoardDetails{Board: board, Columns: columns, Todos: todos}, nil
+	return BoardDetails{Board: board, Columns: columns, Tasks: tasks}, nil
 }
 
 func (r *SQLiteRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (Board, error) {
@@ -334,29 +334,29 @@ func (r *SQLiteRepository) DeleteColumn(ctx context.Context, ownerUserID, boardI
 	return board, nil
 }
 
-func (r *SQLiteRepository) CreateTodo(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Todo, Board, error) {
+func (r *SQLiteRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return Todo{}, Board{}, fmt.Errorf("begin tx: %w", err)
+		return Task{}, Board{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer rollback(tx)
 
 	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
 	if _, err := getOwnedColumn(ctx, tx, ownerUserID, boardID, columnID); err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
-	position, err := nextPosition(ctx, tx, `SELECT COALESCE(MAX(position), -1) + 1 FROM todos WHERE column_id = ?`, columnID)
+	position, err := nextPosition(ctx, tx, `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ?`, columnID)
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
 	now := r.now().UTC()
-	todo := Todo{
+	task := Task{
 		ID:          uuid.NewString(),
 		BoardID:     boardID,
 		ColumnID:    columnID,
@@ -370,78 +370,78 @@ func (r *SQLiteRepository) CreateTodo(ctx context.Context, ownerUserID, boardID,
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO todos (id, board_id, column_id, owner_user_id, title, description, position, created_at_ms, updated_at_ms)
+		`INSERT INTO tasks (id, board_id, column_id, owner_user_id, title, description, position, created_at_ms, updated_at_ms)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		todo.ID,
-		todo.BoardID,
-		todo.ColumnID,
-		todo.OwnerUserID,
-		todo.Title,
-		todo.Description,
-		todo.Position,
-		toUnixMillis(todo.CreatedAt),
-		toUnixMillis(todo.UpdatedAt),
+		task.ID,
+		task.BoardID,
+		task.ColumnID,
+		task.OwnerUserID,
+		task.Title,
+		task.Description,
+		task.Position,
+		toUnixMillis(task.CreatedAt),
+		toUnixMillis(task.UpdatedAt),
 	); err != nil {
-		return Todo{}, Board{}, fmt.Errorf("create todo: %w", err)
+		return Task{}, Board{}, fmt.Errorf("create task: %w", err)
 	}
 
 	board, err = bumpBoardTx(ctx, tx, board, r.now().UTC())
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Todo{}, Board{}, fmt.Errorf("commit tx: %w", err)
+		return Task{}, Board{}, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return todo, board, nil
+	return task, board, nil
 }
 
-func (r *SQLiteRepository) UpdateTodo(ctx context.Context, ownerUserID, boardID, todoID, title, description string) (Todo, Board, error) {
+func (r *SQLiteRepository) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return Todo{}, Board{}, fmt.Errorf("begin tx: %w", err)
+		return Task{}, Board{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer rollback(tx)
 
 	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
-	todo, err := getOwnedTodo(ctx, tx, ownerUserID, boardID, todoID)
+	task, err := getOwnedTask(ctx, tx, ownerUserID, boardID, taskID)
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
-	todo.Title = title
-	todo.Description = description
-	todo.UpdatedAt = r.now().UTC()
+	task.Title = title
+	task.Description = description
+	task.UpdatedAt = r.now().UTC()
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE todos SET title = ?, description = ?, updated_at_ms = ? WHERE id = ?`,
-		todo.Title,
-		todo.Description,
-		toUnixMillis(todo.UpdatedAt),
-		todo.ID,
+		`UPDATE tasks SET title = ?, description = ?, updated_at_ms = ? WHERE id = ?`,
+		task.Title,
+		task.Description,
+		toUnixMillis(task.UpdatedAt),
+		task.ID,
 	); err != nil {
-		return Todo{}, Board{}, fmt.Errorf("update todo: %w", err)
+		return Task{}, Board{}, fmt.Errorf("update task: %w", err)
 	}
 
 	board, err = bumpBoardTx(ctx, tx, board, r.now().UTC())
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Todo{}, Board{}, fmt.Errorf("commit tx: %w", err)
+		return Task{}, Board{}, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return todo, board, nil
+	return task, board, nil
 }
 
-func (r *SQLiteRepository) DeleteTodo(ctx context.Context, ownerUserID, boardID, todoID string) (Board, error) {
+func (r *SQLiteRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Board{}, fmt.Errorf("begin tx: %w", err)
@@ -453,16 +453,16 @@ func (r *SQLiteRepository) DeleteTodo(ctx context.Context, ownerUserID, boardID,
 		return Board{}, err
 	}
 
-	todo, err := getOwnedTodo(ctx, tx, ownerUserID, boardID, todoID)
+	task, err := getOwnedTask(ctx, tx, ownerUserID, boardID, taskID)
 	if err != nil {
 		return Board{}, err
 	}
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM todos WHERE id = ?`, todoID); err != nil {
-		return Board{}, fmt.Errorf("delete todo: %w", err)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tasks WHERE id = ?`, taskID); err != nil {
+		return Board{}, fmt.Errorf("delete task: %w", err)
 	}
 
-	if err := reindexTodosTx(ctx, tx, todo.ColumnID, r.now().UTC()); err != nil {
+	if err := reindexTasksTx(ctx, tx, task.ColumnID, r.now().UTC()); err != nil {
 		return Board{}, err
 	}
 
@@ -507,32 +507,32 @@ func (r *SQLiteRepository) listColumns(ctx context.Context, boardID string) ([]C
 	return columns, nil
 }
 
-func (r *SQLiteRepository) listTodos(ctx context.Context, boardID string) ([]Todo, error) {
+func (r *SQLiteRepository) listTasks(ctx context.Context, boardID string) ([]Task, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		`SELECT t.id, t.board_id, t.column_id, t.owner_user_id, t.title, t.description, t.position, t.created_at_ms, t.updated_at_ms
-		 FROM todos t
+		 FROM tasks t
 		 INNER JOIN columns c ON c.id = t.column_id
 		 WHERE t.board_id = ?
 		 ORDER BY c.position, t.position`,
 		boardID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list todos: %w", err)
+		return nil, fmt.Errorf("list tasks: %w", err)
 	}
 	defer rows.Close()
 
-	todos := make([]Todo, 0)
+	tasks := make([]Task, 0)
 	for rows.Next() {
-		todo, scanErr := scanTodo(rows.Scan)
+		task, scanErr := scanTask(rows.Scan)
 		if scanErr != nil {
 			return nil, scanErr
 		}
-		todos = append(todos, todo)
+		tasks = append(tasks, task)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate todos: %w", err)
+		return nil, fmt.Errorf("iterate tasks: %w", err)
 	}
 
-	return todos, nil
+	return tasks, nil
 }

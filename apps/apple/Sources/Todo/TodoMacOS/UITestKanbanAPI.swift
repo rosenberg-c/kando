@@ -6,8 +6,8 @@ actor UITestKanbanAPI: KanbanAPI {
         KanbanColumn(id: "column-work", title: "Work", position: 0),
         KanbanColumn(id: "column-empty", title: "Empty", position: 1)
     ]
-    private var todos: [KanbanTodo] = [
-        KanbanTodo(id: "todo-1", columnID: "column-work", title: "Example todo", description: "UI test item", position: 0)
+    private var tasks: [KanbanTask] = [
+        KanbanTask(id: "task-1", columnID: "column-work", title: "Example task", description: "UI test item", position: 0)
     ]
 
     func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
@@ -15,7 +15,7 @@ actor UITestKanbanAPI: KanbanAPI {
     }
 
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails {
-        KanbanBoardDetails(board: board, columns: columns, todos: todos)
+        KanbanBoardDetails(board: board, columns: columns, tasks: tasks)
     }
 
     func createColumn(boardID: String, title: String, accessToken: String, baseURL: URL) async throws {
@@ -29,12 +29,12 @@ actor UITestKanbanAPI: KanbanAPI {
     }
 
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {
-        if todos.contains(where: { $0.columnID == columnID }) {
+        if tasks.contains(where: { $0.columnID == columnID }) {
             throw KanbanAPIError.unexpectedStatus(
                 code: 409,
                 operation: "deleteColumn",
                 title: "Conflict",
-                detail: "column has todos"
+                detail: "column has tasks"
             )
         }
         columns.removeAll { $0.id == columnID }
@@ -43,18 +43,18 @@ actor UITestKanbanAPI: KanbanAPI {
         }
     }
 
-    func createTodo(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
-        let nextPosition = (todos.filter { $0.columnID == columnID }.map(\.position).max() ?? -1) + 1
-        todos.append(KanbanTodo(id: UUID().uuidString, columnID: columnID, title: title, description: description, position: nextPosition))
+    func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+        let nextPosition = (tasks.filter { $0.columnID == columnID }.map(\.position).max() ?? -1) + 1
+        tasks.append(KanbanTask(id: UUID().uuidString, columnID: columnID, title: title, description: description, position: nextPosition))
     }
 
-    func updateTodo(boardID: String, todoID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
-        guard let index = todos.firstIndex(where: { $0.id == todoID }) else { return }
-        let current = todos[index]
-        todos[index] = KanbanTodo(id: current.id, columnID: current.columnID, title: title, description: description, position: current.position)
+    func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        let current = tasks[index]
+        tasks[index] = KanbanTask(id: current.id, columnID: current.columnID, title: title, description: description, position: current.position)
     }
 
-    func deleteTodo(boardID: String, todoID: String, accessToken: String, baseURL: URL) async throws {
-        todos.removeAll { $0.id == todoID }
+    func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
+        tasks.removeAll { $0.id == taskID }
     }
 }

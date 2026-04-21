@@ -9,7 +9,7 @@ import (
 )
 
 func TestRepositoryContractMemoryService(t *testing.T) {
-	// Requirements: API-001, COL-RULE-001, COL-001, TODO-001
+	// Requirements: API-001, COL-RULE-001, COL-001, TASK-001
 	t.Parallel()
 	contracttest.RunRepositoryContractTests(t, func() kanban.Repository {
 		return kanban.NewService(kanban.NewMemoryRepository())
@@ -17,7 +17,7 @@ func TestRepositoryContractMemoryService(t *testing.T) {
 }
 
 func TestRepositoryContractSQLiteService(t *testing.T) {
-	// Requirements: API-001, COL-RULE-001, COL-001, TODO-001
+	// Requirements: API-001, COL-RULE-001, COL-001, TASK-001
 	t.Parallel()
 	contracttest.RunRepositoryContractTests(t, func() kanban.Repository {
 		repo, err := kanban.NewSQLiteRepository(filepath.Join(t.TempDir(), "contract.sqlite"))

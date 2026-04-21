@@ -39,14 +39,14 @@ type AppwriteIDOverrides struct {
 	DatabaseName   string
 	BoardsTableID  string
 	ColumnsTableID string
-	TodosTableID   string
+	TasksTableID   string
 }
 
 // KanbanAppwriteDatabase returns the canonical Appwrite schema for Kanban data.
 func KanbanAppwriteDatabase() AppwriteDatabase {
 	return AppwriteDatabase{
-		ID:   "todo",
-		Name: "Todo",
+		ID:   "task",
+		Name: "Task",
 		Tables: []AppwriteTable{
 			{
 				ID:   "boards",
@@ -79,8 +79,8 @@ func KanbanAppwriteDatabase() AppwriteDatabase {
 				},
 			},
 			{
-				ID:   "todos",
-				Name: "Todos",
+				ID:   "tasks",
+				Name: "Tasks",
 				Columns: []AppwriteColumn{
 					{Kind: "string", Key: "boardId", Required: true, Size: 64},
 					{Kind: "string", Key: "columnId", Required: true, Size: 64},
@@ -92,7 +92,7 @@ func KanbanAppwriteDatabase() AppwriteDatabase {
 					{Kind: "datetime", Key: "updatedAt", Required: true},
 				},
 				Indexes: []AppwriteIndex{
-					{Key: "todos_board_column_position", Type: "key", Columns: []string{"boardId", "columnId", "position"}, Orders: []string{"ASC", "ASC", "ASC"}},
+					{Key: "tasks_board_column_position", Type: "key", Columns: []string{"boardId", "columnId", "position"}, Orders: []string{"ASC", "ASC", "ASC"}},
 				},
 			},
 		},
@@ -113,7 +113,7 @@ func ApplyAppwriteIDOverrides(database *AppwriteDatabase, overrides AppwriteIDOv
 
 	rewriteTableID(database, "boards", strings.TrimSpace(overrides.BoardsTableID))
 	rewriteTableID(database, "columns", strings.TrimSpace(overrides.ColumnsTableID))
-	rewriteTableID(database, "todos", strings.TrimSpace(overrides.TodosTableID))
+	rewriteTableID(database, "tasks", strings.TrimSpace(overrides.TasksTableID))
 }
 
 func rewriteTableID(database *AppwriteDatabase, defaultID, override string) {

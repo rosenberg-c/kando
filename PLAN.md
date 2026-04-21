@@ -1,12 +1,12 @@
-# Todo Kanban Feature Plan
+# Task Kanban Feature Plan
 
 ## Goal
 
-Build a Todo app with a Kanban-style board made of:
+Build a task app with a Kanban-style board made of:
 
 - Boards
 - Columns (lists)
-- Todos (cards)
+- Tasks (cards)
 
 The backend remains the source of truth, and clients (CLI + macOS) use generated API clients from the OpenAPI contract.
 
@@ -16,7 +16,7 @@ Before Kanban feature work, first rebuild the existing CLI into a TUI.
 
 Reason:
 
-- Faster iteration loop for board/column/todo workflows.
+- Faster iteration loop for board/column/task workflows.
 - Reusable interaction patterns for macOS UX decisions.
 - Better developer/operator usability during backend development.
 
@@ -26,7 +26,7 @@ Reason:
 
 1. Authenticated user can create one board.
 2. User can create, rename, reorder, and delete columns.
-3. User can create, edit, move, reorder, and delete todos inside columns.
+3. User can create, edit, move, reorder, and delete tasks inside columns.
 4. Board updates persist and reload correctly.
 5. Basic optimistic UI for drag-and-drop with rollback on failure.
 
@@ -44,7 +44,7 @@ Reason:
   - `id`, `ownerUserId`, `title`, `createdAt`, `updatedAt`
 - `Column`
   - `id`, `boardId`, `title`, `position`, `createdAt`, `updatedAt`
-- `Todo`
+- `Task`
   - `id`, `boardId`, `columnId`, `title`, `description`, `position`, `status`, `createdAt`, `updatedAt`
 
 Position fields define order inside board/column.
@@ -55,7 +55,7 @@ Position fields define order inside board/column.
 
 - `GET /boards` - list user boards
 - `POST /boards` - create board
-- `GET /boards/{boardId}` - get board with columns + todos
+- `GET /boards/{boardId}` - get board with columns + tasks
 - `PATCH /boards/{boardId}` - update board title
 - `DELETE /boards/{boardId}` - delete board
 
@@ -64,11 +64,11 @@ Position fields define order inside board/column.
 - `PATCH /boards/{boardId}/columns/reorder` - reorder columns
 - `DELETE /boards/{boardId}/columns/{columnId}` - delete column
 
-- `POST /boards/{boardId}/todos` - create todo
-- `PATCH /boards/{boardId}/todos/{todoId}` - edit todo
-- `PATCH /boards/{boardId}/todos/{todoId}/move` - move todo across columns
-- `PATCH /boards/{boardId}/todos/reorder` - reorder todos in a column
-- `DELETE /boards/{boardId}/todos/{todoId}` - delete todo
+- `POST /boards/{boardId}/tasks` - create task
+- `PATCH /boards/{boardId}/tasks/{taskId}` - edit task
+- `PATCH /boards/{boardId}/tasks/{taskId}/move` - move task across columns
+- `PATCH /boards/{boardId}/tasks/reorder` - reorder tasks in a column
+- `DELETE /boards/{boardId}/tasks/{taskId}` - delete task
 
 ### API Contract Draft (reorder/move)
 
@@ -92,7 +92,7 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
-    Todo:
+    Task:
       type: object
       additionalProperties: false
       required: [id, boardId, columnId, title, description, position, createdAt, updatedAt]
@@ -139,7 +139,7 @@ components:
               type: array
               items: { $ref: '#/components/schemas/Column' }
 
-    MoveTodoRequest:
+    MoveTaskRequest:
       type: object
       additionalProperties: false
       required: [toColumnId, toPosition]
@@ -150,47 +150,47 @@ components:
           type: integer
           minimum: 1
 
-    MoveTodoResponse:
+    MoveTaskResponse:
       allOf:
         - $ref: '#/components/schemas/BoardVersionedMutationResult'
         - type: object
-          required: [movedTodo, sourceColumnTodos, destinationColumnTodos]
+          required: [movedTask, sourceColumnTasks, destinationColumnTasks]
           properties:
-            movedTodo:
-              $ref: '#/components/schemas/Todo'
-            sourceColumnTodos:
+            movedTask:
+              $ref: '#/components/schemas/Task'
+            sourceColumnTasks:
               type: array
-              items: { $ref: '#/components/schemas/Todo' }
-            destinationColumnTodos:
+              items: { $ref: '#/components/schemas/Task' }
+            destinationColumnTasks:
               type: array
-              items: { $ref: '#/components/schemas/Todo' }
+              items: { $ref: '#/components/schemas/Task' }
 
-    ReorderTodosRequest:
+    ReorderTasksRequest:
       type: object
       additionalProperties: false
-      required: [columnId, todoIds]
+      required: [columnId, taskIds]
       properties:
         columnId: { type: string, format: uuid }
-        todoIds:
+        taskIds:
           type: array
           minItems: 0
           items: { type: string, format: uuid }
           uniqueItems: true
-          description: Full ordered set of todo ids currently in the column.
+          description: Full ordered set of task ids currently in the column.
         expectedBoardVersion:
           type: integer
           minimum: 1
 
-    ReorderTodosResponse:
+    ReorderTasksResponse:
       allOf:
         - $ref: '#/components/schemas/BoardVersionedMutationResult'
         - type: object
-          required: [columnId, todos]
+          required: [columnId, tasks]
           properties:
             columnId: { type: string, format: uuid }
-            todos:
+            tasks:
               type: array
-              items: { $ref: '#/components/schemas/Todo' }
+              items: { $ref: '#/components/schemas/Task' }
 
 paths:
   /boards/{boardId}/columns/reorder:
@@ -210,37 +210,37 @@ paths:
         '409':
           description: Version conflict (stale expectedBoardVersion)
 
-  /boards/{boardId}/todos/{todoId}/move:
+  /boards/{boardId}/tasks/{taskId}/move:
     patch:
-      summary: Move todo across columns (or within same column)
+      summary: Move task across columns (or within same column)
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/MoveTodoRequest' }
+            schema: { $ref: '#/components/schemas/MoveTaskRequest' }
       responses:
         '200':
           description: Updated source/destination orders
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/MoveTodoResponse' }
+              schema: { $ref: '#/components/schemas/MoveTaskResponse' }
         '409':
           description: Version conflict (stale expectedBoardVersion)
 
-  /boards/{boardId}/todos/reorder:
+  /boards/{boardId}/tasks/reorder:
     patch:
-      summary: Reorder todos in one column
+      summary: Reorder tasks in one column
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ReorderTodosRequest' }
+            schema: { $ref: '#/components/schemas/ReorderTasksRequest' }
       responses:
         '200':
-          description: Updated todo order
+          description: Updated task order
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ReorderTodosResponse' }
+              schema: { $ref: '#/components/schemas/ReorderTasksResponse' }
         '409':
           description: Version conflict (stale expectedBoardVersion)
 ```
@@ -249,14 +249,14 @@ Validation/error expectations:
 
 - `400` invalid payload (duplicate IDs, missing IDs, invalid positions).
 - `403` board exists but user is not owner.
-- `404` board/column/todo not found or does not belong to board.
+- `404` board/column/task not found or does not belong to board.
 - `409` expected version mismatch.
 
 ### Backend Rules
 
 - Enforce board ownership at all endpoints.
 - Position updates must be atomic (transaction).
-- Validate IDs belong to the same board when moving todos.
+- Validate IDs belong to the same board when moving tasks.
 - Return deterministic ordering by `position`.
 
 ## Storage Architecture (Appwrite-first, SQLite-ready)
@@ -279,8 +279,8 @@ Use storage-agnostic repository interfaces in backend domain code so handlers an
 - `TodoRepository`
   - `CreateTodo(ctx, ownerUserID, boardID, columnID, title, description, expectedBoardVersion)`
   - `UpdateTodo(ctx, ownerUserID, boardID, todoID, title, description, expectedBoardVersion)`
-  - `MoveTodo(ctx, ownerUserID, boardID, todoID, toColumnID, toPosition, expectedBoardVersion)`
-  - `ReorderTodos(ctx, ownerUserID, boardID, columnID, orderedTodoIDs, expectedBoardVersion)`
+  - `MoveTask(ctx, ownerUserID, boardID, taskID, toColumnID, toPosition, expectedBoardVersion)`
+  - `ReorderTasks(ctx, ownerUserID, boardID, columnID, orderedTaskIDs, expectedBoardVersion)`
   - `DeleteTodo(ctx, ownerUserID, boardID, todoID, expectedBoardVersion)`
 
 ### Adapter implementations
@@ -292,21 +292,21 @@ Both adapters must satisfy the same repository interfaces and behavior.
 
 ### Data mapping rule
 
-- Keep domain structs (`Board`, `Column`, `Todo`) independent from storage schemas.
+- Keep domain structs (`Board`, `Column`, `Task`) independent from storage schemas.
 - Keep Appwrite row models and SQLite row models in adapter packages.
 - Map transport <-> domain <-> storage at boundaries only.
 
 ### Appwrite physical model (initial)
 
-- Database: `todo`
+- Database: `task`
 - Tables:
   - `boards`: `id`, `ownerUserId`, `title`, `boardVersion`, `createdAt`, `updatedAt`
   - `columns`: `id`, `boardId`, `ownerUserId`, `title`, `position`, `createdAt`, `updatedAt`
-  - `todos`: `id`, `boardId`, `columnId`, `ownerUserId`, `title`, `description`, `position`, `createdAt`, `updatedAt`
+  - `tasks`: `id`, `boardId`, `columnId`, `ownerUserId`, `title`, `description`, `position`, `createdAt`, `updatedAt`
 - Indexes:
   - `boards(ownerUserId, updatedAt)`
   - `columns(boardId, position)`
-  - `todos(boardId, columnId, position)`
+  - `tasks(boardId, columnId, position)`
 
 ### Concurrency, ownership, and migration rules
 
@@ -322,13 +322,13 @@ Both adapters must satisfy the same repository interfaces and behavior.
 
 - Board header (title + quick actions).
 - Horizontal column lane.
-- Column card with title and todo count.
-- Todo card with title and short description.
+- Column card with title and task count.
+- Task card with title and short description.
 
 ### Interactions
 
-- Drag todo within column and across columns.
-- Add/edit/delete todo from modal or inline sheet.
+- Drag task within column and across columns.
+- Add/edit/delete task from modal or inline sheet.
 - Add/rename/delete column.
 - Empty states for new board/column.
 
@@ -344,14 +344,14 @@ Both adapters must satisfy the same repository interfaces and behavior.
 
 - Rebuild current CLI commands into a terminal UI (TUI) shell.
 - Keep backend API usage unchanged (generated client + backend-only auth model).
-- Provide views for auth/session status, board list, board detail, and quick todo actions.
+- Provide views for auth/session status, board list, board detail, and quick task actions.
 - Support keyboard-first navigation and clear loading/error states.
 
 ### Board command parity
 
 - Board list/create/select.
 - Column list/add/rename/delete/reorder.
-- Todo add/edit/move/delete.
+- Task add/edit/move/delete.
 - Text-first table/compact board output.
 
 ## Milestones
@@ -361,23 +361,23 @@ Both adapters must satisfy the same repository interfaces and behavior.
    - Port auth/session + current CLI flows into TUI.
    - Ensure `make test` coverage remains green.
 2. **Contracts + Repository Ports + Appwrite Adapter**
-   - Finalize board/column/todo schemas and endpoints.
+   - Finalize board/column/task schemas and endpoints.
    - Implement repository interfaces and shared adapter test suite.
    - Implement Appwrite adapter mappings, indexes, and invariants.
    - Wire HTTP handlers to repository ports.
    - Generate clients and add tests.
 3. **macOS Board Read Path**
-   - Fetch and render board with columns/todos.
+   - Fetch and render board with columns/tasks.
 4. **macOS Mutations + DnD**
    - Implement create/edit/delete/move/reorder flows.
 5. **TUI Board Workflows**
-   - Add end-to-end board/column/todo flows in the TUI.
+   - Add end-to-end board/column/task flows in the TUI.
 6. **Polish + Hardening**
    - Error handling, loading states, test coverage, docs.
 
 ## Acceptance Criteria
 
-- User can fully manage a board (columns + todos) on macOS.
+- User can fully manage a board (columns + tasks) on macOS.
 - User can manage the same data via TUI (CLI replacement).
 - Ordering is stable and consistent across clients.
 - Appwrite and SQLite adapters satisfy the same repository contract.

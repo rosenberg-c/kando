@@ -58,28 +58,28 @@ func getOwnedColumn(ctx context.Context, q queryRower, ownerUserID, boardID, col
 	return column, nil
 }
 
-func getOwnedTodo(ctx context.Context, q queryRower, ownerUserID, boardID, todoID string) (Todo, error) {
-	todo, err := scanTodo(q.QueryRowContext(
+func getOwnedTask(ctx context.Context, q queryRower, ownerUserID, boardID, taskID string) (Task, error) {
+	task, err := scanTask(q.QueryRowContext(
 		ctx,
 		`SELECT id, board_id, column_id, owner_user_id, title, description, position, created_at_ms, updated_at_ms
-		 FROM todos
+		 FROM tasks
 		 WHERE id = ?`,
-		todoID,
+		taskID,
 	).Scan)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return Todo{}, ErrNotFound
+			return Task{}, ErrNotFound
 		}
-		return Todo{}, err
+		return Task{}, err
 	}
-	if todo.BoardID != boardID {
-		return Todo{}, ErrNotFound
+	if task.BoardID != boardID {
+		return Task{}, ErrNotFound
 	}
-	if todo.OwnerUserID != ownerUserID {
-		return Todo{}, ErrForbidden
+	if task.OwnerUserID != ownerUserID {
+		return Task{}, ErrForbidden
 	}
 
-	return todo, nil
+	return task, nil
 }
 
 type scannerFunc func(dest ...any) error
@@ -129,29 +129,29 @@ func scanColumn(scan scannerFunc) (Column, error) {
 	return column, nil
 }
 
-func scanTodo(scan scannerFunc) (Todo, error) {
-	var todo Todo
+func scanTask(scan scannerFunc) (Task, error) {
+	var task Task
 	var createdAtMS int64
 	var updatedAtMS int64
 
 	if err := scan(
-		&todo.ID,
-		&todo.BoardID,
-		&todo.ColumnID,
-		&todo.OwnerUserID,
-		&todo.Title,
-		&todo.Description,
-		&todo.Position,
+		&task.ID,
+		&task.BoardID,
+		&task.ColumnID,
+		&task.OwnerUserID,
+		&task.Title,
+		&task.Description,
+		&task.Position,
 		&createdAtMS,
 		&updatedAtMS,
 	); err != nil {
-		return Todo{}, err
+		return Task{}, err
 	}
 
-	todo.CreatedAt = fromUnixMillis(createdAtMS)
-	todo.UpdatedAt = fromUnixMillis(updatedAtMS)
+	task.CreatedAt = fromUnixMillis(createdAtMS)
+	task.UpdatedAt = fromUnixMillis(updatedAtMS)
 
-	return todo, nil
+	return task, nil
 }
 
 func nextPosition(ctx context.Context, q queryRower, query string, arg string) (int, error) {
@@ -197,10 +197,10 @@ func reindexColumnsTx(ctx context.Context, tx *sql.Tx, boardID string, now time.
 	return nil
 }
 
-func reindexTodosTx(ctx context.Context, tx *sql.Tx, columnID string, now time.Time) error {
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM todos WHERE column_id = ? ORDER BY position`, columnID)
+func reindexTasksTx(ctx context.Context, tx *sql.Tx, columnID string, now time.Time) error {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE column_id = ? ORDER BY position`, columnID)
 	if err != nil {
-		return fmt.Errorf("list todos for reindex: %w", err)
+		return fmt.Errorf("list tasks for reindex: %w", err)
 	}
 	defer rows.Close()
 
@@ -208,23 +208,23 @@ func reindexTodosTx(ctx context.Context, tx *sql.Tx, columnID string, now time.T
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
-			return fmt.Errorf("scan todo id: %w", err)
+			return fmt.Errorf("scan task id: %w", err)
 		}
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterate todos for reindex: %w", err)
+		return fmt.Errorf("iterate tasks for reindex: %w", err)
 	}
 
 	for i, id := range ids {
 		if _, err := tx.ExecContext(
 			ctx,
-			`UPDATE todos SET position = ?, updated_at_ms = ? WHERE id = ?`,
+			`UPDATE tasks SET position = ?, updated_at_ms = ? WHERE id = ?`,
 			i,
 			toUnixMillis(now),
 			id,
 		); err != nil {
-			return fmt.Errorf("update todo position: %w", err)
+			return fmt.Errorf("update task position: %w", err)
 		}
 	}
 

@@ -1,6 +1,6 @@
 {
-  "id": "todo",
-  "name": "Todo",
+  "id": "task",
+  "name": "Task",
   "tables": [
     {
       "id": "boards",
@@ -35,6 +35,16 @@
         }
       ],
       "indexes": [
+        {
+          "key": "boards_owner_unique",
+          "type": "unique",
+          "columns": [
+            "ownerUserId"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        },
         {
           "key": "boards_owner_updated",
           "type": "key",
@@ -103,8 +113,8 @@
       ]
     },
     {
-      "id": "todos",
-      "name": "Todos",
+      "id": "tasks",
+      "name": "Tasks",
       "columns": [
         {
           "kind": "string",
@@ -154,7 +164,7 @@
       ],
       "indexes": [
         {
-          "key": "todos_board_column_position",
+          "key": "tasks_board_column_position",
           "type": "key",
           "columns": [
             "boardId",

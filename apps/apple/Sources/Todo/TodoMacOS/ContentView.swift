@@ -112,10 +112,10 @@ private struct LoggedInWorkspaceView: View {
     @StateObject private var board: BoardViewModel
     @State private var newColumnTitle = ""
     @State private var editingColumn: EditableColumn?
-    @State private var creatingTodoInColumn: CreateTodoTarget?
-    @State private var editingTodo: EditableTodo?
+    @State private var creatingTaskInColumn: CreateTaskTarget?
+    @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
-    @State private var pendingTodoDeletion: EditableTodo?
+    @State private var pendingTaskDeletion: EditableTask?
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -173,16 +173,16 @@ private struct LoggedInWorkspaceView: View {
                     ForEach(board.columns, id: \.id) { column in
                         ColumnCard(
                             column: column,
-                            todos: board.todos(for: column.id),
+                            tasks: board.tasks(for: column.id),
                             isEnabled: board.canMutateBoardActions,
                             onRename: { editingColumn = EditableColumn(column: column) },
                             onDelete: {
                                 pendingColumnDeletion = EditableColumn(column: column)
                             },
-                            onAddTodo: { creatingTodoInColumn = CreateTodoTarget(columnID: column.id) },
-                            onEditTodo: { todo in editingTodo = EditableTodo(columnID: column.id, todo: todo) },
-                            onDeleteTodo: { todo in
-                                pendingTodoDeletion = EditableTodo(columnID: column.id, todo: todo)
+                            onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
+                            onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
+                            onDeleteTask: { task in
+                                pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
                             }
                         )
                     }
@@ -260,25 +260,25 @@ private struct LoggedInWorkspaceView: View {
                 }
             )
         }
-        .sheet(item: $creatingTodoInColumn) { target in
-            TodoEditorSheet(
-                title: Strings.t("board.todo.create.title"),
-                submitLabel: Strings.t("board.todo.create.submit"),
+        .sheet(item: $creatingTaskInColumn) { target in
+            TaskEditorSheet(
+                title: Strings.t("board.task.create.title"),
+                submitLabel: Strings.t("board.task.create.submit"),
                 initialTitle: "",
                 initialDescription: "",
                 onSubmit: { title, description in
-                    Task { await board.createTodo(columnID: target.columnID, title: title, description: description) }
+                    Task { await board.createTask(columnID: target.columnID, title: title, description: description) }
                 }
             )
         }
-        .sheet(item: $editingTodo) { item in
-            TodoEditorSheet(
-                title: Strings.t("board.todo.edit.title"),
-                submitLabel: Strings.t("board.todo.edit.submit"),
+        .sheet(item: $editingTask) { item in
+            TaskEditorSheet(
+                title: Strings.t("board.task.edit.title"),
+                submitLabel: Strings.t("board.task.edit.submit"),
                 initialTitle: item.title,
                 initialDescription: item.description,
                 onSubmit: { title, description in
-                    Task { await board.updateTodo(todoID: item.id, title: title, description: description) }
+                    Task { await board.updateTask(taskID: item.id, title: title, description: description) }
                 }
             )
         }
@@ -308,28 +308,28 @@ private struct LoggedInWorkspaceView: View {
             }
         }
         .confirmationDialog(
-            Strings.t("board.todo.delete.confirm.title"),
+            Strings.t("board.task.delete.confirm.title"),
             isPresented: Binding(
-                get: { pendingTodoDeletion != nil },
+                get: { pendingTaskDeletion != nil },
                 set: { isPresented in
                     if !isPresented {
-                        pendingTodoDeletion = nil
+                        pendingTaskDeletion = nil
                     }
                 }
             ),
             titleVisibility: .visible
         ) {
-            Button(Strings.t("board.todo.delete.confirm.action"), role: .destructive) {
-                guard let todo = pendingTodoDeletion else { return }
-                Task { await board.deleteTodo(todoID: todo.id) }
-                pendingTodoDeletion = nil
+            Button(Strings.t("board.task.delete.confirm.action"), role: .destructive) {
+                guard let task = pendingTaskDeletion else { return }
+                Task { await board.deleteTask(taskID: task.id) }
+                pendingTaskDeletion = nil
             }
             Button(Strings.t("common.cancel"), role: .cancel) {
-                pendingTodoDeletion = nil
+                pendingTaskDeletion = nil
             }
         } message: {
-            if let todo = pendingTodoDeletion {
-                Text(Strings.f("board.todo.delete.confirm.message", todo.title))
+            if let task = pendingTaskDeletion {
+                Text(Strings.f("board.task.delete.confirm.message", task.title))
             }
         }
     }
@@ -357,13 +357,13 @@ private struct LoggedInWorkspaceView: View {
 
 private struct ColumnCard: View {
     let column: KanbanColumn
-    let todos: [KanbanTodo]
+    let tasks: [KanbanTask]
     let isEnabled: Bool
     let onRename: () -> Void
     let onDelete: () -> Void
-    let onAddTodo: () -> Void
-    let onEditTodo: (KanbanTodo) -> Void
-    let onDeleteTodo: (KanbanTodo) -> Void
+    let onAddTask: () -> Void
+    let onEditTask: (KanbanTask) -> Void
+    let onDeleteTask: (KanbanTask) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -371,7 +371,7 @@ private struct ColumnCard: View {
                 Text(column.title)
                     .font(.headline)
                 Spacer()
-                Text(Strings.f("board.column.todo_count", todos.count))
+                Text(Strings.f("board.column.task_count", tasks.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -389,24 +389,24 @@ private struct ColumnCard: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(todos, id: \.id) { todo in
+                ForEach(tasks, id: \.id) { task in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(todo.title)
+                        Text(task.title)
                             .font(.subheadline.weight(.semibold))
-                        if !todo.description.isEmpty {
-                            Text(todo.description)
+                        if !task.description.isEmpty {
+                            Text(task.description)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(3)
                         }
                         HStack(spacing: 8) {
-                            Button("board.todo.edit") { onEditTodo(todo) }
+                            Button("board.task.edit") { onEditTask(task) }
                                 .buttonStyle(.bordered)
                                 .disabled(!isEnabled)
-                            Button("board.todo.delete") { onDeleteTodo(todo) }
+                            Button("board.task.delete") { onDeleteTask(task) }
                                 .buttonStyle(.bordered)
                                 .disabled(!isEnabled)
-                                .accessibilityIdentifier("todo-delete-\(todo.id)")
+                                .accessibilityIdentifier("task-delete-\(task.id)")
                         }
                     }
                     .padding(10)
@@ -416,7 +416,7 @@ private struct ColumnCard: View {
                 }
             }
 
-            Button("board.todo.add", action: onAddTodo)
+            Button("board.task.add", action: onAddTask)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(!isEnabled)
@@ -470,7 +470,7 @@ private struct ColumnEditorSheet: View {
     }
 }
 
-private struct TodoEditorSheet: View {
+private struct TaskEditorSheet: View {
     let title: String
     let submitLabel: String
     let initialTitle: String
@@ -496,7 +496,7 @@ private struct TodoEditorSheet: View {
             Text(title)
                 .font(.title3.weight(.semibold))
 
-            TextField("board.todo.title.placeholder", text: $inputTitle)
+            TextField("board.task.title.placeholder", text: $inputTitle)
                 .textFieldStyle(.roundedBorder)
 
             TextEditor(text: $inputDescription)
@@ -532,21 +532,21 @@ private struct EditableColumn: Identifiable {
     }
 }
 
-private struct EditableTodo: Identifiable {
+private struct EditableTask: Identifiable {
     let id: String
     let columnID: String
     let title: String
     let description: String
 
-    init(columnID: String, todo: KanbanTodo) {
-        id = todo.id
+    init(columnID: String, task: KanbanTask) {
+        id = task.id
         self.columnID = columnID
-        title = todo.title
-        description = todo.description
+        title = task.title
+        description = task.description
     }
 }
 
-private struct CreateTodoTarget: Identifiable {
+private struct CreateTaskTarget: Identifiable {
     let columnID: String
     var id: String { columnID }
 }

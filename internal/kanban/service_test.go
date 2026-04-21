@@ -62,24 +62,24 @@ func (s *serviceRepoStub) DeleteColumn(context.Context, string, string, string) 
 	return s.deleteColumnBoard, nil
 }
 
-func (s *serviceRepoStub) CreateTodo(context.Context, string, string, string, string, string) (Todo, Board, error) {
+func (s *serviceRepoStub) CreateTask(context.Context, string, string, string, string, string) (Task, Board, error) {
 	panic("unexpected call")
 }
 
-func (s *serviceRepoStub) UpdateTodo(context.Context, string, string, string, string, string) (Todo, Board, error) {
+func (s *serviceRepoStub) UpdateTask(context.Context, string, string, string, string, string) (Task, Board, error) {
 	panic("unexpected call")
 }
 
-func (s *serviceRepoStub) DeleteTodo(context.Context, string, string, string) (Board, error) {
+func (s *serviceRepoStub) DeleteTask(context.Context, string, string, string) (Board, error) {
 	panic("unexpected call")
 }
 
-func TestServiceDeleteColumnWithTodosReturnsConflict(t *testing.T) {
+func TestServiceDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 	// Requirement: COL-RULE-001
 	t.Parallel()
 
 	stub := &serviceRepoStub{
-		details: BoardDetails{Todos: []Todo{{ID: "todo-1", ColumnID: "column-1"}}},
+		details: BoardDetails{Tasks: []Task{{ID: "task-1", ColumnID: "column-1"}}},
 	}
 	svc := NewService(stub)
 
@@ -95,12 +95,12 @@ func TestServiceDeleteColumnWithTodosReturnsConflict(t *testing.T) {
 	}
 }
 
-func TestServiceDeleteColumnWithoutTodosDelegates(t *testing.T) {
+func TestServiceDeleteColumnWithoutTasksDelegates(t *testing.T) {
 	// Requirement: COL-003
 	t.Parallel()
 
 	stub := &serviceRepoStub{
-		details:           BoardDetails{Todos: nil},
+		details:           BoardDetails{Tasks: nil},
 		deleteColumnBoard: Board{ID: "board-1"},
 	}
 	svc := NewService(stub)

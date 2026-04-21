@@ -338,7 +338,7 @@ Suggested structure:
 
 * `ui/strings/en/common.json`
 * `ui/strings/en/auth.json`
-* `ui/strings/en/todos.json`
+* `ui/strings/en/tasks.json`
 
 ---
 

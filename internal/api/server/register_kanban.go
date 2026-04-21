@@ -67,27 +67,27 @@ type columnPathInput struct {
 	ColumnID      string `path:"columnId"`
 }
 
-type createTodoInput struct {
+type createTaskInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
-	Body          contracts.CreateTodoRequest
+	Body          contracts.CreateTaskRequest
 }
 
-type updateTodoInput struct {
+type updateTaskInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
-	TodoID        string `path:"todoId"`
-	Body          contracts.UpdateTodoRequest
+	TaskID        string `path:"taskId"`
+	Body          contracts.UpdateTaskRequest
 }
 
-type todoPathInput struct {
+type taskPathInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
-	TodoID        string `path:"todoId"`
+	TaskID        string `path:"taskId"`
 }
 
-type todoOutput struct {
-	Body contracts.Todo
+type taskOutput struct {
+	Body contracts.Task
 }
 
 func registerKanban(api huma.API, deps Dependencies) {
@@ -139,7 +139,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		OperationID: "getBoard",
 		Method:      http.MethodGet,
 		Path:        "/boards/{boardId}",
-		Summary:     "Get board with columns and todos",
+		Summary:     "Get board with columns and tasks",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *boardPathInput) (*boardDetailsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -157,15 +157,15 @@ func registerKanban(api huma.API, deps Dependencies) {
 			columns = append(columns, toContractColumn(column))
 		}
 
-		todos := make([]contracts.Todo, 0, len(details.Todos))
-		for _, todo := range details.Todos {
-			todos = append(todos, toContractTodo(todo))
+		tasks := make([]contracts.Task, 0, len(details.Tasks))
+		for _, task := range details.Tasks {
+			tasks = append(tasks, toContractTask(task))
 		}
 
 		return &boardDetailsOutput{Body: contracts.BoardDetailsResponse{
 			Board:   toContractBoard(details.Board),
 			Columns: columns,
-			Todos:   todos,
+			Tasks:   tasks,
 		}}, nil
 	})
 
@@ -270,59 +270,59 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "createTodo",
+		OperationID: "createTask",
 		Method:      http.MethodPost,
-		Path:        "/boards/{boardId}/todos",
-		Summary:     "Create a todo",
+		Path:        "/boards/{boardId}/tasks",
+		Summary:     "Create a task",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *createTodoInput) (*todoOutput, error) {
+	}, func(ctx context.Context, input *createTaskInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		todo, _, err := repo.CreateTodo(ctx, identity.UserID, input.BoardID, input.Body.ColumnID, input.Body.Title, input.Body.Description)
+		task, _, err := repo.CreateTask(ctx, identity.UserID, input.BoardID, input.Body.ColumnID, input.Body.Title, input.Body.Description)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
 
-		return &todoOutput{Body: toContractTodo(todo)}, nil
+		return &taskOutput{Body: toContractTask(task)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "updateTodo",
+		OperationID: "updateTask",
 		Method:      http.MethodPatch,
-		Path:        "/boards/{boardId}/todos/{todoId}",
-		Summary:     "Update a todo",
+		Path:        "/boards/{boardId}/tasks/{taskId}",
+		Summary:     "Update a task",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *updateTodoInput) (*todoOutput, error) {
+	}, func(ctx context.Context, input *updateTaskInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		todo, _, err := repo.UpdateTodo(ctx, identity.UserID, input.BoardID, input.TodoID, input.Body.Title, input.Body.Description)
+		task, _, err := repo.UpdateTask(ctx, identity.UserID, input.BoardID, input.TaskID, input.Body.Title, input.Body.Description)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
 
-		return &todoOutput{Body: toContractTodo(todo)}, nil
+		return &taskOutput{Body: toContractTask(task)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID:   "deleteTodo",
+		OperationID:   "deleteTask",
 		Method:        http.MethodDelete,
-		Path:          "/boards/{boardId}/todos/{todoId}",
-		Summary:       "Delete a todo",
+		Path:          "/boards/{boardId}/tasks/{taskId}",
+		Summary:       "Delete a task",
 		DefaultStatus: http.StatusNoContent,
 		Security:      []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *todoPathInput) (*struct{}, error) {
+	}, func(ctx context.Context, input *taskPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		if _, err := repo.DeleteTodo(ctx, identity.UserID, input.BoardID, input.TodoID); err != nil {
+		if _, err := repo.DeleteTask(ctx, identity.UserID, input.BoardID, input.TaskID); err != nil {
 			return nil, mapKanbanError(err)
 		}
 
@@ -388,15 +388,15 @@ func toContractColumn(column kanban.Column) contracts.Column {
 	}
 }
 
-func toContractTodo(todo kanban.Todo) contracts.Todo {
-	return contracts.Todo{
-		ID:          todo.ID,
-		BoardID:     todo.BoardID,
-		ColumnID:    todo.ColumnID,
-		Title:       todo.Title,
-		Description: todo.Description,
-		Position:    todo.Position,
-		CreatedAt:   todo.CreatedAt,
-		UpdatedAt:   todo.UpdatedAt,
+func toContractTask(task kanban.Task) contracts.Task {
+	return contracts.Task{
+		ID:          task.ID,
+		BoardID:     task.BoardID,
+		ColumnID:    task.ColumnID,
+		Title:       task.Title,
+		Description: task.Description,
+		Position:    task.Position,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
 	}
 }

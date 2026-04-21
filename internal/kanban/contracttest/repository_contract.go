@@ -29,17 +29,17 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			t.Fatalf("create column: %v", err)
 		}
 
-		todo, _, err := repo.CreateTodo(ctx, ownerUserID, board.ID, column.ID, "Task", "desc")
+		task, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, column.ID, "Task", "desc")
 		if err != nil {
-			t.Fatalf("create todo: %v", err)
+			t.Fatalf("create task: %v", err)
 		}
 
 		if _, err := repo.DeleteColumn(ctx, ownerUserID, board.ID, column.ID); !errors.Is(err, kanban.ErrConflict) {
 			t.Fatalf("delete non-empty column err = %v, want ErrConflict", err)
 		}
 
-		if _, err := repo.DeleteTodo(ctx, ownerUserID, board.ID, todo.ID); err != nil {
-			t.Fatalf("delete todo: %v", err)
+		if _, err := repo.DeleteTask(ctx, ownerUserID, board.ID, task.ID); err != nil {
+			t.Fatalf("delete task: %v", err)
 		}
 
 		if _, err := repo.DeleteColumn(ctx, ownerUserID, board.ID, column.ID); err != nil {
@@ -98,8 +98,8 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			t.Fatalf("create column: %v", err)
 		}
 
-		if _, _, err := repo.CreateTodo(ctx, ownerUserID, board.ID, column.ID, "   ", "desc"); !errors.Is(err, kanban.ErrInvalidInput) {
-			t.Fatalf("create todo err = %v, want ErrInvalidInput", err)
+		if _, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, column.ID, "   ", "desc"); !errors.Is(err, kanban.ErrInvalidInput) {
+			t.Fatalf("create task err = %v, want ErrInvalidInput", err)
 		}
 
 		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {

@@ -25,7 +25,7 @@ type SchemaConfig struct {
 	DatabaseName        string
 	BoardsCollectionID  string
 	ColumnsCollectionID string
-	TodosCollectionID   string
+	TasksCollectionID   string
 }
 
 type appwriteAPIError struct {
@@ -78,7 +78,7 @@ func (c *Client) BootstrapKanbanSchema(ctx context.Context, cfg SchemaConfig) er
 		DatabaseName:   cfg.DatabaseName,
 		BoardsTableID:  cfg.BoardsCollectionID,
 		ColumnsTableID: cfg.ColumnsCollectionID,
-		TodosTableID:   cfg.TodosCollectionID,
+		TasksTableID:   cfg.TasksCollectionID,
 	})
 
 	if err := c.ensureDatabase(ctx, definition.ID, definition.Name); err != nil {

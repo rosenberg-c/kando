@@ -40,7 +40,7 @@ func main() {
 		DatabaseName:        strings.TrimSpace(os.Getenv("APPWRITE_DB_NAME")),
 		BoardsCollectionID:  strings.TrimSpace(os.Getenv("APPWRITE_BOARDS_COLLECTION_ID")),
 		ColumnsCollectionID: strings.TrimSpace(os.Getenv("APPWRITE_COLUMNS_COLLECTION_ID")),
-		TodosCollectionID:   strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID")),
+		TasksCollectionID:   strings.TrimSpace(os.Getenv("APPWRITE_TASKS_COLLECTION_ID")),
 	}
 
 	report, err := client.PruneKanbanSchema(context.Background(), cfg, appwrite.PruneOptions{Apply: *apply})

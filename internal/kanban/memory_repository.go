@@ -16,11 +16,11 @@ type MemoryRepository struct {
 
 	boards  map[string]Board
 	columns map[string]Column
-	todos   map[string]Todo
+	tasks   map[string]Task
 
 	ownerBoards  map[string][]string
 	boardColumns map[string][]string
-	columnTodos  map[string][]string
+	columnTasks  map[string][]string
 
 	now func() time.Time
 }
@@ -29,10 +29,10 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		boards:       make(map[string]Board),
 		columns:      make(map[string]Column),
-		todos:        make(map[string]Todo),
+		tasks:        make(map[string]Task),
 		ownerBoards:  make(map[string][]string),
 		boardColumns: make(map[string][]string),
-		columnTodos:  make(map[string][]string),
+		columnTasks:  make(map[string][]string),
 		now:          time.Now,
 	}
 }
@@ -66,22 +66,22 @@ func (r *MemoryRepository) GetBoard(_ context.Context, ownerUserID, boardID stri
 
 	columnIDs := r.boardColumns[boardID]
 	columns := make([]Column, 0, len(columnIDs))
-	todos := make([]Todo, 0)
+	tasks := make([]Task, 0)
 	for _, columnID := range columnIDs {
 		column, ok := r.columns[columnID]
 		if !ok {
 			continue
 		}
 		columns = append(columns, column)
-		for _, todoID := range r.columnTodos[columnID] {
-			todo, ok := r.todos[todoID]
+		for _, taskID := range r.columnTasks[columnID] {
+			task, ok := r.tasks[taskID]
 			if ok {
-				todos = append(todos, todo)
+				tasks = append(tasks, task)
 			}
 		}
 	}
 
-	return BoardDetails{Board: board, Columns: columns, Todos: todos}, nil
+	return BoardDetails{Board: board, Columns: columns, Tasks: tasks}, nil
 }
 
 func (r *MemoryRepository) CreateBoardIfAbsent(_ context.Context, ownerUserID, title string) (Board, error) {
@@ -134,10 +134,10 @@ func (r *MemoryRepository) DeleteBoard(_ context.Context, ownerUserID, boardID s
 	}
 
 	for _, columnID := range r.boardColumns[board.ID] {
-		for _, todoID := range r.columnTodos[columnID] {
-			delete(r.todos, todoID)
+		for _, taskID := range r.columnTasks[columnID] {
+			delete(r.tasks, taskID)
 		}
-		delete(r.columnTodos, columnID)
+		delete(r.columnTasks, columnID)
 		delete(r.columns, columnID)
 	}
 	delete(r.boardColumns, board.ID)
@@ -168,7 +168,7 @@ func (r *MemoryRepository) CreateColumn(_ context.Context, ownerUserID, boardID,
 	}
 	r.columns[column.ID] = column
 	r.boardColumns[board.ID] = append(r.boardColumns[board.ID], column.ID)
-	r.columnTodos[column.ID] = nil
+	r.columnTasks[column.ID] = nil
 
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
@@ -218,11 +218,11 @@ func (r *MemoryRepository) DeleteColumn(_ context.Context, ownerUserID, boardID,
 		return Board{}, ErrForbidden
 	}
 
-	for _, todoID := range r.columnTodos[columnID] {
-		delete(r.todos, todoID)
+	for _, taskID := range r.columnTasks[columnID] {
+		delete(r.tasks, taskID)
 	}
 
-	delete(r.columnTodos, columnID)
+	delete(r.columnTasks, columnID)
 	delete(r.columns, columnID)
 	r.boardColumns[boardID] = removeID(r.boardColumns[boardID], columnID)
 	r.reindexColumns(boardID)
@@ -232,23 +232,23 @@ func (r *MemoryRepository) DeleteColumn(_ context.Context, ownerUserID, boardID,
 	return board, nil
 }
 
-func (r *MemoryRepository) CreateTodo(_ context.Context, ownerUserID, boardID, columnID, title, description string) (Todo, Board, error) {
+func (r *MemoryRepository) CreateTask(_ context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
 	column, ok := r.columns[columnID]
 	if !ok || column.BoardID != boardID {
-		return Todo{}, Board{}, ErrNotFound
+		return Task{}, Board{}, ErrNotFound
 	}
 
-	position := len(r.columnTodos[columnID])
+	position := len(r.columnTasks[columnID])
 	now := r.now().UTC()
-	todo := Todo{
+	task := Task{
 		ID:          uuid.NewString(),
 		BoardID:     boardID,
 		ColumnID:    columnID,
@@ -259,42 +259,42 @@ func (r *MemoryRepository) CreateTodo(_ context.Context, ownerUserID, boardID, c
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	r.todos[todo.ID] = todo
-	r.columnTodos[columnID] = append(r.columnTodos[columnID], todo.ID)
+	r.tasks[task.ID] = task
+	r.columnTasks[columnID] = append(r.columnTasks[columnID], task.ID)
 
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
-	return todo, board, nil
+	return task, board, nil
 }
 
-func (r *MemoryRepository) UpdateTodo(_ context.Context, ownerUserID, boardID, todoID, title, description string) (Todo, Board, error) {
+func (r *MemoryRepository) UpdateTask(_ context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
-		return Todo{}, Board{}, err
+		return Task{}, Board{}, err
 	}
 
-	todo, ok := r.todos[todoID]
-	if !ok || todo.BoardID != boardID {
-		return Todo{}, Board{}, ErrNotFound
+	task, ok := r.tasks[taskID]
+	if !ok || task.BoardID != boardID {
+		return Task{}, Board{}, ErrNotFound
 	}
-	if todo.OwnerUserID != ownerUserID {
-		return Todo{}, Board{}, ErrForbidden
+	if task.OwnerUserID != ownerUserID {
+		return Task{}, Board{}, ErrForbidden
 	}
 
-	todo.Title = title
-	todo.Description = description
-	todo.UpdatedAt = r.now().UTC()
-	r.todos[todo.ID] = todo
+	task.Title = title
+	task.Description = description
+	task.UpdatedAt = r.now().UTC()
+	r.tasks[task.ID] = task
 
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
-	return todo, board, nil
+	return task, board, nil
 }
 
-func (r *MemoryRepository) DeleteTodo(_ context.Context, ownerUserID, boardID, todoID string) (Board, error) {
+func (r *MemoryRepository) DeleteTask(_ context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -303,17 +303,17 @@ func (r *MemoryRepository) DeleteTodo(_ context.Context, ownerUserID, boardID, t
 		return Board{}, err
 	}
 
-	todo, ok := r.todos[todoID]
-	if !ok || todo.BoardID != boardID {
+	task, ok := r.tasks[taskID]
+	if !ok || task.BoardID != boardID {
 		return Board{}, ErrNotFound
 	}
-	if todo.OwnerUserID != ownerUserID {
+	if task.OwnerUserID != ownerUserID {
 		return Board{}, ErrForbidden
 	}
 
-	delete(r.todos, todoID)
-	r.columnTodos[todo.ColumnID] = removeID(r.columnTodos[todo.ColumnID], todoID)
-	r.reindexTodos(todo.ColumnID)
+	delete(r.tasks, taskID)
+	r.columnTasks[task.ColumnID] = removeID(r.columnTasks[task.ColumnID], taskID)
+	r.reindexTasks(task.ColumnID)
 
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
@@ -344,16 +344,16 @@ func (r *MemoryRepository) reindexColumns(boardID string) {
 	}
 }
 
-func (r *MemoryRepository) reindexTodos(columnID string) {
+func (r *MemoryRepository) reindexTasks(columnID string) {
 	now := r.now().UTC()
-	for i, id := range r.columnTodos[columnID] {
-		todo, ok := r.todos[id]
+	for i, id := range r.columnTasks[columnID] {
+		task, ok := r.tasks[id]
 		if !ok {
 			continue
 		}
-		todo.Position = i
-		todo.UpdatedAt = now
-		r.todos[id] = todo
+		task.Position = i
+		task.UpdatedAt = now
+		r.tasks[id] = task
 	}
 }
 

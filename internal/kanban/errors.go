@@ -3,7 +3,7 @@ package kanban
 import "errors"
 
 var (
-	// ErrNotFound indicates that a board, column, or todo does not exist.
+	// ErrNotFound indicates that a board, column, or task does not exist.
 	ErrNotFound = errors.New("not found")
 	// ErrForbidden indicates resource ownership mismatch.
 	ErrForbidden = errors.New("forbidden")

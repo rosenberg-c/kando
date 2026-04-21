@@ -13,7 +13,7 @@ This document is the entry point for product requirements. Detailed requirements
 - [Authentication and Session](requirements/auth.md)
 - [Board Workspace](requirements/board.md)
 - [Column Management](requirements/column.md)
-- [Todo Management](requirements/todo.md)
+- [Task Management](requirements/task.md)
 - [API and Error Handling](requirements/api.md)
 - [Appwrite Integration and Auth Adapter](requirements/appwrite.md)
 - [API Middleware and Security](requirements/security-middleware.md)

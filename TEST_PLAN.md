@@ -22,7 +22,7 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 - Status: done
 - Added XCUITests for delete confirmation flows:
   - `COL-DEL-*`
-  - `TODO-DEL-*`
+  - `TASK-DEL-*`
 - Added assertions for each flow:
   - Dialog appears with expected title/content.
   - Cancel is a no-op.

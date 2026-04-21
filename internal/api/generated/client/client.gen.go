@@ -64,7 +64,7 @@ type BoardDetailsResponse struct {
 	Schema  *string   `json:"$schema,omitempty"`
 	Board   Board     `json:"board"`
 	Columns *[]Column `json:"columns"`
-	Todos   *[]Todo   `json:"todos"`
+	Tasks   *[]Task   `json:"tasks"`
 }
 
 // Column defines model for Column.
@@ -93,8 +93,8 @@ type CreateColumnRequest struct {
 	Title  string  `json:"title"`
 }
 
-// CreateTodoRequest defines model for CreateTodoRequest.
-type CreateTodoRequest struct {
+// CreateTaskRequest defines model for CreateTaskRequest.
+type CreateTaskRequest struct {
 	// Schema A URL to the JSON Schema for this object.
 	Schema      *string            `json:"$schema,omitempty"`
 	ColumnId    openapi_types.UUID `json:"columnId"`
@@ -146,8 +146,8 @@ type MeResponse struct {
 	UserId string  `json:"userId"`
 }
 
-// Todo defines model for Todo.
-type Todo struct {
+// Task defines model for Task.
+type Task struct {
 	// Schema A URL to the JSON Schema for this object.
 	Schema      *string            `json:"$schema,omitempty"`
 	BoardId     openapi_types.UUID `json:"boardId"`
@@ -174,8 +174,8 @@ type UpdateColumnRequest struct {
 	Title  string  `json:"title"`
 }
 
-// UpdateTodoRequest defines model for UpdateTodoRequest.
-type UpdateTodoRequest struct {
+// UpdateTaskRequest defines model for UpdateTaskRequest.
+type UpdateTaskRequest struct {
 	// Schema A URL to the JSON Schema for this object.
 	Schema      *string `json:"$schema,omitempty"`
 	Description string  `json:"description"`
@@ -222,18 +222,18 @@ type UpdateColumnParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
-// CreateTodoParams defines parameters for CreateTodo.
-type CreateTodoParams struct {
+// CreateTaskParams defines parameters for CreateTask.
+type CreateTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
-// DeleteTodoParams defines parameters for DeleteTodo.
-type DeleteTodoParams struct {
+// DeleteTaskParams defines parameters for DeleteTask.
+type DeleteTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
-// UpdateTodoParams defines parameters for UpdateTodo.
-type UpdateTodoParams struct {
+// UpdateTaskParams defines parameters for UpdateTask.
+type UpdateTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -263,11 +263,11 @@ type CreateColumnJSONRequestBody = CreateColumnRequest
 // UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
 type UpdateColumnJSONRequestBody = UpdateColumnRequest
 
-// CreateTodoJSONRequestBody defines body for CreateTodo for application/json ContentType.
-type CreateTodoJSONRequestBody = CreateTodoRequest
+// CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
+type CreateTaskJSONRequestBody = CreateTaskRequest
 
-// UpdateTodoJSONRequestBody defines body for UpdateTodo for application/json ContentType.
-type UpdateTodoJSONRequestBody = UpdateTodoRequest
+// UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
+type UpdateTaskJSONRequestBody = UpdateTaskRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -389,18 +389,18 @@ type ClientInterface interface {
 
 	UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateTodoWithBody request with any body
-	CreateTodoWithBody(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// CreateTaskWithBody request with any body
+	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateTodo(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteTodo request
-	DeleteTodo(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// DeleteTask request
+	DeleteTask(ctx context.Context, boardId string, taskId string, params *DeleteTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateTodoWithBody request with any body
-	UpdateTodoWithBody(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// UpdateTaskWithBody request with any body
+	UpdateTaskWithBody(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	UpdateTodo(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateTask(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHello request
 	GetHello(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -625,8 +625,8 @@ func (c *Client) UpdateColumn(ctx context.Context, boardId string, columnId stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateTodoWithBody(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateTodoRequestWithBody(c.Server, boardId, params, contentType, body)
+func (c *Client) CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTaskRequestWithBody(c.Server, boardId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -637,8 +637,8 @@ func (c *Client) CreateTodoWithBody(ctx context.Context, boardId string, params 
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateTodo(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateTodoRequest(c.Server, boardId, params, body)
+func (c *Client) CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTaskRequest(c.Server, boardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -649,8 +649,8 @@ func (c *Client) CreateTodo(ctx context.Context, boardId string, params *CreateT
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteTodo(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteTodoRequest(c.Server, boardId, todoId, params)
+func (c *Client) DeleteTask(ctx context.Context, boardId string, taskId string, params *DeleteTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTaskRequest(c.Server, boardId, taskId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -661,8 +661,8 @@ func (c *Client) DeleteTodo(ctx context.Context, boardId string, todoId string, 
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateTodoWithBody(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateTodoRequestWithBody(c.Server, boardId, todoId, params, contentType, body)
+func (c *Client) UpdateTaskWithBody(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTaskRequestWithBody(c.Server, boardId, taskId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -673,8 +673,8 @@ func (c *Client) UpdateTodoWithBody(ctx context.Context, boardId string, todoId 
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateTodo(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateTodoRequest(c.Server, boardId, todoId, params, body)
+func (c *Client) UpdateTask(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTaskRequest(c.Server, boardId, taskId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1273,19 +1273,19 @@ func NewUpdateColumnRequestWithBody(server string, boardId string, columnId stri
 	return req, nil
 }
 
-// NewCreateTodoRequest calls the generic CreateTodo builder with application/json body
-func NewCreateTodoRequest(server string, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody) (*http.Request, error) {
+// NewCreateTaskRequest calls the generic CreateTask builder with application/json body
+func NewCreateTaskRequest(server string, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateTodoRequestWithBody(server, boardId, params, "application/json", bodyReader)
+	return NewCreateTaskRequestWithBody(server, boardId, params, "application/json", bodyReader)
 }
 
-// NewCreateTodoRequestWithBody generates requests for CreateTodo with any type of body
-func NewCreateTodoRequestWithBody(server string, boardId string, params *CreateTodoParams, contentType string, body io.Reader) (*http.Request, error) {
+// NewCreateTaskRequestWithBody generates requests for CreateTask with any type of body
+func NewCreateTaskRequestWithBody(server string, boardId string, params *CreateTaskParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1300,7 +1300,7 @@ func NewCreateTodoRequestWithBody(server string, boardId string, params *CreateT
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/boards/%s/todos", pathParam0)
+	operationPath := fmt.Sprintf("/boards/%s/tasks", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1335,8 +1335,8 @@ func NewCreateTodoRequestWithBody(server string, boardId string, params *CreateT
 	return req, nil
 }
 
-// NewDeleteTodoRequest generates requests for DeleteTodo
-func NewDeleteTodoRequest(server string, boardId string, todoId string, params *DeleteTodoParams) (*http.Request, error) {
+// NewDeleteTaskRequest generates requests for DeleteTask
+func NewDeleteTaskRequest(server string, boardId string, taskId string, params *DeleteTaskParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1348,7 +1348,7 @@ func NewDeleteTodoRequest(server string, boardId string, todoId string, params *
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "todoId", runtime.ParamLocationPath, todoId)
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "taskId", runtime.ParamLocationPath, taskId)
 	if err != nil {
 		return nil, err
 	}
@@ -1358,7 +1358,7 @@ func NewDeleteTodoRequest(server string, boardId string, todoId string, params *
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/boards/%s/todos/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/boards/%s/tasks/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1391,19 +1391,19 @@ func NewDeleteTodoRequest(server string, boardId string, todoId string, params *
 	return req, nil
 }
 
-// NewUpdateTodoRequest calls the generic UpdateTodo builder with application/json body
-func NewUpdateTodoRequest(server string, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody) (*http.Request, error) {
+// NewUpdateTaskRequest calls the generic UpdateTask builder with application/json body
+func NewUpdateTaskRequest(server string, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewUpdateTodoRequestWithBody(server, boardId, todoId, params, "application/json", bodyReader)
+	return NewUpdateTaskRequestWithBody(server, boardId, taskId, params, "application/json", bodyReader)
 }
 
-// NewUpdateTodoRequestWithBody generates requests for UpdateTodo with any type of body
-func NewUpdateTodoRequestWithBody(server string, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader) (*http.Request, error) {
+// NewUpdateTaskRequestWithBody generates requests for UpdateTask with any type of body
+func NewUpdateTaskRequestWithBody(server string, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1415,7 +1415,7 @@ func NewUpdateTodoRequestWithBody(server string, boardId string, todoId string, 
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "todoId", runtime.ParamLocationPath, todoId)
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "taskId", runtime.ParamLocationPath, taskId)
 	if err != nil {
 		return nil, err
 	}
@@ -1425,7 +1425,7 @@ func NewUpdateTodoRequestWithBody(server string, boardId string, todoId string, 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/boards/%s/todos/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/boards/%s/tasks/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1619,18 +1619,18 @@ type ClientWithResponsesInterface interface {
 
 	UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
 
-	// CreateTodoWithBodyWithResponse request with any body
-	CreateTodoWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error)
+	// CreateTaskWithBodyWithResponse request with any body
+	CreateTaskWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
-	CreateTodoWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error)
+	CreateTaskWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
-	// DeleteTodoWithResponse request
-	DeleteTodoWithResponse(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*DeleteTodoResponse, error)
+	// DeleteTaskWithResponse request
+	DeleteTaskWithResponse(ctx context.Context, boardId string, taskId string, params *DeleteTaskParams, reqEditors ...RequestEditorFn) (*DeleteTaskResponse, error)
 
-	// UpdateTodoWithBodyWithResponse request with any body
-	UpdateTodoWithBodyWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error)
+	// UpdateTaskWithBodyWithResponse request with any body
+	UpdateTaskWithBodyWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error)
 
-	UpdateTodoWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error)
+	UpdateTaskWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error)
 
 	// GetHelloWithResponse request
 	GetHelloWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHelloResponse, error)
@@ -1889,15 +1889,15 @@ func (r UpdateColumnResponse) StatusCode() int {
 	return 0
 }
 
-type CreateTodoResponse struct {
+type CreateTaskResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *Todo
+	JSON200                       *Task
 	ApplicationproblemJSONDefault *ErrorModel
 }
 
 // Status returns HTTPResponse.Status
-func (r CreateTodoResponse) Status() string {
+func (r CreateTaskResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1905,21 +1905,21 @@ func (r CreateTodoResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r CreateTodoResponse) StatusCode() int {
+func (r CreateTaskResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type DeleteTodoResponse struct {
+type DeleteTaskResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	ApplicationproblemJSONDefault *ErrorModel
 }
 
 // Status returns HTTPResponse.Status
-func (r DeleteTodoResponse) Status() string {
+func (r DeleteTaskResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1927,22 +1927,22 @@ func (r DeleteTodoResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r DeleteTodoResponse) StatusCode() int {
+func (r DeleteTaskResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type UpdateTodoResponse struct {
+type UpdateTaskResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *Todo
+	JSON200                       *Task
 	ApplicationproblemJSONDefault *ErrorModel
 }
 
 // Status returns HTTPResponse.Status
-func (r UpdateTodoResponse) Status() string {
+func (r UpdateTaskResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1950,7 +1950,7 @@ func (r UpdateTodoResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r UpdateTodoResponse) StatusCode() int {
+func (r UpdateTaskResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2157,47 +2157,47 @@ func (c *ClientWithResponses) UpdateColumnWithResponse(ctx context.Context, boar
 	return ParseUpdateColumnResponse(rsp)
 }
 
-// CreateTodoWithBodyWithResponse request with arbitrary body returning *CreateTodoResponse
-func (c *ClientWithResponses) CreateTodoWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error) {
-	rsp, err := c.CreateTodoWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+// CreateTaskWithBodyWithResponse request with arbitrary body returning *CreateTaskResponse
+func (c *ClientWithResponses) CreateTaskWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error) {
+	rsp, err := c.CreateTaskWithBody(ctx, boardId, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateTodoResponse(rsp)
+	return ParseCreateTaskResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateTodoWithResponse(ctx context.Context, boardId string, params *CreateTodoParams, body CreateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTodoResponse, error) {
-	rsp, err := c.CreateTodo(ctx, boardId, params, body, reqEditors...)
+func (c *ClientWithResponses) CreateTaskWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error) {
+	rsp, err := c.CreateTask(ctx, boardId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateTodoResponse(rsp)
+	return ParseCreateTaskResponse(rsp)
 }
 
-// DeleteTodoWithResponse request returning *DeleteTodoResponse
-func (c *ClientWithResponses) DeleteTodoWithResponse(ctx context.Context, boardId string, todoId string, params *DeleteTodoParams, reqEditors ...RequestEditorFn) (*DeleteTodoResponse, error) {
-	rsp, err := c.DeleteTodo(ctx, boardId, todoId, params, reqEditors...)
+// DeleteTaskWithResponse request returning *DeleteTaskResponse
+func (c *ClientWithResponses) DeleteTaskWithResponse(ctx context.Context, boardId string, taskId string, params *DeleteTaskParams, reqEditors ...RequestEditorFn) (*DeleteTaskResponse, error) {
+	rsp, err := c.DeleteTask(ctx, boardId, taskId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDeleteTodoResponse(rsp)
+	return ParseDeleteTaskResponse(rsp)
 }
 
-// UpdateTodoWithBodyWithResponse request with arbitrary body returning *UpdateTodoResponse
-func (c *ClientWithResponses) UpdateTodoWithBodyWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error) {
-	rsp, err := c.UpdateTodoWithBody(ctx, boardId, todoId, params, contentType, body, reqEditors...)
+// UpdateTaskWithBodyWithResponse request with arbitrary body returning *UpdateTaskResponse
+func (c *ClientWithResponses) UpdateTaskWithBodyWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error) {
+	rsp, err := c.UpdateTaskWithBody(ctx, boardId, taskId, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateTodoResponse(rsp)
+	return ParseUpdateTaskResponse(rsp)
 }
 
-func (c *ClientWithResponses) UpdateTodoWithResponse(ctx context.Context, boardId string, todoId string, params *UpdateTodoParams, body UpdateTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTodoResponse, error) {
-	rsp, err := c.UpdateTodo(ctx, boardId, todoId, params, body, reqEditors...)
+func (c *ClientWithResponses) UpdateTaskWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error) {
+	rsp, err := c.UpdateTask(ctx, boardId, taskId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateTodoResponse(rsp)
+	return ParseUpdateTaskResponse(rsp)
 }
 
 // GetHelloWithResponse request returning *GetHelloResponse
@@ -2560,22 +2560,22 @@ func ParseUpdateColumnResponse(rsp *http.Response) (*UpdateColumnResponse, error
 	return response, nil
 }
 
-// ParseCreateTodoResponse parses an HTTP response from a CreateTodoWithResponse call
-func ParseCreateTodoResponse(rsp *http.Response) (*CreateTodoResponse, error) {
+// ParseCreateTaskResponse parses an HTTP response from a CreateTaskWithResponse call
+func ParseCreateTaskResponse(rsp *http.Response) (*CreateTaskResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &CreateTodoResponse{
+	response := &CreateTaskResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Todo
+		var dest Task
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2593,15 +2593,15 @@ func ParseCreateTodoResponse(rsp *http.Response) (*CreateTodoResponse, error) {
 	return response, nil
 }
 
-// ParseDeleteTodoResponse parses an HTTP response from a DeleteTodoWithResponse call
-func ParseDeleteTodoResponse(rsp *http.Response) (*DeleteTodoResponse, error) {
+// ParseDeleteTaskResponse parses an HTTP response from a DeleteTaskWithResponse call
+func ParseDeleteTaskResponse(rsp *http.Response) (*DeleteTaskResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DeleteTodoResponse{
+	response := &DeleteTaskResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -2619,22 +2619,22 @@ func ParseDeleteTodoResponse(rsp *http.Response) (*DeleteTodoResponse, error) {
 	return response, nil
 }
 
-// ParseUpdateTodoResponse parses an HTTP response from a UpdateTodoWithResponse call
-func ParseUpdateTodoResponse(rsp *http.Response) (*UpdateTodoResponse, error) {
+// ParseUpdateTaskResponse parses an HTTP response from a UpdateTaskWithResponse call
+func ParseUpdateTaskResponse(rsp *http.Response) (*UpdateTaskResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &UpdateTodoResponse{
+	response := &UpdateTaskResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Todo
+		var dest Task
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

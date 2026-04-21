@@ -1,6 +1,6 @@
 # go_macos_todo
 
-Minimal Go backend scaffold for the todo app.
+Minimal Go backend scaffold for the task app.
 
 ## API generation model
 
@@ -30,11 +30,11 @@ APPWRITE_ENDPOINT=https://<REGION>.cloud.appwrite.io/v1
 APPWRITE_PROJECT_ID=your_project_id
 APPWRITE_AUTH_API_KEY=your_server_key_with_sessions_write
 APPWRITE_DB_API_KEY=your_server_key_with_tablesdb/tables/columns/indexes read+write scopes
-APPWRITE_DB_ID=todo
-APPWRITE_DB_NAME=Todo
+APPWRITE_DB_ID=task
+APPWRITE_DB_NAME=Task
 APPWRITE_BOARDS_COLLECTION_ID=boards
 APPWRITE_COLUMNS_COLLECTION_ID=columns
-APPWRITE_TODOS_COLLECTION_ID=todos
+APPWRITE_TASKS_COLLECTION_ID=tasks
 LOG_WARN_MB=5
 LOG_MAX_MB=10
 ```
@@ -119,5 +119,5 @@ Example:
 ```txt
 ui/strings/en/common.json
 ui/strings/en/auth.json
-ui/strings/en/todos.json
+ui/strings/en/tasks.json
 ```

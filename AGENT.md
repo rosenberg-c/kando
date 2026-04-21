@@ -109,7 +109,7 @@ Client -> Handler -> Service -> Repository -> Store
 ```
 
 ```txt
-Todo
+Task
  ├─ ID
  ├─ Title
  ├─ Completed

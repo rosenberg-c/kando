@@ -42,33 +42,33 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
-    func testDeleteTodoConfirmationCancelAndConfirm() throws {
-        // Requirements: TODO-DEL-001, TODO-DEL-002, TODO-DEL-003, TODO-DEL-004
+    func testDeleteTaskConfirmationCancelAndConfirm() throws {
+        // Requirements: TASK-DEL-001, TASK-DEL-002, TASK-DEL-003, TASK-DEL-004
         let app = launchSignedInApp()
 
-        let todoDeleteButton = app.buttons["todo-delete-todo-1"]
-        guard todoDeleteButton.waitForExistence(timeout: 8) else {
-            XCTFail("Expected todo delete button not found. UI:\n\(app.debugDescription)")
+        let taskDeleteButton = app.buttons["task-delete-task-1"]
+        guard taskDeleteButton.waitForExistence(timeout: 8) else {
+            XCTFail("Expected task delete button not found. UI:\n\(app.debugDescription)")
             return
         }
 
-        let todoTitle = app.staticTexts["Example todo"]
-        XCTAssertTrue(todoTitle.exists)
-        todoDeleteButton.tap()
+        let taskTitle = app.staticTexts["Example task"]
+        XCTAssertTrue(taskTitle.exists)
+        taskDeleteButton.tap()
 
-        let deleteAction = app.sheets.firstMatch.buttons["Delete todo"]
+        let deleteAction = app.sheets.firstMatch.buttons["Delete task"]
         XCTAssertTrue(deleteAction.waitForExistence(timeout: 2))
-        XCTAssertTrue(app.sheets.firstMatch.staticTexts["Delete todo?"].exists)
+        XCTAssertTrue(app.sheets.firstMatch.staticTexts["Delete task?"].exists)
 
         let cancelAction = app.sheets.firstMatch.buttons["Cancel"]
         cancelAction.tap()
         XCTAssertFalse(deleteAction.exists)
-        XCTAssertTrue(todoTitle.exists)
+        XCTAssertTrue(taskTitle.exists)
 
-        todoDeleteButton.tap()
+        taskDeleteButton.tap()
         XCTAssertTrue(deleteAction.waitForExistence(timeout: 2))
         deleteAction.tap()
-        XCTAssertFalse(todoTitle.waitForExistence(timeout: 2))
+        XCTAssertFalse(taskTitle.waitForExistence(timeout: 2))
     }
 
     @MainActor

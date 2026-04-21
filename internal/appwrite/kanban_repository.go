@@ -19,16 +19,16 @@ type KanbanRepositoryConfig struct {
 	DatabaseID string
 	BoardsID   string
 	ColumnsID  string
-	TodosID    string
+	TasksID    string
 }
 
-// KanbanRepository persists kanban boards, columns, and todos in Appwrite TablesDB.
+// KanbanRepository persists kanban boards, columns, and tasks in Appwrite TablesDB.
 type KanbanRepository struct {
 	client   *Client
 	database string
 	boards   string
 	columns  string
-	todos    string
+	tasks    string
 }
 
 type boardRow struct {
@@ -50,7 +50,7 @@ type columnRow struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-type todoRow struct {
+type taskRow struct {
 	ID          string    `json:"$id"`
 	BoardID     string    `json:"boardId"`
 	ColumnID    string    `json:"columnId"`
@@ -72,7 +72,7 @@ const kanbanListRowsPageLimit = 100
 // NewKanbanRepository creates an Appwrite-backed kanban repository using configured table IDs.
 func NewKanbanRepository(client *Client, cfg KanbanRepositoryConfig) *KanbanRepository {
 	if strings.TrimSpace(cfg.DatabaseID) == "" {
-		cfg.DatabaseID = "todo"
+		cfg.DatabaseID = "task"
 	}
 	if strings.TrimSpace(cfg.BoardsID) == "" {
 		cfg.BoardsID = "boards"
@@ -80,8 +80,8 @@ func NewKanbanRepository(client *Client, cfg KanbanRepositoryConfig) *KanbanRepo
 	if strings.TrimSpace(cfg.ColumnsID) == "" {
 		cfg.ColumnsID = "columns"
 	}
-	if strings.TrimSpace(cfg.TodosID) == "" {
-		cfg.TodosID = "todos"
+	if strings.TrimSpace(cfg.TasksID) == "" {
+		cfg.TasksID = "tasks"
 	}
 
 	return &KanbanRepository{
@@ -89,7 +89,7 @@ func NewKanbanRepository(client *Client, cfg KanbanRepositoryConfig) *KanbanRepo
 		database: cfg.DatabaseID,
 		boards:   cfg.BoardsID,
 		columns:  cfg.ColumnsID,
-		todos:    cfg.TodosID,
+		tasks:    cfg.TasksID,
 	}
 }
 
@@ -118,7 +118,7 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 	if err != nil {
 		return kanban.BoardDetails{}, err
 	}
-	todos, err := r.listTodos(ctx)
+	tasks, err := r.listTasks(ctx)
 	if err != nil {
 		return kanban.BoardDetails{}, err
 	}
@@ -138,33 +138,33 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 		columnsOut = append(columnsOut, mapColumnRow(col))
 	}
 
-	todoRows := make([]todoRow, 0)
-	for _, td := range todos {
+	taskRows := make([]taskRow, 0)
+	for _, td := range tasks {
 		if td.BoardID == boardID {
-			todoRows = append(todoRows, td)
+			taskRows = append(taskRows, td)
 		}
 	}
-	sort.Slice(todoRows, func(i, j int) bool {
-		if todoRows[i].ColumnID == todoRows[j].ColumnID {
-			return todoRows[i].Position < todoRows[j].Position
+	sort.Slice(taskRows, func(i, j int) bool {
+		if taskRows[i].ColumnID == taskRows[j].ColumnID {
+			return taskRows[i].Position < taskRows[j].Position
 		}
-		leftPos, leftOK := columnPositionByID[todoRows[i].ColumnID]
-		rightPos, rightOK := columnPositionByID[todoRows[j].ColumnID]
+		leftPos, leftOK := columnPositionByID[taskRows[i].ColumnID]
+		rightPos, rightOK := columnPositionByID[taskRows[j].ColumnID]
 		if leftOK && rightOK && leftPos != rightPos {
 			return leftPos < rightPos
 		}
 		if leftOK != rightOK {
 			return leftOK
 		}
-		return todoRows[i].ColumnID < todoRows[j].ColumnID
+		return taskRows[i].ColumnID < taskRows[j].ColumnID
 	})
 
-	todosOut := make([]kanban.Todo, 0, len(todoRows))
-	for _, td := range todoRows {
-		todosOut = append(todosOut, mapTodoRow(td))
+	todosOut := make([]kanban.Task, 0, len(taskRows))
+	for _, td := range taskRows {
+		todosOut = append(todosOut, mapTaskRow(td))
 	}
 
-	return kanban.BoardDetails{Board: mapBoardRow(boardRow), Columns: columnsOut, Todos: todosOut}, nil
+	return kanban.BoardDetails{Board: mapBoardRow(boardRow), Columns: columnsOut, Tasks: todosOut}, nil
 }
 
 func (r *KanbanRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
@@ -224,14 +224,14 @@ func (r *KanbanRepository) DeleteBoard(ctx context.Context, ownerUserID, boardID
 	if err != nil {
 		return err
 	}
-	todos, err := r.listTodos(ctx)
+	tasks, err := r.listTasks(ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, td := range todos {
+	for _, td := range tasks {
 		if td.BoardID == boardID {
-			if err := r.deleteRow(ctx, r.todos, td.ID); err != nil {
+			if err := r.deleteRow(ctx, r.tasks, td.ID); err != nil {
 				return err
 			}
 		}
@@ -341,21 +341,21 @@ func (r *KanbanRepository) DeleteColumn(ctx context.Context, ownerUserID, boardI
 	return mapBoardRow(board), nil
 }
 
-func (r *KanbanRepository) CreateTodo(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (kanban.Todo, kanban.Board, error) {
+func (r *KanbanRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (kanban.Task, kanban.Board, error) {
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
 	if _, err := r.getOwnedColumn(ctx, ownerUserID, boardID, columnID); err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
 
-	todos, err := r.listTodos(ctx)
+	tasks, err := r.listTasks(ctx)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
 	position := 0
-	for _, td := range todos {
+	for _, td := range tasks {
 		if td.ColumnID == columnID && td.Position >= position {
 			position = td.Position + 1
 		}
@@ -373,28 +373,28 @@ func (r *KanbanRepository) CreateTodo(ctx context.Context, ownerUserID, boardID,
 		"createdAt":   now.Format(time.RFC3339),
 		"updatedAt":   now.Format(time.RFC3339),
 	}}
-	if err := r.createRow(ctx, r.todos, payload, nil); err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+	if err := r.createRow(ctx, r.tasks, payload, nil); err != nil {
+		return kanban.Task{}, kanban.Board{}, err
 	}
 
 	board, err = r.bumpBoard(ctx, board)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
-	todo, err := r.getTodoRow(ctx, rowID)
+	task, err := r.getTaskRow(ctx, rowID)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
-	return mapTodoRow(todo), mapBoardRow(board), nil
+	return mapTaskRow(task), mapBoardRow(board), nil
 }
 
-func (r *KanbanRepository) UpdateTodo(ctx context.Context, ownerUserID, boardID, todoID, title, description string) (kanban.Todo, kanban.Board, error) {
+func (r *KanbanRepository) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (kanban.Task, kanban.Board, error) {
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
-	if _, err := r.getOwnedTodo(ctx, ownerUserID, boardID, todoID); err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+	if _, err := r.getOwnedTask(ctx, ownerUserID, boardID, taskID); err != nil {
+		return kanban.Task{}, kanban.Board{}, err
 	}
 
 	payload := map[string]any{"data": map[string]any{
@@ -402,34 +402,34 @@ func (r *KanbanRepository) UpdateTodo(ctx context.Context, ownerUserID, boardID,
 		"description": description,
 		"updatedAt":   time.Now().UTC().Format(time.RFC3339),
 	}}
-	if err := r.updateRow(ctx, r.todos, todoID, payload, nil); err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+	if err := r.updateRow(ctx, r.tasks, taskID, payload, nil); err != nil {
+		return kanban.Task{}, kanban.Board{}, err
 	}
 	board, err = r.bumpBoard(ctx, board)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
-	todo, err := r.getTodoRow(ctx, todoID)
+	task, err := r.getTaskRow(ctx, taskID)
 	if err != nil {
-		return kanban.Todo{}, kanban.Board{}, err
+		return kanban.Task{}, kanban.Board{}, err
 	}
-	return mapTodoRow(todo), mapBoardRow(board), nil
+	return mapTaskRow(task), mapBoardRow(board), nil
 }
 
-func (r *KanbanRepository) DeleteTodo(ctx context.Context, ownerUserID, boardID, todoID string) (kanban.Board, error) {
+func (r *KanbanRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Board, error) {
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
 		return kanban.Board{}, err
 	}
-	todo, err := r.getOwnedTodo(ctx, ownerUserID, boardID, todoID)
+	task, err := r.getOwnedTask(ctx, ownerUserID, boardID, taskID)
 	if err != nil {
 		return kanban.Board{}, err
 	}
 
-	if err := r.deleteRow(ctx, r.todos, todo.ID); err != nil {
+	if err := r.deleteRow(ctx, r.tasks, task.ID); err != nil {
 		return kanban.Board{}, err
 	}
-	if err := r.reindexTodos(ctx, todo.ColumnID); err != nil {
+	if err := r.reindexTasks(ctx, task.ColumnID); err != nil {
 		return kanban.Board{}, err
 	}
 	board, err = r.bumpBoard(ctx, board)
@@ -464,16 +464,16 @@ func (r *KanbanRepository) getOwnedColumn(ctx context.Context, ownerUserID, boar
 	return row, nil
 }
 
-func (r *KanbanRepository) getOwnedTodo(ctx context.Context, ownerUserID, boardID, todoID string) (todoRow, error) {
-	row, err := r.getTodoRow(ctx, todoID)
+func (r *KanbanRepository) getOwnedTask(ctx context.Context, ownerUserID, boardID, taskID string) (taskRow, error) {
+	row, err := r.getTaskRow(ctx, taskID)
 	if err != nil {
-		return todoRow{}, err
+		return taskRow{}, err
 	}
 	if row.BoardID != boardID {
-		return todoRow{}, kanban.ErrNotFound
+		return taskRow{}, kanban.ErrNotFound
 	}
 	if row.OwnerUserID != ownerUserID {
-		return todoRow{}, kanban.ErrForbidden
+		return taskRow{}, kanban.ErrForbidden
 	}
 	return row, nil
 }
@@ -514,12 +514,12 @@ func (r *KanbanRepository) reindexColumns(ctx context.Context, boardID string) e
 	return nil
 }
 
-func (r *KanbanRepository) reindexTodos(ctx context.Context, columnID string) error {
-	rows, err := r.listTodos(ctx)
+func (r *KanbanRepository) reindexTasks(ctx context.Context, columnID string) error {
+	rows, err := r.listTasks(ctx)
 	if err != nil {
 		return err
 	}
-	filtered := make([]todoRow, 0)
+	filtered := make([]taskRow, 0)
 	for _, row := range rows {
 		if row.ColumnID == columnID {
 			filtered = append(filtered, row)
@@ -532,7 +532,7 @@ func (r *KanbanRepository) reindexTodos(ctx context.Context, columnID string) er
 			continue
 		}
 		payload := map[string]any{"data": map[string]any{"position": i, "updatedAt": now}}
-		if err := r.updateRow(ctx, r.todos, row.ID, payload, nil); err != nil {
+		if err := r.updateRow(ctx, r.tasks, row.ID, payload, nil); err != nil {
 			return err
 		}
 	}
@@ -549,9 +549,9 @@ func (r *KanbanRepository) listColumns(ctx context.Context) ([]columnRow, error)
 	return listRows[columnRow](ctx, r.client, path)
 }
 
-func (r *KanbanRepository) listTodos(ctx context.Context) ([]todoRow, error) {
-	path := fmt.Sprintf("/tablesdb/%s/tables/%s/rows", r.database, r.todos)
-	return listRows[todoRow](ctx, r.client, path)
+func (r *KanbanRepository) listTasks(ctx context.Context) ([]taskRow, error) {
+	path := fmt.Sprintf("/tablesdb/%s/tables/%s/rows", r.database, r.tasks)
+	return listRows[taskRow](ctx, r.client, path)
 }
 
 func listRows[T any](ctx context.Context, client *Client, path string) ([]T, error) {
@@ -606,10 +606,10 @@ func (r *KanbanRepository) getColumnRow(ctx context.Context, id string) (columnR
 	return row, nil
 }
 
-func (r *KanbanRepository) getTodoRow(ctx context.Context, id string) (todoRow, error) {
-	var row todoRow
-	if err := r.getRow(ctx, r.todos, id, &row); err != nil {
-		return todoRow{}, err
+func (r *KanbanRepository) getTaskRow(ctx context.Context, id string) (taskRow, error) {
+	var row taskRow
+	if err := r.getRow(ctx, r.tasks, id, &row); err != nil {
+		return taskRow{}, err
 	}
 	return row, nil
 }
@@ -673,6 +673,6 @@ func mapColumnRow(row columnRow) kanban.Column {
 	return kanban.Column{ID: row.ID, BoardID: row.BoardID, OwnerUserID: row.OwnerUserID, Title: row.Title, Position: row.Position, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 }
 
-func mapTodoRow(row todoRow) kanban.Todo {
-	return kanban.Todo{ID: row.ID, BoardID: row.BoardID, ColumnID: row.ColumnID, OwnerUserID: row.OwnerUserID, Title: row.Title, Description: row.Description, Position: row.Position, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+func mapTaskRow(row taskRow) kanban.Task {
+	return kanban.Task{ID: row.ID, BoardID: row.BoardID, ColumnID: row.ColumnID, OwnerUserID: row.OwnerUserID, Title: row.Title, Description: row.Description, Position: row.Position, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 }

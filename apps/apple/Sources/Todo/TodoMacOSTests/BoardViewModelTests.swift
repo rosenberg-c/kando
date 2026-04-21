@@ -8,7 +8,7 @@ struct BoardViewModelTests {
         // Requirement: BOARD-003
         let gate = SuspendedOperationGate()
         let board = KanbanBoard(id: "board-1", title: "Main")
-        let details = KanbanBoardDetails(board: board, columns: [], todos: [])
+        let details = KanbanBoardDetails(board: board, columns: [], tasks: [])
 
         let api = MockKanbanAPI(
             ensureBoardHandler: { _, _, _ in board },
@@ -50,7 +50,7 @@ struct BoardViewModelTests {
         let details = KanbanBoardDetails(
             board: board,
             columns: [KanbanColumn(id: "column-1", title: "Backlog", position: 0)],
-            todos: [KanbanTodo(id: "todo-1", columnID: "column-1", title: "Task", description: "", position: 0)]
+            tasks: [KanbanTask(id: "task-1", columnID: "column-1", title: "Task", description: "", position: 0)]
         )
 
         let api = MockKanbanAPI(
@@ -61,7 +61,7 @@ struct BoardViewModelTests {
                     code: 409,
                     operation: "deleteColumn",
                     title: "Conflict",
-                    detail: "column has todos"
+                    detail: "column has tasks"
                 )
             }
         )
@@ -79,7 +79,7 @@ struct BoardViewModelTests {
         #expect(viewModel.statusMessage.contains("409"))
         #expect(viewModel.debugMessage.contains("operation=deleteColumn"))
         #expect(viewModel.debugMessage.contains("status=409"))
-        #expect(viewModel.debugMessage.contains("detail=column has todos"))
+        #expect(viewModel.debugMessage.contains("detail=column has tasks"))
     }
 }
 

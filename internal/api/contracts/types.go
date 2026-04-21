@@ -40,7 +40,7 @@ type Column struct {
 	UpdatedAt time.Time `json:"updatedAt" format:"date-time"`
 }
 
-type Todo struct {
+type Task struct {
 	ID          string    `json:"id" format:"uuid"`
 	BoardID     string    `json:"boardId" format:"uuid"`
 	ColumnID    string    `json:"columnId" format:"uuid"`
@@ -62,7 +62,7 @@ type UpdateBoardRequest struct {
 type BoardDetailsResponse struct {
 	Board   Board    `json:"board"`
 	Columns []Column `json:"columns"`
-	Todos   []Todo   `json:"todos"`
+	Tasks   []Task   `json:"tasks"`
 }
 
 type CreateColumnRequest struct {
@@ -73,13 +73,13 @@ type UpdateColumnRequest struct {
 	Title string `json:"title" minLength:"1" maxLength:"120"`
 }
 
-type CreateTodoRequest struct {
+type CreateTaskRequest struct {
 	ColumnID    string `json:"columnId" format:"uuid"`
 	Title       string `json:"title" minLength:"1" maxLength:"200"`
 	Description string `json:"description" maxLength:"4000"`
 }
 
-type UpdateTodoRequest struct {
+type UpdateTaskRequest struct {
 	Title       string `json:"title" minLength:"1" maxLength:"200"`
 	Description string `json:"description" maxLength:"4000"`
 }

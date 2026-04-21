@@ -39,32 +39,32 @@ struct MockKanbanAPI: KanbanAPI {
     var createColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
     var updateColumnHandler: @Sendable (String, String, String, String, URL) async throws -> Void
     var deleteColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
-    var createTodoHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
-    var updateTodoHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
-    var deleteTodoHandler: @Sendable (String, String, String, URL) async throws -> Void
+    var createTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
+    var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
+    var deleteTaskHandler: @Sendable (String, String, String, URL) async throws -> Void
 
     init(
         ensureBoardHandler: @escaping @Sendable (String, URL, String) async throws -> KanbanBoard = { _, _, _ in
             KanbanBoard(id: "board-1", title: "Main")
         },
         getBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoardDetails = { _, _, _ in
-            KanbanBoardDetails(board: KanbanBoard(id: "board-1", title: "Main"), columns: [], todos: [])
+            KanbanBoardDetails(board: KanbanBoard(id: "board-1", title: "Main"), columns: [], tasks: [])
         },
         createColumnHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
         updateColumnHandler: @escaping @Sendable (String, String, String, String, URL) async throws -> Void = { _, _, _, _, _ in },
         deleteColumnHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
-        createTodoHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
-        updateTodoHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
-        deleteTodoHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in }
+        createTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
+        updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
+        deleteTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in }
     ) {
         self.ensureBoardHandler = ensureBoardHandler
         self.getBoardHandler = getBoardHandler
         self.createColumnHandler = createColumnHandler
         self.updateColumnHandler = updateColumnHandler
         self.deleteColumnHandler = deleteColumnHandler
-        self.createTodoHandler = createTodoHandler
-        self.updateTodoHandler = updateTodoHandler
-        self.deleteTodoHandler = deleteTodoHandler
+        self.createTaskHandler = createTaskHandler
+        self.updateTaskHandler = updateTaskHandler
+        self.deleteTaskHandler = deleteTaskHandler
     }
 
     func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
@@ -87,15 +87,15 @@ struct MockKanbanAPI: KanbanAPI {
         try await deleteColumnHandler(boardID, columnID, accessToken, baseURL)
     }
 
-    func createTodo(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
-        try await createTodoHandler(boardID, columnID, title, description, accessToken, baseURL)
+    func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+        try await createTaskHandler(boardID, columnID, title, description, accessToken, baseURL)
     }
 
-    func updateTodo(boardID: String, todoID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
-        try await updateTodoHandler(boardID, todoID, title, description, accessToken, baseURL)
+    func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+        try await updateTaskHandler(boardID, taskID, title, description, accessToken, baseURL)
     }
 
-    func deleteTodo(boardID: String, todoID: String, accessToken: String, baseURL: URL) async throws {
-        try await deleteTodoHandler(boardID, todoID, accessToken, baseURL)
+    func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
+        try await deleteTaskHandler(boardID, taskID, accessToken, baseURL)
     }
 }

@@ -38,7 +38,7 @@ struct GeneratedKanbanAPI: KanbanAPI {
             return KanbanBoardDetails(
                 board: mapBoard(body.board),
                 columns: (body.columns ?? []).map(mapColumn).sorted { $0.position < $1.position },
-                todos: (body.todos ?? []).map(mapTodo)
+                tasks: (body.tasks ?? []).map(mapTask)
             )
         case let .default(statusCode, payload):
             throw mapStatus(statusCode, operation: "getBoard", model: problem(from: payload.body))
@@ -71,29 +71,29 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
-    func createTodo(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+    func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let payload = Components.Schemas.CreateTodoRequest(columnId: columnID, description: description, title: title)
-        let output = try await client.createTodo(path: .init(boardId: boardID), body: .json(payload))
+        let payload = Components.Schemas.CreateTaskRequest(columnId: columnID, description: description, title: title)
+        let output = try await client.createTask(path: .init(boardId: boardID), body: .json(payload))
         if case let .default(statusCode, payload) = output {
-            throw mapStatus(statusCode, operation: "createTodo", model: problem(from: payload.body))
+            throw mapStatus(statusCode, operation: "createTask", model: problem(from: payload.body))
         }
     }
 
-    func updateTodo(boardID: String, todoID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+    func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let payload = Components.Schemas.UpdateTodoRequest(description: description, title: title)
-        let output = try await client.updateTodo(path: .init(boardId: boardID, todoId: todoID), body: .json(payload))
+        let payload = Components.Schemas.UpdateTaskRequest(description: description, title: title)
+        let output = try await client.updateTask(path: .init(boardId: boardID, taskId: taskID), body: .json(payload))
         if case let .default(statusCode, payload) = output {
-            throw mapStatus(statusCode, operation: "updateTodo", model: problem(from: payload.body))
+            throw mapStatus(statusCode, operation: "updateTask", model: problem(from: payload.body))
         }
     }
 
-    func deleteTodo(boardID: String, todoID: String, accessToken: String, baseURL: URL) async throws {
+    func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let output = try await client.deleteTodo(path: .init(boardId: boardID, todoId: todoID))
+        let output = try await client.deleteTask(path: .init(boardId: boardID, taskId: taskID))
         if case let .default(statusCode, payload) = output {
-            throw mapStatus(statusCode, operation: "deleteTodo", model: problem(from: payload.body))
+            throw mapStatus(statusCode, operation: "deleteTask", model: problem(from: payload.body))
         }
     }
 
@@ -134,15 +134,15 @@ struct GeneratedKanbanAPI: KanbanAPI {
            case let .applicationProblemJson(model) = body {
             return model
         }
-        if let body = body as? Operations.CreateTodo.Output.Default.Body,
+        if let body = body as? Operations.CreateTask.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }
-        if let body = body as? Operations.UpdateTodo.Output.Default.Body,
+        if let body = body as? Operations.UpdateTask.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }
-        if let body = body as? Operations.DeleteTodo.Output.Default.Body,
+        if let body = body as? Operations.DeleteTask.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }
@@ -157,8 +157,8 @@ struct GeneratedKanbanAPI: KanbanAPI {
         KanbanColumn(id: column.id, title: column.title, position: Int(column.position))
     }
 
-    private func mapTodo(_ todo: Components.Schemas.Todo) -> KanbanTodo {
-        KanbanTodo(id: todo.id, columnID: todo.columnId, title: todo.title, description: todo.description, position: Int(todo.position))
+    private func mapTask(_ task: Components.Schemas.Task) -> KanbanTask {
+        KanbanTask(id: task.id, columnID: task.columnId, title: task.title, description: task.description, position: Int(task.position))
     }
 }
 

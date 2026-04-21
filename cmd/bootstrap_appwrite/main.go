@@ -34,7 +34,7 @@ func main() {
 		DatabaseName:        strings.TrimSpace(os.Getenv("APPWRITE_DB_NAME")),
 		BoardsCollectionID:  strings.TrimSpace(os.Getenv("APPWRITE_BOARDS_COLLECTION_ID")),
 		ColumnsCollectionID: strings.TrimSpace(os.Getenv("APPWRITE_COLUMNS_COLLECTION_ID")),
-		TodosCollectionID:   strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID")),
+		TasksCollectionID:   strings.TrimSpace(os.Getenv("APPWRITE_TASKS_COLLECTION_ID")),
 	}
 
 	if err := client.BootstrapKanbanSchema(context.Background(), cfg); err != nil {
@@ -47,7 +47,7 @@ func main() {
 		DatabaseName:   cfg.DatabaseName,
 		BoardsTableID:  cfg.BoardsCollectionID,
 		ColumnsTableID: cfg.ColumnsCollectionID,
-		TodosTableID:   cfg.TodosCollectionID,
+		TasksTableID:   cfg.TasksCollectionID,
 	})
 
 	tableIDs := make([]string, 0, len(definition.Tables))

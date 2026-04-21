@@ -80,31 +80,31 @@ func (r *trackedRepository) DeleteColumn(ctx context.Context, ownerUserID, board
 	return r.repo.DeleteColumn(ctx, ownerUserID, boardID, columnID)
 }
 
-func (r *trackedRepository) CreateTodo(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (kanban.Todo, kanban.Board, error) {
-	return r.repo.CreateTodo(ctx, ownerUserID, boardID, columnID, title, description)
+func (r *trackedRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (kanban.Task, kanban.Board, error) {
+	return r.repo.CreateTask(ctx, ownerUserID, boardID, columnID, title, description)
 }
 
-func (r *trackedRepository) UpdateTodo(ctx context.Context, ownerUserID, boardID, todoID, title, description string) (kanban.Todo, kanban.Board, error) {
-	return r.repo.UpdateTodo(ctx, ownerUserID, boardID, todoID, title, description)
+func (r *trackedRepository) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (kanban.Task, kanban.Board, error) {
+	return r.repo.UpdateTask(ctx, ownerUserID, boardID, taskID, title, description)
 }
 
-func (r *trackedRepository) DeleteTodo(ctx context.Context, ownerUserID, boardID, todoID string) (kanban.Board, error) {
-	return r.repo.DeleteTodo(ctx, ownerUserID, boardID, todoID)
+func (r *trackedRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Board, error) {
+	return r.repo.DeleteTask(ctx, ownerUserID, boardID, taskID)
 }
 
 func (r *trackedRepository) cleanup(ctx context.Context) {
 	r.mu.Lock()
-	todo := make(map[string][]string, len(r.rows))
+	task := make(map[string][]string, len(r.rows))
 	for ownerUserID, ids := range r.rows {
 		boards := make([]string, 0, len(ids))
 		for boardID := range ids {
 			boards = append(boards, boardID)
 		}
-		todo[ownerUserID] = boards
+		task[ownerUserID] = boards
 	}
 	r.mu.Unlock()
 
-	for ownerUserID, boardIDs := range todo {
+	for ownerUserID, boardIDs := range task {
 		for _, boardID := range boardIDs {
 			_ = r.repo.DeleteBoard(ctx, ownerUserID, boardID)
 		}
@@ -122,7 +122,7 @@ func TestRepositoryContractAppwriteService(t *testing.T) {
 	databaseID := strings.TrimSpace(os.Getenv("APPWRITE_DB_ID"))
 	boardsID := strings.TrimSpace(os.Getenv("APPWRITE_BOARDS_COLLECTION_ID"))
 	columnsID := strings.TrimSpace(os.Getenv("APPWRITE_COLUMNS_COLLECTION_ID"))
-	todosID := strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID"))
+	tasksID := strings.TrimSpace(os.Getenv("APPWRITE_TASKS_COLLECTION_ID"))
 	apiKey := strings.TrimSpace(os.Getenv("APPWRITE_DB_API_KEY"))
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(os.Getenv("APPWRITE_AUTH_API_KEY"))
@@ -147,8 +147,8 @@ func TestRepositoryContractAppwriteService(t *testing.T) {
 	if columnsID == "" {
 		missing = append(missing, "APPWRITE_COLUMNS_COLLECTION_ID")
 	}
-	if todosID == "" {
-		missing = append(missing, "APPWRITE_TODOS_COLLECTION_ID")
+	if tasksID == "" {
+		missing = append(missing, "APPWRITE_TASKS_COLLECTION_ID")
 	}
 	if len(missing) > 0 {
 		t.Skip("missing required Appwrite integration env vars: " + strings.Join(missing, ", "))
@@ -160,7 +160,7 @@ func TestRepositoryContractAppwriteService(t *testing.T) {
 			DatabaseID: databaseID,
 			BoardsID:   boardsID,
 			ColumnsID:  columnsID,
-			TodosID:    todosID,
+			TasksID:    tasksID,
 		})
 		tracked := newTrackedRepository(kanban.NewService(repo))
 		t.Cleanup(func() {

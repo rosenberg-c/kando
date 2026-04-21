@@ -11,7 +11,7 @@ struct KanbanColumn: Sendable, Equatable, Identifiable {
     let position: Int
 }
 
-struct KanbanTodo: Sendable, Equatable, Identifiable {
+struct KanbanTask: Sendable, Equatable, Identifiable {
     let id: String
     let columnID: String
     let title: String
@@ -22,7 +22,7 @@ struct KanbanTodo: Sendable, Equatable, Identifiable {
 struct KanbanBoardDetails: Sendable, Equatable {
     let board: KanbanBoard
     let columns: [KanbanColumn]
-    let todos: [KanbanTodo]
+    let tasks: [KanbanTask]
 }
 
 enum KanbanAPIError: LocalizedError {
@@ -72,7 +72,7 @@ protocol KanbanAPI: Sendable {
     func createColumn(boardID: String, title: String, accessToken: String, baseURL: URL) async throws
     func updateColumn(boardID: String, columnID: String, title: String, accessToken: String, baseURL: URL) async throws
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws
-    func createTodo(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
-    func updateTodo(boardID: String, todoID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
-    func deleteTodo(boardID: String, todoID: String, accessToken: String, baseURL: URL) async throws
+    func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
+    func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
+    func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws
 }

@@ -60,7 +60,7 @@ func (c *Client) PruneKanbanSchema(ctx context.Context, cfg SchemaConfig, option
 		DatabaseName:   cfg.DatabaseName,
 		BoardsTableID:  cfg.BoardsCollectionID,
 		ColumnsTableID: cfg.ColumnsCollectionID,
-		TodosTableID:   cfg.TodosCollectionID,
+		TasksTableID:   cfg.TasksCollectionID,
 	})
 
 	managedTables := map[string]schema.AppwriteTable{}

@@ -4,7 +4,7 @@ import Foundation
 final class BoardViewModel: ObservableObject {
     @Published private(set) var board: KanbanBoard?
     @Published private(set) var columns: [KanbanColumn] = []
-    @Published private(set) var todosByColumnID: [String: [KanbanTodo]] = [:]
+    @Published private(set) var tasksByColumnID: [String: [KanbanTask]] = [:]
     @Published var statusMessage = ""
     @Published var statusIsError = false
     @Published var isLoading = false
@@ -87,52 +87,52 @@ final class BoardViewModel: ObservableObject {
         }
     }
 
-    func createTodo(columnID: String, title: String, description: String) async {
+    func createTask(columnID: String, title: String, description: String) async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else {
-            setError(Strings.t("board.todo.validation.title_required"))
+            setError(Strings.t("board.task.validation.title_required"))
             return
         }
 
         await runMutation {
             let context = try await self.resolveContext(requireBoard: true)
             let boardID = try self.requireBoardID(context)
-            try await self.api.createTodo(boardID: boardID, columnID: columnID, title: trimmedTitle, description: trimmedDescription, accessToken: context.accessToken, baseURL: context.baseURL)
+            try await self.api.createTask(boardID: boardID, columnID: columnID, title: trimmedTitle, description: trimmedDescription, accessToken: context.accessToken, baseURL: context.baseURL)
             try await self.reloadWithContext(context)
-            self.setSuccess(Strings.f("board.todo.status.created", trimmedTitle))
+            self.setSuccess(Strings.f("board.task.status.created", trimmedTitle))
         }
     }
 
-    func updateTodo(todoID: String, title: String, description: String) async {
+    func updateTask(taskID: String, title: String, description: String) async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else {
-            setError(Strings.t("board.todo.validation.title_required"))
+            setError(Strings.t("board.task.validation.title_required"))
             return
         }
 
         await runMutation {
             let context = try await self.resolveContext(requireBoard: true)
             let boardID = try self.requireBoardID(context)
-            try await self.api.updateTodo(boardID: boardID, todoID: todoID, title: trimmedTitle, description: trimmedDescription, accessToken: context.accessToken, baseURL: context.baseURL)
+            try await self.api.updateTask(boardID: boardID, taskID: taskID, title: trimmedTitle, description: trimmedDescription, accessToken: context.accessToken, baseURL: context.baseURL)
             try await self.reloadWithContext(context)
-            self.setSuccess(Strings.f("board.todo.status.updated", trimmedTitle))
+            self.setSuccess(Strings.f("board.task.status.updated", trimmedTitle))
         }
     }
 
-    func deleteTodo(todoID: String) async {
+    func deleteTask(taskID: String) async {
         await runMutation {
             let context = try await self.resolveContext(requireBoard: true)
             let boardID = try self.requireBoardID(context)
-            try await self.api.deleteTodo(boardID: boardID, todoID: todoID, accessToken: context.accessToken, baseURL: context.baseURL)
+            try await self.api.deleteTask(boardID: boardID, taskID: taskID, accessToken: context.accessToken, baseURL: context.baseURL)
             try await self.reloadWithContext(context)
-            self.setSuccess(Strings.t("board.todo.status.deleted"))
+            self.setSuccess(Strings.t("board.task.status.deleted"))
         }
     }
 
-    func todos(for columnID: String) -> [KanbanTodo] {
-        (todosByColumnID[columnID] ?? []).sorted { $0.position < $1.position }
+    func tasks(for columnID: String) -> [KanbanTask] {
+        (tasksByColumnID[columnID] ?? []).sorted { $0.position < $1.position }
     }
 
     private func runMutation(_ operation: @escaping @MainActor () async throws -> Void) async {
@@ -193,14 +193,14 @@ final class BoardViewModel: ObservableObject {
     private func apply(details: KanbanBoardDetails) {
         board = details.board
         columns = details.columns.sorted { $0.position < $1.position }
-        var grouped: [String: [KanbanTodo]] = [:]
-        for todo in details.todos {
-            grouped[todo.columnID, default: []].append(todo)
+        var grouped: [String: [KanbanTask]] = [:]
+        for task in details.tasks {
+            grouped[task.columnID, default: []].append(task)
         }
         for key in grouped.keys {
             grouped[key]?.sort { $0.position < $1.position }
         }
-        todosByColumnID = grouped
+        tasksByColumnID = grouped
     }
 
     private func setError(_ message: String) {

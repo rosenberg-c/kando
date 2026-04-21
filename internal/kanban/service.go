@@ -65,30 +65,30 @@ func (s *Service) DeleteColumn(ctx context.Context, ownerUserID, boardID, column
 	if err != nil {
 		return Board{}, err
 	}
-	for _, todo := range details.Todos {
-		if todo.ColumnID == columnID {
-			return Board{}, fmt.Errorf("column has todos: %w", ErrConflict)
+	for _, task := range details.Tasks {
+		if task.ColumnID == columnID {
+			return Board{}, fmt.Errorf("column has tasks: %w", ErrConflict)
 		}
 	}
 	return s.repo.DeleteColumn(ctx, ownerUserID, boardID, columnID)
 }
 
-func (s *Service) CreateTodo(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Todo, Board, error) {
+func (s *Service) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
 	trimmedTitle := strings.TrimSpace(title)
 	if trimmedTitle == "" {
-		return Todo{}, Board{}, ErrInvalidInput
+		return Task{}, Board{}, ErrInvalidInput
 	}
-	return s.repo.CreateTodo(ctx, ownerUserID, boardID, columnID, trimmedTitle, strings.TrimSpace(description))
+	return s.repo.CreateTask(ctx, ownerUserID, boardID, columnID, trimmedTitle, strings.TrimSpace(description))
 }
 
-func (s *Service) UpdateTodo(ctx context.Context, ownerUserID, boardID, todoID, title, description string) (Todo, Board, error) {
+func (s *Service) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error) {
 	trimmedTitle := strings.TrimSpace(title)
 	if trimmedTitle == "" {
-		return Todo{}, Board{}, ErrInvalidInput
+		return Task{}, Board{}, ErrInvalidInput
 	}
-	return s.repo.UpdateTodo(ctx, ownerUserID, boardID, todoID, trimmedTitle, strings.TrimSpace(description))
+	return s.repo.UpdateTask(ctx, ownerUserID, boardID, taskID, trimmedTitle, strings.TrimSpace(description))
 }
 
-func (s *Service) DeleteTodo(ctx context.Context, ownerUserID, boardID, todoID string) (Board, error) {
-	return s.repo.DeleteTodo(ctx, ownerUserID, boardID, todoID)
+func (s *Service) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
+	return s.repo.DeleteTask(ctx, ownerUserID, boardID, taskID)
 }

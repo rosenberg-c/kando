@@ -107,7 +107,7 @@ func main() {
 			DatabaseID: strings.TrimSpace(os.Getenv("APPWRITE_DB_ID")),
 			BoardsID:   strings.TrimSpace(os.Getenv("APPWRITE_BOARDS_COLLECTION_ID")),
 			ColumnsID:  strings.TrimSpace(os.Getenv("APPWRITE_COLUMNS_COLLECTION_ID")),
-			TodosID:    strings.TrimSpace(os.Getenv("APPWRITE_TODOS_COLLECTION_ID")),
+			TasksID:    strings.TrimSpace(os.Getenv("APPWRITE_TASKS_COLLECTION_ID")),
 		}))
 		log.Println("kanban repository backend: appwrite")
 	default:
