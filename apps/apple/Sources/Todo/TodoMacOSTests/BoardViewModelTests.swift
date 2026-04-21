@@ -4,6 +4,49 @@ import Testing
 
 @MainActor
 struct BoardViewModelTests {
+    @Test func manualRefreshReloadsBoardStateFromAPI() async {
+        // Requirement: BOARD-004
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let firstDetails = KanbanBoardDetails(
+            board: KanbanBoard(id: "board-1", title: "Main"),
+            columns: [KanbanColumn(id: "column-1", title: "Backlog", position: 0)],
+            tasks: [KanbanTask(id: "task-1", columnID: "column-1", title: "Initial task", description: "", position: 0)]
+        )
+        let refreshedDetails = KanbanBoardDetails(
+            board: KanbanBoard(id: "board-1", title: "Main (Refreshed)"),
+            columns: [KanbanColumn(id: "column-2", title: "Doing", position: 0)],
+            tasks: [KanbanTask(id: "task-2", columnID: "column-2", title: "Refreshed task", description: "", position: 0)]
+        )
+        let callCounter = AsyncCounter()
+
+        let api = MockKanbanAPI(
+            ensureBoardHandler: { _, _, _ in board },
+            getBoardHandler: { _, _, _ in
+                let call = await callCounter.incrementAndGet()
+                if call == 1 {
+                    return firstDetails
+                }
+                return refreshedDetails
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.board?.title == "Main")
+        #expect(viewModel.columns.first?.id == "column-1")
+        #expect(viewModel.tasks(for: "column-1").map(\.id) == ["task-1"])
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.board?.title == "Main (Refreshed)")
+        #expect(viewModel.columns.first?.id == "column-2")
+        #expect(viewModel.tasks(for: "column-2").map(\.id) == ["task-2"])
+    }
+
     @Test func mutationActionsEnabledOnlyWhenBoardReady() async {
         // Requirement: BOARD-003
         let gate = SuspendedOperationGate()
@@ -80,6 +123,15 @@ struct BoardViewModelTests {
         #expect(viewModel.debugMessage.contains("operation=deleteColumn"))
         #expect(viewModel.debugMessage.contains("status=409"))
         #expect(viewModel.debugMessage.contains("detail=column has tasks"))
+    }
+}
+
+private actor AsyncCounter {
+    private var value = 0
+
+    func incrementAndGet() -> Int {
+        value += 1
+        return value
     }
 }
 

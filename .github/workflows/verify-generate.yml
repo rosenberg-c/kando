@@ -1,0 +1,19 @@
+name: Verify Generate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify generated artifacts are up to date
+        run: make verify-generate

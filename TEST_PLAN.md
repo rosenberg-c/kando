@@ -7,8 +7,6 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 ## Remaining Requirement Gaps
 
 - `API-002`
-- `BOARD-004`
-- `UX-001`
 
 ## Phase 1: High Value / Low Effort
 
@@ -38,23 +36,7 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 
 ## Phase 4: Remaining Platform and Contract Checks
 
-- Status: ready
-- Scope: close the remaining `Gap`/`Partial` items in `docs/TEST_MATRIX.md` (`BOARD-004`, `UX-001`, `API-002`).
-
-### Planned additions
-
-- `BOARD-004` (`apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift`)
-  - Add a view-model test that calls `reloadBoard()` twice and asserts refreshed state reflects updated API data.
-  - Suggested test name: `manualRefreshReloadsBoardStateFromAPI`.
-- `UX-001` (`apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift`)
-  - Add a lightweight UI assertion that workspace content anchors top-leading (using stable accessibility identifiers).
-  - Suggested test name: `testWorkspaceAnchorsTopLeading`.
-- `API-002` (`Makefile` + CI pipeline)
-  - Reuse existing `verify-generate` target in CI so generated artifacts cannot drift.
-  - Map CI check to requirement coverage in `docs/TEST_MATRIX.md` once enforced.
-
-### Exit criteria
-
-- New tests run green via `make test-macos-unit` and targeted XCUITest execution.
-- CI (or equivalent required check) runs `make verify-generate` on pull requests.
-- `docs/TEST_MATRIX.md` updates from `Gap/Partial` to `Covered` where criteria are met.
+- Status: in progress
+- Added `BOARD-004` view-model refresh coverage with `manualRefreshReloadsBoardStateFromAPI`.
+- Added `UX-001` XCUITest anchor assertion with `testWorkspaceAnchorsTopLeading`.
+- Added CI workflow `.github/workflows/verify-generate.yml`; currently manual-only (`workflow_dispatch`) for `API-002`.

@@ -139,6 +139,7 @@ private struct LoggedInWorkspaceView: View {
             HStack(spacing: 12) {
                 Text(board.board?.title ?? Strings.t("board.title"))
                     .font(.largeTitle.weight(.semibold))
+                    .accessibilityIdentifier("workspace-board-title")
 
                 Spacer()
 

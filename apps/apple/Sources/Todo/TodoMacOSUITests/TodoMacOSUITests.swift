@@ -44,7 +44,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDeleteTaskConfirmationCancelAndConfirm() throws {
-        // Requirements: TASK-DEL-001, TASK-DEL-002, TASK-DEL-003, TASK-DEL-004
+        // Requirements: TASK-DEL-001, TASK-DEL-002, TASK-DEL-003, TASK-DEL-004, UX-003
         let app = launchSignedInApp()
 
         let taskDeleteButton = app.buttons["task-delete-task-1"]
@@ -73,8 +73,30 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testWorkspaceAnchorsTopLeading() throws {
+        // Requirement: UX-001
+        let app = launchSignedInApp()
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Expected app window")
+
+        let title = app.staticTexts["workspace-board-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "Expected workspace title")
+
+        let horizontalInset = title.frame.minX - window.frame.minX
+        let topInset = window.frame.maxY - title.frame.maxY
+        let horizontalInsetRatio = horizontalInset / max(window.frame.width, 1)
+        let topInsetRatio = topInset / max(window.frame.height, 1)
+
+        XCTAssertGreaterThanOrEqual(horizontalInset, 0)
+        XCTAssertGreaterThanOrEqual(topInset, 0)
+        XCTAssertLessThan(horizontalInsetRatio, 0.2)
+        XCTAssertLessThan(topInsetRatio, 0.25)
+    }
+
+    @MainActor
     func testDeleteColumnConfirmationCancelAndConfirm() throws {
-        // Requirements: COL-DEL-001, COL-DEL-002, COL-DEL-003, COL-DEL-004
+        // Requirements: COL-DEL-001, COL-DEL-002, COL-DEL-003, COL-DEL-004, UX-003
         let app = launchSignedInApp()
 
         let columnDeleteButton = app.buttons["column-delete-column-empty"]
