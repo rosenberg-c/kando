@@ -63,6 +63,7 @@ install-cli: cli-install
 
 test:
 	go test ./...
+	$(MAKE) verify-generate
 	$(MAKE) verify-test-matrix
 	$(MAKE) test-macos-unit
 

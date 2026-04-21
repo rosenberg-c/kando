@@ -6,7 +6,7 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 
 ## Remaining Requirement Gaps
 
-- `API-002`
+- None
 
 ## Phase 1: High Value / Low Effort
 
@@ -36,7 +36,7 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 
 ## Phase 4: Remaining Platform and Contract Checks
 
-- Status: in progress
+- Status: done
 - Added `BOARD-004` view-model refresh coverage with `manualRefreshReloadsBoardStateFromAPI`.
 - Added `UX-001` XCUITest anchor assertion with `testWorkspaceAnchorsTopLeading`.
-- Added CI workflow `.github/workflows/verify-generate.yml`; currently manual-only (`workflow_dispatch`) for `API-002`.
+- Added generation verification in local test flow (`make test` runs `make verify-generate`) and a manual CI workflow `.github/workflows/verify-generate.yml` for `API-002`.
