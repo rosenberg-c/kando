@@ -11,3 +11,10 @@
 - `TASK-DEL-002`: The confirmation dialog includes the task title.
 - `TASK-DEL-003`: Canceling the dialog performs no delete operation.
 - `TASK-DEL-004`: Confirming the dialog executes the delete request.
+
+## Platform Applicability
+
+- `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-DEL-004`: macOS (required), iOS (planned), TUI (N/A).

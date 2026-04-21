@@ -17,3 +17,11 @@
 - `COL-RULE-001`: A column that still contains tasks must not be deletable.
 - `COL-RULE-002`: The API returns conflict (`409`) for this case.
 - `COL-RULE-003`: The UI surfaces the failure status to the user.
+
+## Platform Applicability
+
+- `COL-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
+- `COL-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
+- `COL-DEL-003`: macOS (required), iOS (planned), TUI (N/A).
+- `COL-DEL-004`: macOS (required), iOS (planned), TUI (N/A).
+- `COL-RULE-003`: macOS (required), iOS (planned), TUI (N/A).
