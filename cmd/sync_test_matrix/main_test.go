@@ -138,6 +138,32 @@ func TestUpdateMatrixPreservesPartialStatusWhenTagged(t *testing.T) {
 	}
 }
 
+func TestUpdateMatrixAddsManagedNotice(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "TEST_MATRIX.md")
+	initial := `# Test Matrix
+
+## Coverage Map
+
+| Requirement ID | Coverage Type | Test References | Status | Notes |
+| --- | --- | --- | --- | --- |
+| ` + "`API-001`" + ` | API integration | - | Gap | note |
+`
+	if err := os.WriteFile(path, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write matrix: %v", err)
+	}
+
+	updated, _, err := updateMatrix(path, []string{"API-001"}, map[string][]string{})
+	if err != nil {
+		t.Fatalf("update matrix: %v", err)
+	}
+
+	if !strings.Contains(updated, matrixManagedNotice) {
+		t.Fatalf("expected managed notice in updated matrix\n%s", updated)
+	}
+}
+
 func assertHasRef(t *testing.T, refs map[string][]string, id, file, testName string) {
 	t.Helper()
 

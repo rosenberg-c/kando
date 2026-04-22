@@ -203,6 +203,73 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testDropTaskOnColumnHeaderDoesNotFail() throws {
+        // Requirement: UX-007
+        let app = launchSignedInApp()
+        let uiTimeout: TimeInterval = 8
+        let perElementTimeout: TimeInterval = 2
+
+        let sourceColumn = columnDropZoneElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
+        let sourceColumnHeader = columnHeaderElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
+        let sourceColumnCount = columnTaskCountElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
+
+        XCTAssertTrue(app.staticTexts["workspace-board-title"].waitForExistence(timeout: uiTimeout), "Expected board workspace title")
+        guard let dragSource = sourceTaskDragElement(in: app, waitTimeout: perElementTimeout) else {
+            XCTFail("Expected draggable source task. UI:\n\(app.debugDescription)")
+            return
+        }
+        XCTAssertTrue(sourceColumn.waitForExistence(timeout: uiTimeout), "Expected source column drop zone")
+        XCTAssertTrue(sourceColumnHeader.waitForExistence(timeout: uiTimeout), "Expected source column header")
+
+        let initialSourceCount = taskCount(from: sourceColumnCount)
+        XCTAssertNotNil(initialSourceCount, "Expected parseable source column count")
+
+        dragSource.press(forDuration: 0.5, thenDragTo: sourceColumnHeader)
+
+        XCTAssertTrue(
+            waitForCountValue(element: sourceColumnCount, equals: initialSourceCount ?? 0, timeout: 3),
+            "Expected source column count to remain stable after dropping on source column header"
+        )
+        assertNoDropError(in: app, context: "same-column header drop")
+    }
+
+    @MainActor
+    func testDropTaskOnDestinationColumnHeaderDoesNotFail() throws {
+        // Requirement: UX-007
+        let app = launchSignedInApp()
+        let uiTimeout: TimeInterval = 8
+        let perElementTimeout: TimeInterval = 2
+
+        let destinationColumnHeader = columnHeaderElement(in: app, columnID: "column-empty", fallbackIndex: 1, waitTimeout: perElementTimeout)
+        let sourceColumnCount = columnTaskCountElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
+        let destinationColumnCount = columnTaskCountElement(in: app, columnID: "column-empty", fallbackIndex: 1, waitTimeout: perElementTimeout)
+
+        XCTAssertTrue(app.staticTexts["workspace-board-title"].waitForExistence(timeout: uiTimeout), "Expected board workspace title")
+        guard let dragSource = sourceTaskDragElement(in: app, waitTimeout: perElementTimeout) else {
+            XCTFail("Expected draggable source task. UI:\n\(app.debugDescription)")
+            return
+        }
+        XCTAssertTrue(destinationColumnHeader.waitForExistence(timeout: uiTimeout), "Expected destination column header")
+
+        let initialSourceCount = taskCount(from: sourceColumnCount)
+        let initialDestinationCount = taskCount(from: destinationColumnCount)
+        XCTAssertNotNil(initialSourceCount, "Expected parseable source column count")
+        XCTAssertNotNil(initialDestinationCount, "Expected parseable destination column count")
+
+        dragSource.press(forDuration: 0.5, thenDragTo: destinationColumnHeader)
+
+        XCTAssertTrue(
+            waitForCountValue(element: sourceColumnCount, equals: (initialSourceCount ?? 0) - 1, timeout: 3),
+            "Expected source column count to decrement after dropping on destination column header"
+        )
+        XCTAssertTrue(
+            waitForCountValue(element: destinationColumnCount, equals: (initialDestinationCount ?? 0) + 1, timeout: 3),
+            "Expected destination column count to increment after dropping on destination column header"
+        )
+        assertNoDropError(in: app, context: "destination-header drop")
+    }
+
+    @MainActor
     private func launchSignedInApp() -> XCUIApplication {
         let app = configuredAppForUITests()
         app.launchEnvironment[UITestEnvKey.signedIn] = "1"
@@ -234,5 +301,61 @@ final class TodoMacOSUITests: XCTestCase {
 
     private func preferredElement(primary: XCUIElement, fallback: XCUIElement, waitTimeout: TimeInterval) -> XCUIElement {
         primary.waitForExistence(timeout: waitTimeout) ? primary : fallback
+    }
+
+    private func sourceTaskDragElement(in app: XCUIApplication, waitTimeout: TimeInterval) -> XCUIElement? {
+        let sourceTaskCard = preferredElement(
+            primary: app.descendants(matching: .any).matching(identifier: "task-card-task-1").firstMatch,
+            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "task-card-")).element(boundBy: 0),
+            waitTimeout: waitTimeout
+        )
+        if sourceTaskCard.exists {
+            return sourceTaskCard
+        }
+
+        let sourceTaskTitle = preferredElement(
+            primary: app.descendants(matching: .any).matching(identifier: "task-title-task-1").firstMatch,
+            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "task-title-")).firstMatch,
+            waitTimeout: waitTimeout
+        )
+        return sourceTaskTitle.exists ? sourceTaskTitle : nil
+    }
+
+    private func columnDropZoneElement(in app: XCUIApplication, columnID: String, fallbackIndex: Int, waitTimeout: TimeInterval) -> XCUIElement {
+        preferredElement(
+            primary: app.descendants(matching: .any).matching(identifier: "column-drop-zone-\(columnID)").firstMatch,
+            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "column-drop-zone-")).element(boundBy: fallbackIndex),
+            waitTimeout: waitTimeout
+        )
+    }
+
+    private func columnHeaderElement(in app: XCUIApplication, columnID: String, fallbackIndex: Int, waitTimeout: TimeInterval) -> XCUIElement {
+        preferredElement(
+            primary: app.staticTexts["column-title-\(columnID)"],
+            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "column-title-")).element(boundBy: fallbackIndex),
+            waitTimeout: waitTimeout
+        )
+    }
+
+    private func columnTaskCountElement(in app: XCUIApplication, columnID: String, fallbackIndex: Int, waitTimeout: TimeInterval) -> XCUIElement {
+        preferredElement(
+            primary: app.staticTexts["column-task-count-\(columnID)"],
+            fallback: app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "column-task-count-")).element(boundBy: fallbackIndex),
+            waitTimeout: waitTimeout
+        )
+    }
+
+    private func assertNoDropError(in app: XCUIApplication, context: String) {
+        XCTAssertFalse(
+            app.otherElements["board-dev-diagnostics"].waitForExistence(timeout: 1),
+            "Expected no error diagnostics after \(context)"
+        )
+        let statusMessage = app.staticTexts["board-status-message"]
+        if statusMessage.waitForExistence(timeout: 0.2) {
+            XCTAssertFalse(
+                statusMessage.label.localizedCaseInsensitiveContains("invalid input"),
+                "Expected status message to avoid invalid-input errors after \(context): \(statusMessage.label)"
+            )
+        }
     }
 }

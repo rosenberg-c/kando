@@ -6,6 +6,7 @@
 - `UX-004`: Client app surfaces API failure context (status/detail) in user-visible state.
 - `UX-005`: Users can drag and drop tasks between columns in the board workspace.
 - `UX-006`: Task move failures are surfaced to the user with actionable status context.
+- `UX-007`: Releasing a dragged task on a column header area (not just on another task row) resolves to a valid destination position and does not fail with invalid-input errors.
 
 ## Platform Applicability
 
@@ -15,3 +16,4 @@
 - `UX-004`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-005`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-006`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-007`: macOS (required), iOS (planned), TUI (N/A).

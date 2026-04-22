@@ -214,6 +214,7 @@ private struct LoggedInWorkspaceView: View {
                     .font(.caption)
                     .foregroundStyle(board.statusIsError ? .red : .green)
                     .textSelection(.enabled)
+                    .accessibilityIdentifier("board-status-message")
             }
 
             if board.statusIsError || !board.debugMessage.isEmpty {
@@ -252,6 +253,7 @@ private struct LoggedInWorkspaceView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .font(.caption)
+                .accessibilityIdentifier("board-dev-diagnostics")
             }
 
             Spacer(minLength: 0)
@@ -452,7 +454,13 @@ private struct ColumnCard: View {
         .background(Color(NSColor.windowBackgroundColor))
         .dropDestination(for: TaskDragItem.self) { items, _ in
             guard let item = items.first else { return false }
-            onMoveTask(item.taskID, column.id, tasks.count)
+            let destinationPosition: Int
+            if tasks.contains(where: { $0.id == item.taskID }) {
+                destinationPosition = max(0, tasks.count - 1)
+            } else {
+                destinationPosition = tasks.count
+            }
+            onMoveTask(item.taskID, column.id, destinationPosition)
             return true
         }
         .accessibilityElement(children: .contain)
