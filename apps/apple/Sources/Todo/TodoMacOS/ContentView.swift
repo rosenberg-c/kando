@@ -7,6 +7,7 @@
 
 import AppKit
 import SwiftUI
+import CoreTransferable
 import UniformTypeIdentifiers
 
 struct ContentView: View {
@@ -117,7 +118,6 @@ private struct LoggedInWorkspaceView: View {
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
-    @State private var draggingTaskID: String?
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -195,8 +195,7 @@ private struct LoggedInWorkspaceView: View {
                                         destinationPosition: destinationPosition
                                     )
                                 }
-                            },
-                            draggingTaskID: $draggingTaskID
+                            }
                         )
                     }
                 }
@@ -378,7 +377,6 @@ private struct ColumnCard: View {
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
     let onMoveTask: (String, String, Int) -> Void
-    @Binding var draggingTaskID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -429,18 +427,16 @@ private struct ColumnCard: View {
                     }
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .onDrag {
-                        draggingTaskID = task.id
-                        return NSItemProvider(object: task.id as NSString)
+                    .accessibilityIdentifier("task-card-\(task.id)")
+                    .draggable(TaskDragItem(taskID: task.id))
+                    .dropDestination(for: TaskDragItem.self) { items, _ in
+                        guard let item = items.first else { return false }
+                        onMoveTask(item.taskID, column.id, task.position)
+                        return true
                     }
-                    .onDrop(of: [UTType.text], delegate: TaskCardDropDelegate(
-                        destinationColumnID: column.id,
-                        destinationPosition: task.position,
-                        onMoveTask: onMoveTask,
-                        draggingTaskID: $draggingTaskID
-                    ))
                 }
             }
 
@@ -451,16 +447,19 @@ private struct ColumnCard: View {
         }
         .padding(12)
         .frame(width: 280, alignment: .topLeading)
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .background(Color(NSColor.windowBackgroundColor))
-        .onDrop(of: [UTType.text], delegate: ColumnDropDelegate(
-            destinationColumnID: column.id,
-            destinationPosition: tasks.count,
-            onMoveTask: onMoveTask,
-            draggingTaskID: $draggingTaskID
-        ))
+        .dropDestination(for: TaskDragItem.self) { items, _ in
+            guard let item = items.first else { return false }
+            onMoveTask(item.taskID, column.id, tasks.count)
+            return true
+        }
+        .accessibilityValue("\(tasks.count)")
+        .accessibilityIdentifier("column-drop-zone-\(column.id)")
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                .allowsHitTesting(false)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
@@ -585,64 +584,51 @@ private struct CreateTaskTarget: Identifiable {
     var id: String { columnID }
 }
 
-private struct TaskCardDropDelegate: DropDelegate {
-    let destinationColumnID: String
-    let destinationPosition: Int
-    let onMoveTask: (String, String, Int) -> Void
-    @Binding var draggingTaskID: String?
+private struct TaskDragItem: Transferable {
+    let taskID: String
 
-    func performDrop(info: DropInfo) -> Bool {
-        TaskDropHandler.performMove(
-            providers: info.itemProviders(for: [UTType.text]),
-            destinationColumnID: destinationColumnID,
-            destinationPosition: destinationPosition,
-            onMoveTask: onMoveTask,
-            draggingTaskID: $draggingTaskID
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(
+            contentType: TaskDragPayload.type,
+            exporting: { item in encodedPayload(for: item.taskID) },
+            importing: { data in TaskDragItem(taskID: try decodeTaskID(from: data)) }
         )
+        DataRepresentation(
+            contentType: .data,
+            exporting: { item in encodedPayload(for: item.taskID) },
+            importing: { data in TaskDragItem(taskID: try decodeTaskID(from: data)) }
+        )
+    }
+
+    private static func encodedPayload(for taskID: String) -> Data {
+        Data("\(TaskDragPayload.payloadPrefix)\(taskID)".utf8)
+    }
+
+    private static func decodeTaskID(from data: Data) throws -> String {
+        guard
+            let payload = String(data: data, encoding: .utf8),
+            payload.hasPrefix(TaskDragPayload.payloadPrefix)
+        else {
+            throw TaskDragItemTransferError.invalidPayload
+        }
+
+        let taskID = String(payload.dropFirst(TaskDragPayload.payloadPrefix.count))
+        guard !taskID.isEmpty else {
+            throw TaskDragItemTransferError.invalidPayload
+        }
+        return taskID
     }
 }
 
-private struct ColumnDropDelegate: DropDelegate {
-    let destinationColumnID: String
-    let destinationPosition: Int
-    let onMoveTask: (String, String, Int) -> Void
-    @Binding var draggingTaskID: String?
-
-    func performDrop(info: DropInfo) -> Bool {
-        TaskDropHandler.performMove(
-            providers: info.itemProviders(for: [UTType.text]),
-            destinationColumnID: destinationColumnID,
-            destinationPosition: destinationPosition,
-            onMoveTask: onMoveTask,
-            draggingTaskID: $draggingTaskID
-        )
-    }
+private enum TaskDragItemTransferError: Error {
+    case invalidPayload
 }
 
-private enum TaskDropHandler {
-    static func performMove(
-        providers: [NSItemProvider],
-        destinationColumnID: String,
-        destinationPosition: Int,
-        onMoveTask: @escaping (String, String, Int) -> Void,
-        draggingTaskID: Binding<String?>
-    ) -> Bool {
-        guard let provider = providers.first else { return false }
-        if let taskID = draggingTaskID.wrappedValue {
-            onMoveTask(taskID, destinationColumnID, destinationPosition)
-            draggingTaskID.wrappedValue = nil
-            return true
-        }
-
-        provider.loadObject(ofClass: NSString.self) { object, _ in
-            guard let taskID = object as? String else { return }
-            DispatchQueue.main.async {
-                onMoveTask(taskID, destinationColumnID, destinationPosition)
-                draggingTaskID.wrappedValue = nil
-            }
-        }
-        return true
-    }
+private enum TaskDragPayload {
+    static let prefix = "todo-task"
+    static let sessionToken = UUID().uuidString.lowercased()
+    static let payloadPrefix = "\(prefix):\(sessionToken):"
+    static let type = UTType(exportedAs: "com.todo.task-id", conformingTo: .data)
 }
 
 #Preview {

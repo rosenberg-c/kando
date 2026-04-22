@@ -128,34 +128,35 @@ final class TodoMacOSUITests: XCTestCase {
     func testDragTaskToAnotherColumn() throws {
         // Requirement: UX-005
         let app = launchSignedInApp()
+        let uiTimeout: TimeInterval = 8
 
-        let sourceTask = app.staticTexts["task-title-task-1"]
-        let destinationColumn = app.staticTexts["column-title-column-empty"]
-        let sourceCount = app.staticTexts["column-task-count-column-work"]
-        let destinationCount = app.staticTexts["column-task-count-column-empty"]
-        XCTAssertTrue(sourceTask.waitForExistence(timeout: 5), "Expected source task card")
-        XCTAssertTrue(destinationColumn.waitForExistence(timeout: 5), "Expected destination column card")
-        XCTAssertTrue(sourceCount.waitForExistence(timeout: 5), "Expected source column task count")
-        XCTAssertTrue(destinationCount.waitForExistence(timeout: 5), "Expected destination column task count")
+        let sourceTaskCard = app.descendants(matching: .any).matching(identifier: "task-card-task-1").firstMatch
+        let sourceColumn = app.otherElements["column-drop-zone-column-work"]
+        let destinationColumn = app.otherElements["column-drop-zone-column-empty"]
 
-        let initialSourceCount = taskCount(from: sourceCount)
-        let initialDestinationCount = taskCount(from: destinationCount)
-        XCTAssertNotNil(initialSourceCount, "Expected parseable source count text")
-        XCTAssertNotNil(initialDestinationCount, "Expected parseable destination count text")
+        XCTAssertTrue(app.staticTexts["workspace-board-title"].waitForExistence(timeout: uiTimeout), "Expected board workspace title")
+        XCTAssertTrue(sourceTaskCard.waitForExistence(timeout: uiTimeout), "Expected draggable source task card")
+        XCTAssertTrue(sourceColumn.waitForExistence(timeout: uiTimeout), "Expected source column drop zone")
+        XCTAssertTrue(destinationColumn.waitForExistence(timeout: uiTimeout), "Expected destination column drop zone")
+
+        let initialSourceCount = taskCount(from: sourceColumn)
+        let initialDestinationCount = taskCount(from: destinationColumn)
+        XCTAssertNotNil(initialSourceCount, "Expected parseable source column count")
+        XCTAssertNotNil(initialDestinationCount, "Expected parseable destination column count")
         let expectedSourceCount = (initialSourceCount ?? 0) - 1
         let expectedDestinationCount = (initialDestinationCount ?? 0) + 1
 
-        sourceTask.press(forDuration: 0.5, thenDragTo: destinationColumn)
+        sourceTaskCard.press(forDuration: 0.5, thenDragTo: destinationColumn)
 
-        let movedTask = app.staticTexts["task-title-task-1"]
+        let movedTask = app.descendants(matching: .any).matching(identifier: "task-card-task-1").firstMatch
         XCTAssertTrue(movedTask.waitForExistence(timeout: 3), "Expected moved task to remain visible")
 
         XCTAssertTrue(
-            waitForCountValue(element: sourceCount, equals: expectedSourceCount, timeout: 3),
+            waitForCountValue(element: sourceColumn, equals: expectedSourceCount, timeout: 3),
             "Expected source column count to become \(expectedSourceCount)"
         )
         XCTAssertTrue(
-            waitForCountValue(element: destinationCount, equals: expectedDestinationCount, timeout: 3),
+            waitForCountValue(element: destinationColumn, equals: expectedDestinationCount, timeout: 3),
             "Expected destination column count to become \(expectedDestinationCount)"
         )
     }
