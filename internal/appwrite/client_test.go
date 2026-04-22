@@ -191,3 +191,94 @@ func TestSummarizeExternalBodyTruncates(t *testing.T) {
 		t.Fatalf("expected truncated suffix, got: %s", result)
 	}
 }
+
+func TestCreateTransaction(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q", r.Method)
+		}
+		if r.URL.Path != "/tablesdb/transactions" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+
+		var payload map[string]int
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if payload["ttl"] != 60 {
+			t.Fatalf("ttl = %d, want 60", payload["ttl"])
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]string{"$id": "tx-1"})
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "project-1", "api-key-1", server.Client())
+	transactionID, err := client.createTransaction(context.Background(), 60)
+	if err != nil {
+		t.Fatalf("createTransaction error: %v", err)
+	}
+	if transactionID != "tx-1" {
+		t.Fatalf("transactionID = %q, want %q", transactionID, "tx-1")
+	}
+}
+
+func TestCommitTransaction(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Fatalf("method = %q", r.Method)
+		}
+		if r.URL.Path != "/tablesdb/transactions/tx-1" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+
+		var payload map[string]bool
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if !payload["commit"] || payload["rollback"] {
+			t.Fatalf("payload = %+v, want commit=true rollback=false", payload)
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]string{"$id": "tx-1"})
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "project-1", "api-key-1", server.Client())
+	if err := client.commitTransaction(context.Background(), "tx-1"); err != nil {
+		t.Fatalf("commitTransaction error: %v", err)
+	}
+}
+
+func TestRollbackTransaction(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Fatalf("method = %q", r.Method)
+		}
+		if r.URL.Path != "/tablesdb/transactions/tx-1" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+
+		var payload map[string]bool
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if payload["commit"] || !payload["rollback"] {
+			t.Fatalf("payload = %+v, want commit=false rollback=true", payload)
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]string{"$id": "tx-1"})
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "project-1", "api-key-1", server.Client())
+	if err := client.rollbackTransaction(context.Background(), "tx-1"); err != nil {
+		t.Fatalf("rollbackTransaction error: %v", err)
+	}
+}

@@ -7,6 +7,8 @@
 
 import AppKit
 import SwiftUI
+import CoreTransferable
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var auth = AuthSessionViewModel()
@@ -184,6 +186,15 @@ private struct LoggedInWorkspaceView: View {
                             onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
                             onDeleteTask: { task in
                                 pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
+                            },
+                            onMoveTask: { taskID, destinationColumnID, destinationPosition in
+                                Task {
+                                    await board.moveTask(
+                                        taskID: taskID,
+                                        destinationColumnID: destinationColumnID,
+                                        destinationPosition: destinationPosition
+                                    )
+                                }
                             }
                         )
                     }
@@ -365,16 +376,19 @@ private struct ColumnCard: View {
     let onAddTask: () -> Void
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let onMoveTask: (String, String, Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(column.title)
                     .font(.headline)
+                    .accessibilityIdentifier("column-title-\(column.id)")
                 Spacer()
                 Text(Strings.f("board.column.task_count", tasks.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("column-task-count-\(column.id)")
             }
 
             HStack(spacing: 8) {
@@ -394,6 +408,7 @@ private struct ColumnCard: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(task.title)
                             .font(.subheadline.weight(.semibold))
+                            .accessibilityIdentifier("task-title-\(task.id)")
                         if !task.description.isEmpty {
                             Text(task.description)
                                 .font(.caption)
@@ -412,8 +427,17 @@ private struct ColumnCard: View {
                     }
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("task-card-\(task.id)")
+                    .draggable(TaskDragItem(taskID: task.id))
+                    .dropDestination(for: TaskDragItem.self) { items, _ in
+                        guard let item = items.first else { return false }
+                        onMoveTask(item.taskID, column.id, task.position)
+                        return true
+                    }
                 }
             }
 
@@ -424,10 +448,20 @@ private struct ColumnCard: View {
         }
         .padding(12)
         .frame(width: 280, alignment: .topLeading)
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .background(Color(NSColor.windowBackgroundColor))
+        .dropDestination(for: TaskDragItem.self) { items, _ in
+            guard let item = items.first else { return false }
+            onMoveTask(item.taskID, column.id, tasks.count)
+            return true
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityValue("\(tasks.count)")
+        .accessibilityIdentifier("column-drop-zone-\(column.id)")
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                .allowsHitTesting(false)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
@@ -550,6 +584,53 @@ private struct EditableTask: Identifiable {
 private struct CreateTaskTarget: Identifiable {
     let columnID: String
     var id: String { columnID }
+}
+
+private struct TaskDragItem: Transferable {
+    let taskID: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(
+            contentType: TaskDragPayload.type,
+            exporting: { item in encodedPayload(for: item.taskID) },
+            importing: { data in TaskDragItem(taskID: try decodeTaskID(from: data)) }
+        )
+        DataRepresentation(
+            contentType: .data,
+            exporting: { item in encodedPayload(for: item.taskID) },
+            importing: { data in TaskDragItem(taskID: try decodeTaskID(from: data)) }
+        )
+    }
+
+    private static func encodedPayload(for taskID: String) -> Data {
+        Data("\(TaskDragPayload.payloadPrefix)\(taskID)".utf8)
+    }
+
+    private static func decodeTaskID(from data: Data) throws -> String {
+        guard
+            let payload = String(data: data, encoding: .utf8),
+            payload.hasPrefix(TaskDragPayload.payloadPrefix)
+        else {
+            throw TaskDragItemTransferError.invalidPayload
+        }
+
+        let taskID = String(payload.dropFirst(TaskDragPayload.payloadPrefix.count))
+        guard !taskID.isEmpty else {
+            throw TaskDragItemTransferError.invalidPayload
+        }
+        return taskID
+    }
+}
+
+private enum TaskDragItemTransferError: Error {
+    case invalidPayload
+}
+
+private enum TaskDragPayload {
+    static let prefix = "todo-task"
+    static let sessionToken = UUID().uuidString.lowercased()
+    static let payloadPrefix = "\(prefix):\(sessionToken):"
+    static let type = UTType(exportedAs: "com.todo.task-id", conformingTo: .data)
 }
 
 #Preview {

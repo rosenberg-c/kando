@@ -84,7 +84,11 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 5), "Expected workspace title")
 
         let horizontalInset = title.frame.minX - window.frame.minX
-        let topInset = window.frame.maxY - title.frame.maxY
+        let topInsetCandidates = [
+            window.frame.maxY - title.frame.maxY,
+            title.frame.minY - window.frame.minY
+        ].filter { $0 >= 0 }
+        let topInset = max(0, topInsetCandidates.min() ?? 0)
         let horizontalInsetRatio = horizontalInset / max(window.frame.width, 1)
         let topInsetRatio = topInset / max(window.frame.height, 1)
 
@@ -125,6 +129,80 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testDragTaskToAnotherColumn() throws {
+        // Requirement: UX-005
+        let app = launchSignedInApp()
+        let uiTimeout: TimeInterval = 8
+        let perElementTimeout: TimeInterval = 2
+        let taskCardPrefix = "task-card-"
+        let taskTitlePrefix = "task-title-"
+        let columnDropZonePrefix = "column-drop-zone-"
+        let columnTaskCountPrefix = "column-task-count-"
+        let sourceTaskCardID = "\(taskCardPrefix)task-1"
+        let sourceTaskTitleID = "\(taskTitlePrefix)task-1"
+        let sourceColumnDropZoneID = "\(columnDropZonePrefix)column-work"
+        let destinationColumnDropZoneID = "\(columnDropZonePrefix)column-empty"
+        let sourceColumnCountID = "\(columnTaskCountPrefix)column-work"
+        let destinationColumnCountID = "\(columnTaskCountPrefix)column-empty"
+
+        let sourceTaskCardByID = app.descendants(matching: .any).matching(identifier: sourceTaskCardID).firstMatch
+        let sourceTaskCardFallback = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", taskCardPrefix)).element(boundBy: 0)
+        let sourceTaskCard = preferredElement(primary: sourceTaskCardByID, fallback: sourceTaskCardFallback, waitTimeout: perElementTimeout)
+        let sourceTaskTitleByID = app.descendants(matching: .any).matching(identifier: sourceTaskTitleID).firstMatch
+        let sourceTaskTitleFallback = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", taskTitlePrefix)).firstMatch
+        let sourceTaskTitle = preferredElement(primary: sourceTaskTitleByID, fallback: sourceTaskTitleFallback, waitTimeout: perElementTimeout)
+
+        let columnDropZones = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", columnDropZonePrefix))
+        let sourceColumnByID = app.descendants(matching: .any).matching(identifier: sourceColumnDropZoneID).firstMatch
+        let destinationColumnByID = app.descendants(matching: .any).matching(identifier: destinationColumnDropZoneID).firstMatch
+        let sourceColumnFallback = columnDropZones.element(boundBy: 0)
+        let destinationColumnFallback = columnDropZones.element(boundBy: 1)
+        let sourceColumn = preferredElement(primary: sourceColumnByID, fallback: sourceColumnFallback, waitTimeout: perElementTimeout)
+        let destinationColumn = preferredElement(primary: destinationColumnByID, fallback: destinationColumnFallback, waitTimeout: perElementTimeout)
+
+        let columnTaskCounts = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", columnTaskCountPrefix))
+        let sourceColumnCountByID = app.staticTexts[sourceColumnCountID]
+        let destinationColumnCountByID = app.staticTexts[destinationColumnCountID]
+        let sourceColumnCountFallback = columnTaskCounts.element(boundBy: 0)
+        let destinationColumnCountFallback = columnTaskCounts.element(boundBy: 1)
+        let sourceColumnCount = preferredElement(primary: sourceColumnCountByID, fallback: sourceColumnCountFallback, waitTimeout: perElementTimeout)
+        let destinationColumnCount = preferredElement(primary: destinationColumnCountByID, fallback: destinationColumnCountFallback, waitTimeout: perElementTimeout)
+
+        XCTAssertTrue(app.staticTexts["workspace-board-title"].waitForExistence(timeout: uiTimeout), "Expected board workspace title")
+        guard columnDropZones.count >= 2 else {
+            XCTFail("Expected at least two board columns. UI:\n\(app.debugDescription)")
+            return
+        }
+        guard sourceTaskCard.exists || sourceTaskTitle.exists else {
+            XCTFail("Expected draggable source task. UI:\n\(app.debugDescription)")
+            return
+        }
+        XCTAssertTrue(sourceColumn.waitForExistence(timeout: uiTimeout), "Expected source column drop zone")
+        XCTAssertTrue(destinationColumn.waitForExistence(timeout: uiTimeout), "Expected destination column drop zone")
+        XCTAssertGreaterThanOrEqual(columnTaskCounts.count, 2, "Expected task counters for both columns")
+
+        let dragSource = sourceTaskCard.exists ? sourceTaskCard : sourceTaskTitle
+
+        let initialSourceCount = taskCount(from: sourceColumnCount)
+        let initialDestinationCount = taskCount(from: destinationColumnCount)
+        XCTAssertNotNil(initialSourceCount, "Expected parseable source column count")
+        XCTAssertNotNil(initialDestinationCount, "Expected parseable destination column count")
+        let expectedSourceCount = (initialSourceCount ?? 0) - 1
+        let expectedDestinationCount = (initialDestinationCount ?? 0) + 1
+
+        dragSource.press(forDuration: 0.5, thenDragTo: destinationColumn)
+
+        XCTAssertTrue(
+            waitForCountValue(element: sourceColumnCount, equals: expectedSourceCount, timeout: 3),
+            "Expected source column count to become \(expectedSourceCount)"
+        )
+        XCTAssertTrue(
+            waitForCountValue(element: destinationColumnCount, equals: expectedDestinationCount, timeout: 3),
+            "Expected destination column count to become \(expectedDestinationCount)"
+        )
+    }
+
+    @MainActor
     private func launchSignedInApp() -> XCUIApplication {
         let app = configuredAppForUITests()
         app.launchEnvironment[UITestEnvKey.signedIn] = "1"
@@ -133,5 +211,28 @@ final class TodoMacOSUITests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5), "Expected app window after launch")
         return app
+    }
+
+    private func taskCount(from element: XCUIElement) -> Int? {
+        let text = (element.value as? String) ?? element.label
+        let digits = text.split(whereSeparator: { !$0.isNumber })
+        guard let first = digits.first else { return nil }
+        return Int(first)
+    }
+
+    private func waitForCountValue(element: XCUIElement, equals expected: Int, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let current = taskCount(from: element)
+            if current == expected {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
+    }
+
+    private func preferredElement(primary: XCUIElement, fallback: XCUIElement, waitTimeout: TimeInterval) -> XCUIElement {
+        primary.waitForExistence(timeout: waitTimeout) ? primary : fallback
     }
 }

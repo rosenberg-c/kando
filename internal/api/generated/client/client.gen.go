@@ -146,6 +146,14 @@ type MeResponse struct {
 	UserId string  `json:"userId"`
 }
 
+// MoveTaskRequest defines model for MoveTaskRequest.
+type MoveTaskRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema              *string            `json:"$schema,omitempty"`
+	DestinationColumnId openapi_types.UUID `json:"destinationColumnId"`
+	DestinationPosition int64              `json:"destinationPosition"`
+}
+
 // Task defines model for Task.
 type Task struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -237,6 +245,11 @@ type UpdateTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
+// MoveTaskParams defines parameters for MoveTask.
+type MoveTaskParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // GetMeParams defines parameters for GetMe.
 type GetMeParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -268,6 +281,9 @@ type CreateTaskJSONRequestBody = CreateTaskRequest
 
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = UpdateTaskRequest
+
+// MoveTaskJSONRequestBody defines body for MoveTask for application/json ContentType.
+type MoveTaskJSONRequestBody = MoveTaskRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -401,6 +417,11 @@ type ClientInterface interface {
 	UpdateTaskWithBody(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateTask(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveTaskWithBody request with any body
+	MoveTaskWithBody(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	MoveTask(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, body MoveTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHello request
 	GetHello(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -675,6 +696,30 @@ func (c *Client) UpdateTaskWithBody(ctx context.Context, boardId string, taskId 
 
 func (c *Client) UpdateTask(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateTaskRequest(c.Server, boardId, taskId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MoveTaskWithBody(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveTaskRequestWithBody(c.Server, boardId, taskId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MoveTask(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, body MoveTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveTaskRequest(c.Server, boardId, taskId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1460,6 +1505,75 @@ func NewUpdateTaskRequestWithBody(server string, boardId string, taskId string, 
 	return req, nil
 }
 
+// NewMoveTaskRequest calls the generic MoveTask builder with application/json body
+func NewMoveTaskRequest(server string, boardId string, taskId string, params *MoveTaskParams, body MoveTaskJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveTaskRequestWithBody(server, boardId, taskId, params, "application/json", bodyReader)
+}
+
+// NewMoveTaskRequestWithBody generates requests for MoveTask with any type of body
+func NewMoveTaskRequestWithBody(server string, boardId string, taskId string, params *MoveTaskParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "taskId", runtime.ParamLocationPath, taskId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/%s/move", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetHelloRequest generates requests for GetHello
 func NewGetHelloRequest(server string) (*http.Request, error) {
 	var err error
@@ -1631,6 +1745,11 @@ type ClientWithResponsesInterface interface {
 	UpdateTaskWithBodyWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error)
 
 	UpdateTaskWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error)
+
+	// MoveTaskWithBodyWithResponse request with any body
+	MoveTaskWithBodyWithResponse(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveTaskResponse, error)
+
+	MoveTaskWithResponse(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, body MoveTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveTaskResponse, error)
 
 	// GetHelloWithResponse request
 	GetHelloWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHelloResponse, error)
@@ -1957,6 +2076,29 @@ func (r UpdateTaskResponse) StatusCode() int {
 	return 0
 }
 
+type MoveTaskResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Task
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveTaskResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveTaskResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetHelloResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -2198,6 +2340,23 @@ func (c *ClientWithResponses) UpdateTaskWithResponse(ctx context.Context, boardI
 		return nil, err
 	}
 	return ParseUpdateTaskResponse(rsp)
+}
+
+// MoveTaskWithBodyWithResponse request with arbitrary body returning *MoveTaskResponse
+func (c *ClientWithResponses) MoveTaskWithBodyWithResponse(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveTaskResponse, error) {
+	rsp, err := c.MoveTaskWithBody(ctx, boardId, taskId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveTaskResponse(rsp)
+}
+
+func (c *ClientWithResponses) MoveTaskWithResponse(ctx context.Context, boardId string, taskId string, params *MoveTaskParams, body MoveTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveTaskResponse, error) {
+	rsp, err := c.MoveTask(ctx, boardId, taskId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveTaskResponse(rsp)
 }
 
 // GetHelloWithResponse request returning *GetHelloResponse
@@ -2628,6 +2787,39 @@ func ParseUpdateTaskResponse(rsp *http.Response) (*UpdateTaskResponse, error) {
 	}
 
 	response := &UpdateTaskResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Task
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveTaskResponse parses an HTTP response from a MoveTaskWithResponse call
+func ParseMoveTaskResponse(rsp *http.Response) (*MoveTaskResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveTaskResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

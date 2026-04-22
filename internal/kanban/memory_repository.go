@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"go_macos_todo/internal/sliceutil"
 )
 
 // MemoryRepository is an in-memory repository suitable for local development.
@@ -142,7 +144,7 @@ func (r *MemoryRepository) DeleteBoard(_ context.Context, ownerUserID, boardID s
 	}
 	delete(r.boardColumns, board.ID)
 	delete(r.boards, board.ID)
-	r.ownerBoards[ownerUserID] = removeID(r.ownerBoards[ownerUserID], board.ID)
+	r.ownerBoards[ownerUserID] = sliceutil.RemoveString(r.ownerBoards[ownerUserID], board.ID)
 	return nil
 }
 
@@ -224,7 +226,7 @@ func (r *MemoryRepository) DeleteColumn(_ context.Context, ownerUserID, boardID,
 
 	delete(r.columnTasks, columnID)
 	delete(r.columns, columnID)
-	r.boardColumns[boardID] = removeID(r.boardColumns[boardID], columnID)
+	r.boardColumns[boardID] = sliceutil.RemoveString(r.boardColumns[boardID], columnID)
 	r.reindexColumns(boardID)
 
 	board = bumpBoard(board)
@@ -294,6 +296,66 @@ func (r *MemoryRepository) UpdateTask(_ context.Context, ownerUserID, boardID, t
 	return task, board, nil
 }
 
+func (r *MemoryRepository) MoveTask(_ context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
+	if destinationPosition < 0 {
+		return Task{}, Board{}, ErrInvalidInput
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return Task{}, Board{}, err
+	}
+
+	task, ok := r.tasks[taskID]
+	if !ok || task.BoardID != boardID {
+		return Task{}, Board{}, ErrNotFound
+	}
+	if task.OwnerUserID != ownerUserID {
+		return Task{}, Board{}, ErrForbidden
+	}
+
+	destinationColumn, ok := r.columns[destinationColumnID]
+	if !ok || destinationColumn.BoardID != boardID {
+		return Task{}, Board{}, ErrNotFound
+	}
+	if destinationColumn.OwnerUserID != ownerUserID {
+		return Task{}, Board{}, ErrForbidden
+	}
+
+	sourceColumnID := task.ColumnID
+	sourceTaskIDs := sliceutil.RemoveString(r.columnTasks[sourceColumnID], taskID)
+
+	if sourceColumnID == destinationColumnID {
+		if destinationPosition > len(sourceTaskIDs) {
+			return Task{}, Board{}, ErrInvalidInput
+		}
+		r.columnTasks[sourceColumnID] = sliceutil.InsertStringAt(sourceTaskIDs, destinationPosition, taskID)
+		r.reindexTasks(sourceColumnID)
+	} else {
+		destinationTaskIDs := r.columnTasks[destinationColumnID]
+		if destinationPosition > len(destinationTaskIDs) {
+			return Task{}, Board{}, ErrInvalidInput
+		}
+
+		task.ColumnID = destinationColumnID
+		r.tasks[task.ID] = task
+
+		r.columnTasks[sourceColumnID] = sourceTaskIDs
+		r.columnTasks[destinationColumnID] = sliceutil.InsertStringAt(destinationTaskIDs, destinationPosition, taskID)
+		r.reindexTasks(sourceColumnID)
+		r.reindexTasks(destinationColumnID)
+	}
+
+	task = r.tasks[task.ID]
+
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+	return task, board, nil
+}
+
 func (r *MemoryRepository) DeleteTask(_ context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -312,7 +374,7 @@ func (r *MemoryRepository) DeleteTask(_ context.Context, ownerUserID, boardID, t
 	}
 
 	delete(r.tasks, taskID)
-	r.columnTasks[task.ColumnID] = removeID(r.columnTasks[task.ColumnID], taskID)
+	r.columnTasks[task.ColumnID] = sliceutil.RemoveString(r.columnTasks[task.ColumnID], taskID)
 	r.reindexTasks(task.ColumnID)
 
 	board = bumpBoard(board)
@@ -355,15 +417,6 @@ func (r *MemoryRepository) reindexTasks(columnID string) {
 		task.UpdatedAt = now
 		r.tasks[id] = task
 	}
-}
-
-func removeID(items []string, remove string) []string {
-	for i, item := range items {
-		if item == remove {
-			return append(items[:i], items[i+1:]...)
-		}
-	}
-	return items
 }
 
 func bumpBoard(board Board) Board {

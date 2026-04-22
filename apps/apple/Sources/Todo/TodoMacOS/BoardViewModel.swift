@@ -131,6 +131,28 @@ final class BoardViewModel: ObservableObject {
         }
     }
 
+    func moveTask(taskID: String, destinationColumnID: String, destinationPosition: Int) async {
+        guard destinationPosition >= 0 else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            try await self.api.moveTask(
+                boardID: boardID,
+                taskID: taskID,
+                destinationColumnID: destinationColumnID,
+                destinationPosition: destinationPosition,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.t("board.task.status.moved"))
+        }
+    }
+
     func tasks(for columnID: String) -> [KanbanTask] {
         (tasksByColumnID[columnID] ?? []).sorted { $0.position < $1.position }
     }

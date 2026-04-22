@@ -8,7 +8,7 @@ import (
 )
 
 func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
-	// Requirements: COL-002, COL-003, COL-004, TASK-002, TASK-003, TASK-004
+	// Requirements: COL-002, COL-003, COL-004, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007
 	t.Parallel()
 
 	ctx := context.Background()
@@ -48,6 +48,40 @@ func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create task A1: %v", err)
 	}
+	taskB0, _, err := repo.CreateTask(ctx, "user-1", board.ID, columnB.ID, "B0", "desc")
+	if err != nil {
+		t.Fatalf("create task B0: %v", err)
+	}
+
+	movedTask, _, err := repo.MoveTask(ctx, "user-1", board.ID, taskA0.ID, columnB.ID, 1)
+	if err != nil {
+		t.Fatalf("move task A0 to column B: %v", err)
+	}
+	if movedTask.ColumnID != columnB.ID {
+		t.Fatalf("moved task column = %q, want %q", movedTask.ColumnID, columnB.ID)
+	}
+	if movedTask.Position != 1 {
+		t.Fatalf("moved task position = %d, want 1", movedTask.Position)
+	}
+
+	details, err := repo.GetBoard(ctx, "user-1", board.ID)
+	if err != nil {
+		t.Fatalf("get board after move: %v", err)
+	}
+
+	taskByID := make(map[string]Task, len(details.Tasks))
+	for _, task := range details.Tasks {
+		taskByID[task.ID] = task
+	}
+	if got := taskByID[taskA1.ID]; got.ColumnID != columnA.ID || got.Position != 0 {
+		t.Fatalf("task A1 = %+v, want column=%q position=0", got, columnA.ID)
+	}
+	if got := taskByID[taskB0.ID]; got.ColumnID != columnB.ID || got.Position != 0 {
+		t.Fatalf("task B0 = %+v, want column=%q position=0", got, columnB.ID)
+	}
+	if got := taskByID[taskA0.ID]; got.ColumnID != columnB.ID || got.Position != 1 {
+		t.Fatalf("task A0 = %+v, want column=%q position=1", got, columnB.ID)
+	}
 
 	if _, _, err := repo.UpdateTask(ctx, "user-1", board.ID, taskA0.ID, "A0 Updated", "new"); err != nil {
 		t.Fatalf("update task: %v", err)
@@ -57,7 +91,7 @@ func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
 		t.Fatalf("delete task A0: %v", err)
 	}
 
-	details, err := repo.GetBoard(ctx, "user-1", board.ID)
+	details, err = repo.GetBoard(ctx, "user-1", board.ID)
 	if err != nil {
 		t.Fatalf("get board after task delete: %v", err)
 	}

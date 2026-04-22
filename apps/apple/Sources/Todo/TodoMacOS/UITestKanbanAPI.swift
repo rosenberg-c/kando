@@ -54,6 +54,61 @@ actor UITestKanbanAPI: KanbanAPI {
         tasks[index] = KanbanTask(id: current.id, columnID: current.columnID, title: title, description: description, position: current.position)
     }
 
+    func moveTask(boardID: String, taskID: String, destinationColumnID: String, destinationPosition: Int, accessToken: String, baseURL: URL) async throws {
+        guard destinationPosition >= 0 else {
+            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "moveTask", title: "Bad Request", detail: "invalid destination position")
+        }
+        guard columns.contains(where: { $0.id == destinationColumnID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "moveTask", title: "Not Found", detail: "destination column not found")
+        }
+        guard let movingIndex = tasks.firstIndex(where: { $0.id == taskID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "moveTask", title: "Not Found", detail: "task not found")
+        }
+
+        let movingTask = tasks[movingIndex]
+        var sourceTasks = tasks.filter { $0.columnID == movingTask.columnID && $0.id != movingTask.id }
+        sourceTasks.sort { $0.position < $1.position }
+
+        if movingTask.columnID == destinationColumnID {
+            guard destinationPosition <= sourceTasks.count else {
+                throw KanbanAPIError.unexpectedStatus(code: 400, operation: "moveTask", title: "Bad Request", detail: "invalid destination position")
+            }
+            sourceTasks.insert(
+                KanbanTask(id: movingTask.id, columnID: destinationColumnID, title: movingTask.title, description: movingTask.description, position: destinationPosition),
+                at: destinationPosition
+            )
+            for (index, task) in sourceTasks.enumerated() {
+                if let fullIndex = tasks.firstIndex(where: { $0.id == task.id }) {
+                    tasks[fullIndex] = KanbanTask(id: task.id, columnID: destinationColumnID, title: task.title, description: task.description, position: index)
+                }
+            }
+            return
+        }
+
+        var destinationTasks = tasks.filter { $0.columnID == destinationColumnID }
+        destinationTasks.sort { $0.position < $1.position }
+        guard destinationPosition <= destinationTasks.count else {
+            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "moveTask", title: "Bad Request", detail: "invalid destination position")
+        }
+
+        destinationTasks.insert(
+            KanbanTask(id: movingTask.id, columnID: destinationColumnID, title: movingTask.title, description: movingTask.description, position: destinationPosition),
+            at: destinationPosition
+        )
+
+        for (index, task) in sourceTasks.enumerated() {
+            if let fullIndex = tasks.firstIndex(where: { $0.id == task.id }) {
+                tasks[fullIndex] = KanbanTask(id: task.id, columnID: task.columnID, title: task.title, description: task.description, position: index)
+            }
+        }
+
+        for (index, task) in destinationTasks.enumerated() {
+            if let fullIndex = tasks.firstIndex(where: { $0.id == task.id }) {
+                tasks[fullIndex] = KanbanTask(id: task.id, columnID: destinationColumnID, title: task.title, description: task.description, position: index)
+            }
+        }
+    }
+
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
         tasks.removeAll { $0.id == taskID }
     }

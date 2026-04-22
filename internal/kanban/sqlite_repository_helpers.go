@@ -231,6 +231,45 @@ func reindexTasksTx(ctx context.Context, tx *sql.Tx, columnID string, now time.T
 	return nil
 }
 
+func taskIDsByColumnTx(ctx context.Context, tx *sql.Tx, columnID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE column_id = ? ORDER BY position`, columnID)
+	if err != nil {
+		return nil, fmt.Errorf("list task ids by column: %w", err)
+	}
+	defer rows.Close()
+
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan task id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task ids by column: %w", err)
+	}
+
+	return ids, nil
+}
+
+func applyTaskOrderTx(ctx context.Context, tx *sql.Tx, columnID string, taskIDs []string, now time.Time) error {
+	for i, id := range taskIDs {
+		if _, err := tx.ExecContext(
+			ctx,
+			`UPDATE tasks SET column_id = ?, position = ?, updated_at_ms = ? WHERE id = ?`,
+			columnID,
+			i,
+			toUnixMillis(now),
+			id,
+		); err != nil {
+			return fmt.Errorf("apply task order: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func bumpBoardTx(ctx context.Context, tx *sql.Tx, board Board, now time.Time) (Board, error) {
 	board.BoardVersion++
 	board.UpdatedAt = now.UTC()

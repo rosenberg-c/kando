@@ -83,3 +83,8 @@ type UpdateTaskRequest struct {
 	Title       string `json:"title" minLength:"1" maxLength:"200"`
 	Description string `json:"description" maxLength:"4000"`
 }
+
+type MoveTaskRequest struct {
+	DestinationColumnID string `json:"destinationColumnId" format:"uuid"`
+	DestinationPosition int    `json:"destinationPosition" minimum:"0"`
+}
