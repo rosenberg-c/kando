@@ -1,2 +1,3 @@
 - Add a dedicated move-validation message in `apps/apple/Sources/Todo/TodoMacOS/BoardViewModel.swift` instead of using `board.error.invalid_response` for negative destination positions.
 - Reduce UI-test coupling to rendered count text in `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` by exposing a structured accessibility value for task counts.
+- Suppress intermittent `LLVM Profile Error` noise in test runs by setting a writable `LLVM_PROFILE_FILE` (for example `/tmp/todo-%p.profraw`) in the test/CI environment.
