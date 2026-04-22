@@ -430,6 +430,7 @@ private struct ColumnCard: View {
                     .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("task-card-\(task.id)")
                     .draggable(TaskDragItem(taskID: task.id))
                     .dropDestination(for: TaskDragItem.self) { items, _ in
@@ -454,6 +455,7 @@ private struct ColumnCard: View {
             onMoveTask(item.taskID, column.id, tasks.count)
             return true
         }
+        .accessibilityElement(children: .contain)
         .accessibilityValue("\(tasks.count)")
         .accessibilityIdentifier("column-drop-zone-\(column.id)")
         .overlay(
