@@ -99,6 +99,44 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testOverflowingColumnTaskListScrollsWithoutPushingWorkspaceOutOfBounds() throws {
+        // Requirement: UX-008
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "28"])
+        let uiTimeout: TimeInterval = 8
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: uiTimeout), "Expected app window")
+
+        let title = app.staticTexts["workspace-board-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: uiTimeout), "Expected workspace title")
+
+        let taskList = app.scrollViews["column-task-list-column-work"]
+        XCTAssertTrue(taskList.waitForExistence(timeout: uiTimeout), "Expected scrollable task list in work column")
+
+        let firstTask = app.staticTexts["task-title-task-1"]
+        let overflowTask = app.staticTexts["task-title-task-28"]
+        XCTAssertTrue(firstTask.waitForExistence(timeout: uiTimeout), "Expected first task in work column")
+        XCTAssertTrue(
+            scrollUntilHittable(element: overflowTask, in: taskList, maxSwipes: 12),
+            "Expected deep task to become hittable via vertical scrolling"
+        )
+
+        let horizontalInset = title.frame.minX - window.frame.minX
+        let topInsetCandidates = [
+            window.frame.maxY - title.frame.maxY,
+            title.frame.minY - window.frame.minY
+        ].filter { $0 >= 0 }
+        let topInset = max(0, topInsetCandidates.min() ?? 0)
+        let horizontalInsetRatio = horizontalInset / max(window.frame.width, 1)
+        let topInsetRatio = topInset / max(window.frame.height, 1)
+
+        XCTAssertGreaterThanOrEqual(horizontalInset, 0)
+        XCTAssertGreaterThanOrEqual(topInset, 0)
+        XCTAssertLessThan(horizontalInsetRatio, 0.2)
+        XCTAssertLessThan(topInsetRatio, 0.25)
+    }
+
+    @MainActor
     func testDeleteColumnConfirmationCancelAndConfirm() throws {
         // Requirements: COL-DEL-001, COL-DEL-002, COL-DEL-003, COL-DEL-004, UX-003
         let app = launchSignedInApp()
@@ -270,14 +308,37 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchSignedInApp() -> XCUIApplication {
+    private func launchSignedInApp(extraEnvironment: [String: String] = [:]) -> XCUIApplication {
         let app = configuredAppForUITests()
         app.launchEnvironment[UITestEnvKey.signedIn] = "1"
         app.launchEnvironment[UITestEnvKey.email] = "ui-test@example.com"
+        for (key, value) in extraEnvironment {
+            app.launchEnvironment[key] = value
+        }
         app.launch()
         app.activate()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5), "Expected app window after launch")
         return app
+    }
+
+    private func scrollUntilHittable(element: XCUIElement, in scrollView: XCUIElement, maxSwipes: Int) -> Bool {
+        if element.waitForExistence(timeout: 0.2), element.isHittable {
+            return true
+        }
+
+        for _ in 0..<maxSwipes {
+            let start = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+            let finish = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+            start.press(forDuration: 0.05, thenDragTo: finish)
+            if !element.isHittable {
+                scrollView.swipeUp()
+            }
+            if element.waitForExistence(timeout: 0.2), element.isHittable {
+                return true
+            }
+        }
+
+        return element.exists && element.isHittable
     }
 
     private func taskCount(from element: XCUIElement) -> Int? {

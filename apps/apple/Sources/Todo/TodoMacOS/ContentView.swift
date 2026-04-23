@@ -98,13 +98,18 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task {
-            if processEnvironment["TODO_UITEST_SIGNED_IN"] == "1" {
-                auth.applyUITestSignedInSession(email: processEnvironment["TODO_UITEST_EMAIL"] ?? "ui-test@example.com")
+            if processEnvironment[AppEnvironmentKey.signedIn] == "1" {
+                auth.applyUITestSignedInSession(email: processEnvironment[AppEnvironmentKey.email] ?? "ui-test@example.com")
             } else {
                 await auth.restoreSessionIfNeeded()
             }
         }
     }
+}
+
+private enum WorkspaceLayout {
+    static let taskListMinHeight: CGFloat = 180
+    static let reservedVerticalChromeHeight: CGFloat = 80
 }
 
 private struct LoggedInWorkspaceView: View {
@@ -171,38 +176,47 @@ private struct LoggedInWorkspaceView: View {
                 .disabled(!board.canMutateBoardActions)
             }
 
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(board.columns, id: \.id) { column in
-                        ColumnCard(
-                            column: column,
-                            tasks: board.tasks(for: column.id),
-                            isEnabled: board.canMutateBoardActions,
-                            onRename: { editingColumn = EditableColumn(column: column) },
-                            onDelete: {
-                                pendingColumnDeletion = EditableColumn(column: column)
-                            },
-                            onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
-                            onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
-                            onDeleteTask: { task in
-                                pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
-                            },
-                            onMoveTask: { taskID, destinationColumnID, destinationPosition in
-                                Task {
-                                    await board.moveTask(
-                                        taskID: taskID,
-                                        destinationColumnID: destinationColumnID,
-                                        destinationPosition: destinationPosition
-                                    )
+            GeometryReader { geometry in
+                let taskListMaxHeight = max(
+                    WorkspaceLayout.taskListMinHeight,
+                    geometry.size.height - WorkspaceLayout.reservedVerticalChromeHeight
+                )
+
+                ScrollView(.horizontal) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach(board.columns, id: \.id) { column in
+                            ColumnCard(
+                                column: column,
+                                tasks: board.tasks(for: column.id),
+                                taskListMaxHeight: taskListMaxHeight,
+                                isEnabled: board.canMutateBoardActions,
+                                onRename: { editingColumn = EditableColumn(column: column) },
+                                onDelete: {
+                                    pendingColumnDeletion = EditableColumn(column: column)
+                                },
+                                onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
+                                onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
+                                onDeleteTask: { task in
+                                    pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
+                                },
+                                onMoveTask: { taskID, destinationColumnID, destinationPosition in
+                                    Task {
+                                        await board.moveTask(
+                                            taskID: taskID,
+                                            destinationColumnID: destinationColumnID,
+                                            destinationPosition: destinationPosition
+                                        )
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
             if board.isLoading {
                 ProgressView("board.loading")
@@ -372,6 +386,7 @@ private struct LoggedInWorkspaceView: View {
 private struct ColumnCard: View {
     let column: KanbanColumn
     let tasks: [KanbanTask]
+    let taskListMaxHeight: CGFloat
     let isEnabled: Bool
     let onRename: () -> Void
     let onDelete: () -> Void
@@ -405,43 +420,47 @@ private struct ColumnCard: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(tasks, id: \.id) { task in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(task.title)
-                            .font(.subheadline.weight(.semibold))
-                            .accessibilityIdentifier("task-title-\(task.id)")
-                        if !task.description.isEmpty {
-                            Text(task.description)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(3)
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(tasks, id: \.id) { task in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(task.title)
+                                .font(.subheadline.weight(.semibold))
+                                .accessibilityIdentifier("task-title-\(task.id)")
+                            if !task.description.isEmpty {
+                                Text(task.description)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(3)
+                            }
+                            HStack(spacing: 8) {
+                                Button("board.task.edit") { onEditTask(task) }
+                                    .buttonStyle(.bordered)
+                                    .disabled(!isEnabled)
+                                Button("board.task.delete") { onDeleteTask(task) }
+                                    .buttonStyle(.bordered)
+                                    .disabled(!isEnabled)
+                                    .accessibilityIdentifier("task-delete-\(task.id)")
+                            }
                         }
-                        HStack(spacing: 8) {
-                            Button("board.task.edit") { onEditTask(task) }
-                                .buttonStyle(.bordered)
-                                .disabled(!isEnabled)
-                            Button("board.task.delete") { onDeleteTask(task) }
-                                .buttonStyle(.bordered)
-                                .disabled(!isEnabled)
-                                .accessibilityIdentifier("task-delete-\(task.id)")
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("task-card-\(task.id)")
+                        .draggable(TaskDragItem(taskID: task.id))
+                        .dropDestination(for: TaskDragItem.self) { items, _ in
+                            guard let item = items.first else { return false }
+                            onMoveTask(item.taskID, column.id, task.position)
+                            return true
                         }
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("task-card-\(task.id)")
-                    .draggable(TaskDragItem(taskID: task.id))
-                    .dropDestination(for: TaskDragItem.self) { items, _ in
-                        guard let item = items.first else { return false }
-                        onMoveTask(item.taskID, column.id, task.position)
-                        return true
                     }
                 }
             }
+            .frame(maxHeight: taskListMaxHeight)
+            .accessibilityIdentifier("column-task-list-\(column.id)")
 
             Button("board.task.add", action: onAddTask)
                 .buttonStyle(.borderedProminent)

@@ -97,6 +97,7 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-005` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDragTaskToAnotherColumn`) | Covered | - |
 | `UX-006` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`moveTaskConflictSurfacesStatusDetails`) | Covered | - |
 | `UX-007` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDropTaskOnColumnHeaderDoesNotFail`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDropTaskOnDestinationColumnHeaderDoesNotFail`) | Covered | Same-column and destination-column drops onto column header areas (outside task rows) are asserted to avoid invalid-input failure states. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
+| `UX-008` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testOverflowingColumnTaskListScrollsWithoutPushingWorkspaceOutOfBounds`) | Covered | - |
 
 ## Next Test Additions (Recommended)
 
