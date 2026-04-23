@@ -10,7 +10,7 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build run run-cli run-macos open-macos open test test-macos-unit test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build run run-cli run-macos open-macos open test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
 
 generate:
 	go run ./cmd/gen_openapi
@@ -69,6 +69,9 @@ test:
 
 test-macos-unit:
 	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_UNIT_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+test-macos-ui:
+	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) -only-testing:TodoMacOSUITests test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 test-appwrite-integration:
 	if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "warning: .env.server not found; using existing environment"; fi; RUN_APPWRITE_INTEGRATION=1 go test ./internal/kanban -run Appwrite
