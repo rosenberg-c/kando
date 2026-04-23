@@ -63,6 +63,15 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
+    func reorderColumns(boardID: String, orderedColumnIDs: [String], accessToken: String, baseURL: URL) async throws {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.ReorderColumnsRequest(columnIds: orderedColumnIDs)
+        let output = try await client.reorderColumns(path: .init(boardId: boardID), body: .json(payload))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "reorderColumns", model: problem(from: payload.body))
+        }
+    }
+
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
         let output = try await client.deleteColumn(path: .init(boardId: boardID, columnId: columnID))
@@ -143,6 +152,10 @@ struct GeneratedKanbanAPI: KanbanAPI {
             return model
         }
         if let body = body as? Operations.DeleteColumn.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.ReorderColumns.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }

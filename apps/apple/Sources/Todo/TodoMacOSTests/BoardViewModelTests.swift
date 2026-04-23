@@ -165,6 +165,95 @@ struct BoardViewModelTests {
         #expect(viewModel.debugMessage.contains("status=409"))
         #expect(viewModel.debugMessage.contains("detail=invalid destination position"))
     }
+
+    @Test func reorderColumnsOptimisticallyReordersAndPersists() async {
+        // Requirement: COL-MOVE-008
+        let gate = SuspendedOperationGate()
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-a", title: "A", position: 0),
+                KanbanColumn(id: "column-b", title: "B", position: 1),
+                KanbanColumn(id: "column-c", title: "C", position: 2)
+            ],
+            tasks: []
+        )
+
+        let api = MockKanbanAPI(
+            ensureBoardHandler: { _, _, _ in board },
+            getBoardHandler: { _, _, _ in details },
+            reorderColumnsHandler: { _, _, _, _ in
+                await gate.markStarted()
+                await gate.waitUntilResumed()
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        let reorderTask = Task {
+            await viewModel.reorderColumns(orderedColumnIDs: ["column-c", "column-a", "column-b"])
+        }
+
+        #expect(await waitUntil(timeoutNanoseconds: 1_000_000_000) {
+            await gate.hasStarted()
+        })
+        #expect(viewModel.columns.map(\.id) == ["column-c", "column-a", "column-b"])
+
+        await gate.resume()
+        await reorderTask.value
+
+        #expect(viewModel.columns.map(\.id) == ["column-c", "column-a", "column-b"])
+        #expect(viewModel.statusIsError == false)
+        #expect(viewModel.statusMessage == Strings.t("board.column.status.moved"))
+    }
+
+    @Test func reorderColumnsFailureRollsBackOrderAndShowsError() async {
+        // Requirement: COL-MOVE-008
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-a", title: "A", position: 0),
+                KanbanColumn(id: "column-b", title: "B", position: 1),
+                KanbanColumn(id: "column-c", title: "C", position: 2)
+            ],
+            tasks: []
+        )
+
+        let api = MockKanbanAPI(
+            ensureBoardHandler: { _, _, _ in board },
+            getBoardHandler: { _, _, _ in details },
+            reorderColumnsHandler: { _, _, _, _ in
+                throw KanbanAPIError.unexpectedStatus(
+                    code: 409,
+                    operation: "reorderColumns",
+                    title: "Conflict",
+                    detail: "stale board version"
+                )
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.reorderColumns(orderedColumnIDs: ["column-c", "column-a", "column-b"])
+
+        #expect(viewModel.columns.map(\.id) == ["column-a", "column-b", "column-c"])
+        #expect(viewModel.statusIsError)
+        #expect(viewModel.statusMessage.contains("409"))
+        #expect(viewModel.debugMessage.contains("operation=reorderColumns"))
+    }
 }
 
 private actor AsyncCounter {

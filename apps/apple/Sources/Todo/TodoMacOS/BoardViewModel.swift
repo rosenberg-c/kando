@@ -87,6 +87,38 @@ final class BoardViewModel: ObservableObject {
         }
     }
 
+    @discardableResult
+    func reorderColumns(orderedColumnIDs: [String]) async -> Bool {
+        let previousColumns = columns
+        guard let reordered = reorderedColumns(columns, orderedIDs: orderedColumnIDs) else {
+            setError(Strings.t("board.error.invalid_response"))
+            return false
+        }
+        columns = reordered
+
+        var didSucceed = false
+
+        await runMutation {
+            do {
+                let context = try await self.resolveContext(requireBoard: true)
+                let boardID = try self.requireBoardID(context)
+                try await self.api.reorderColumns(
+                    boardID: boardID,
+                    orderedColumnIDs: orderedColumnIDs,
+                    accessToken: context.accessToken,
+                    baseURL: context.baseURL
+                )
+                self.setSuccess(Strings.t("board.column.status.moved"))
+                didSucceed = true
+            } catch {
+                self.columns = previousColumns
+                throw error
+            }
+        }
+
+        return didSucceed
+    }
+
     func createTask(columnID: String, title: String, description: String) async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
