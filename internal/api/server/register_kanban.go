@@ -90,11 +90,10 @@ type updateTaskInput struct {
 	Body          contracts.UpdateTaskRequest
 }
 
-type moveTaskInput struct {
+type reorderTasksInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
-	TaskID        string `path:"taskId"`
-	Body          contracts.MoveTaskRequest
+	Body          contracts.ReorderTasksRequest
 }
 
 type taskPathInput struct {
@@ -105,6 +104,10 @@ type taskPathInput struct {
 
 type taskOutput struct {
 	Body contracts.Task
+}
+
+type tasksOutput struct {
+	Body []contracts.Task
 }
 
 func registerKanban(api huma.API, deps Dependencies) {
@@ -356,23 +359,37 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "moveTask",
-		Method:      http.MethodPatch,
-		Path:        "/boards/{boardId}/tasks/{taskId}/move",
-		Summary:     "Move a task",
+		OperationID: "reorderTasks",
+		Method:      http.MethodPut,
+		Path:        "/boards/{boardId}/tasks/order",
+		Summary:     "Replace board task order",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *moveTaskInput) (*taskOutput, error) {
+	}, func(ctx context.Context, input *reorderTasksInput) (*tasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		task, _, err := repo.MoveTask(ctx, identity.UserID, input.BoardID, input.TaskID, input.Body.DestinationColumnID, input.Body.DestinationPosition)
+		orders := make([]kanban.TaskColumnOrder, 0, len(input.Body.Columns))
+		for _, column := range input.Body.Columns {
+			orders = append(orders, kanban.TaskColumnOrder{ColumnID: column.ColumnID, TaskIDs: column.TaskIDs})
+		}
+
+		if _, err := repo.ReorderTasks(ctx, identity.UserID, input.BoardID, orders); err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		details, err := repo.GetBoard(ctx, identity.UserID, input.BoardID)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
 
-		return &taskOutput{Body: toContractTask(task)}, nil
+		tasks := make([]contracts.Task, 0, len(details.Tasks))
+		for _, task := range details.Tasks {
+			tasks = append(tasks, toContractTask(task))
+		}
+
+		return &tasksOutput{Body: tasks}, nil
 	})
 
 	huma.Register(api, huma.Operation{

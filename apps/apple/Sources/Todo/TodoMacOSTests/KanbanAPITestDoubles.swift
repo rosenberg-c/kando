@@ -42,7 +42,7 @@ struct MockKanbanAPI: KanbanAPI {
     var deleteColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
     var createTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
-    var moveTaskHandler: @Sendable (String, String, String, Int, String, URL) async throws -> Void
+    var reorderTasksHandler: @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void
     var deleteTaskHandler: @Sendable (String, String, String, URL) async throws -> Void
 
     init(
@@ -58,7 +58,7 @@ struct MockKanbanAPI: KanbanAPI {
         deleteColumnHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
         createTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
-        moveTaskHandler: @escaping @Sendable (String, String, String, Int, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
+        reorderTasksHandler: @escaping @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void = { _, _, _, _ in },
         deleteTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in }
     ) {
         self.ensureBoardHandler = ensureBoardHandler
@@ -69,7 +69,7 @@ struct MockKanbanAPI: KanbanAPI {
         self.deleteColumnHandler = deleteColumnHandler
         self.createTaskHandler = createTaskHandler
         self.updateTaskHandler = updateTaskHandler
-        self.moveTaskHandler = moveTaskHandler
+        self.reorderTasksHandler = reorderTasksHandler
         self.deleteTaskHandler = deleteTaskHandler
     }
 
@@ -105,8 +105,8 @@ struct MockKanbanAPI: KanbanAPI {
         try await updateTaskHandler(boardID, taskID, title, description, accessToken, baseURL)
     }
 
-    func moveTask(boardID: String, taskID: String, destinationColumnID: String, destinationPosition: Int, accessToken: String, baseURL: URL) async throws {
-        try await moveTaskHandler(boardID, taskID, destinationColumnID, destinationPosition, accessToken, baseURL)
+    func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws {
+        try await reorderTasksHandler(boardID, orderedTasksByColumn, accessToken, baseURL)
     }
 
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {

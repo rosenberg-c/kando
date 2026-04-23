@@ -253,6 +253,28 @@ func taskIDsByColumnTx(ctx context.Context, tx *sql.Tx, columnID string) ([]stri
 	return ids, nil
 }
 
+func taskIDsByBoardTx(ctx context.Context, tx *sql.Tx, boardID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE board_id = ? ORDER BY id`, boardID)
+	if err != nil {
+		return nil, fmt.Errorf("list task ids by board: %w", err)
+	}
+	defer rows.Close()
+
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan task id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task ids by board: %w", err)
+	}
+
+	return ids, nil
+}
+
 func applyTaskOrderTx(ctx context.Context, tx *sql.Tx, columnID string, taskIDs []string, now time.Time) error {
 	for i, id := range taskIDs {
 		if _, err := tx.ExecContext(

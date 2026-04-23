@@ -92,8 +92,8 @@ func (r *trackedRepository) UpdateTask(ctx context.Context, ownerUserID, boardID
 	return r.repo.UpdateTask(ctx, ownerUserID, boardID, taskID, title, description)
 }
 
-func (r *trackedRepository) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (kanban.Task, kanban.Board, error) {
-	return r.repo.MoveTask(ctx, ownerUserID, boardID, taskID, destinationColumnID, destinationPosition)
+func (r *trackedRepository) ReorderTasks(ctx context.Context, ownerUserID, boardID string, orderedTasksByColumn []kanban.TaskColumnOrder) (kanban.Board, error) {
+	return r.repo.ReorderTasks(ctx, ownerUserID, boardID, orderedTasksByColumn)
 }
 
 func (r *trackedRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Board, error) {

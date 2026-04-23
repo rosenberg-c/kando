@@ -374,7 +374,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/tasks", http.MethodPost)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodPatch)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodDelete)
-	assertPathMethod("/boards/{boardId}/tasks/{taskId}/move", http.MethodPatch)
+	assertPathMethod("/boards/{boardId}/tasks/order", http.MethodPut)
 }
 
 func TestOpenAPIDefinesReorderColumnsContract(t *testing.T) {
@@ -407,6 +407,39 @@ func TestOpenAPIDefinesReorderColumnsContract(t *testing.T) {
 	}
 	if _, ok := response.Content["application/json"]; !ok {
 		t.Fatal("missing application/json response schema for reorder columns operation")
+	}
+}
+
+func TestOpenAPIDefinesReorderTasksContract(t *testing.T) {
+	// Requirement: PUBLIC-004
+	t.Parallel()
+
+	_, api := NewAPI()
+	Register(api, Dependencies{})
+
+	path := api.OpenAPI().Paths["/boards/{boardId}/tasks/order"]
+	if path == nil || path.Put == nil {
+		t.Fatal("missing PUT /boards/{boardId}/tasks/order operation")
+	}
+
+	requestBody := path.Put.RequestBody
+	if requestBody == nil {
+		t.Fatal("missing request body for reorder tasks operation")
+	}
+	mediaType, ok := requestBody.Content["application/json"]
+	if !ok || mediaType == nil || mediaType.Schema == nil {
+		t.Fatal("missing application/json schema for reorder tasks operation")
+	}
+	if mediaType.Schema.Ref == "" {
+		t.Fatal("expected reorder tasks request schema ref")
+	}
+
+	response := path.Put.Responses["200"]
+	if response == nil {
+		t.Fatal("missing 200 response for reorder tasks operation")
+	}
+	if _, ok := response.Content["application/json"]; !ok {
+		t.Fatal("missing application/json response schema for reorder tasks operation")
 	}
 }
 
@@ -706,7 +739,7 @@ func TestKanbanReorderColumnsReturnsForbiddenForOtherOwner(t *testing.T) {
 	}
 }
 
-func TestKanbanMoveTaskBetweenColumns(t *testing.T) {
+func TestKanbanReorderTasksAppliesOrderAtomically(t *testing.T) {
 	// Requirements: API-005, TASK-005, TASK-006, TASK-007
 	t.Parallel()
 
@@ -720,33 +753,15 @@ func TestKanbanMoveTaskBetweenColumns(t *testing.T) {
 	taskA1ID := createTask(t, mux, boardID, columnAID)
 	taskB0ID := createTask(t, mux, boardID, columnBID)
 
-	body := strings.NewReader(`{"destinationColumnId":"` + columnBID + `","destinationPosition":1}`)
-	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	body := strings.NewReader(`{"columns":[{"columnId":"` + columnAID + `","taskIds":["` + taskA1ID + `"]},{"columnId":"` + columnBID + `","taskIds":["` + taskB0ID + `","` + taskA0ID + `"]}]}`)
+	request := httptest.NewRequest(http.MethodPut, "/boards/"+boardID+"/tasks/order", body)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
-		t.Fatalf("move task status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
-	}
-
-	var moved struct {
-		ID       string `json:"id"`
-		ColumnID string `json:"columnId"`
-		Position int    `json:"position"`
-	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &moved); err != nil {
-		t.Fatalf("decode move response: %v", err)
-	}
-	if moved.ID != taskA0ID {
-		t.Fatalf("moved id = %q, want %q", moved.ID, taskA0ID)
-	}
-	if moved.ColumnID != columnBID {
-		t.Fatalf("moved column = %q, want %q", moved.ColumnID, columnBID)
-	}
-	if moved.Position != 1 {
-		t.Fatalf("moved position = %d, want 1", moved.Position)
+		t.Fatalf("reorder tasks status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/boards/"+boardID, nil)
@@ -791,7 +806,7 @@ func TestKanbanMoveTaskBetweenColumns(t *testing.T) {
 	}
 }
 
-func TestKanbanMoveTaskReturnsBadRequestForOutOfRangePosition(t *testing.T) {
+func TestKanbanReorderTasksRejectsInvalidListWithoutApplying(t *testing.T) {
 	// Requirement: API-005
 	t.Parallel()
 
@@ -802,9 +817,11 @@ func TestKanbanMoveTaskReturnsBadRequestForOutOfRangePosition(t *testing.T) {
 	columnAID := createColumn(t, mux, boardID)
 	columnBID := createColumn(t, mux, boardID)
 	taskA0ID := createTask(t, mux, boardID, columnAID)
+	taskA1ID := createTask(t, mux, boardID, columnAID)
+	taskB0ID := createTask(t, mux, boardID, columnBID)
 
-	body := strings.NewReader(`{"destinationColumnId":"` + columnBID + `","destinationPosition":99}`)
-	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	body := strings.NewReader(`{"columns":[{"columnId":"` + columnAID + `","taskIds":["` + taskA1ID + `"]},{"columnId":"` + columnBID + `","taskIds":["` + taskB0ID + `","` + taskA1ID + `"]}]}`)
+	request := httptest.NewRequest(http.MethodPut, "/boards/"+boardID+"/tasks/order", body)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
@@ -813,21 +830,57 @@ func TestKanbanMoveTaskReturnsBadRequestForOutOfRangePosition(t *testing.T) {
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
 	}
+
+	request = httptest.NewRequest(http.MethodGet, "/boards/"+boardID, nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder = httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("get board status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+
+	var boardResponse struct {
+		Tasks []struct {
+			ID       string `json:"id"`
+			ColumnID string `json:"columnId"`
+			Position int    `json:"position"`
+		} `json:"tasks"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &boardResponse); err != nil {
+		t.Fatalf("decode board response: %v", err)
+	}
+
+	tasksByID := make(map[string]struct {
+		ColumnID string
+		Position int
+	}, len(boardResponse.Tasks))
+	for _, task := range boardResponse.Tasks {
+		tasksByID[task.ID] = struct {
+			ColumnID string
+			Position int
+		}{ColumnID: task.ColumnID, Position: task.Position}
+	}
+	if got := tasksByID[taskA0ID]; got.ColumnID != columnAID || got.Position != 0 {
+		t.Fatalf("task A0 after failed reorder = %+v, want column=%q position=0", got, columnAID)
+	}
+	if got := tasksByID[taskA1ID]; got.ColumnID != columnAID || got.Position != 1 {
+		t.Fatalf("task A1 after failed reorder = %+v, want column=%q position=1", got, columnAID)
+	}
+	if got := tasksByID[taskB0ID]; got.ColumnID != columnBID || got.Position != 0 {
+		t.Fatalf("task B0 after failed reorder = %+v, want column=%q position=0", got, columnBID)
+	}
 }
 
-func TestKanbanMoveTaskReturnsNotFoundForMissingDestinationColumn(t *testing.T) {
+func TestKanbanReorderTasksReturnsNotFoundForMissingBoard(t *testing.T) {
 	// Requirement: API-005
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
 	mux := newKanbanMuxForUser(repo, "user-1")
 
-	boardID := createBoard(t, mux)
-	columnAID := createColumn(t, mux, boardID)
-	taskA0ID := createTask(t, mux, boardID, columnAID)
-
-	body := strings.NewReader(`{"destinationColumnId":"00000000-0000-0000-0000-000000000123","destinationPosition":0}`)
-	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	body := strings.NewReader(`{"columns":[{"columnId":"00000000-0000-0000-0000-000000000111","taskIds":[]}]}`)
+	request := httptest.NewRequest(http.MethodPut, "/boards/00000000-0000-0000-0000-000000000123/tasks/order", body)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
@@ -838,7 +891,7 @@ func TestKanbanMoveTaskReturnsNotFoundForMissingDestinationColumn(t *testing.T) 
 	}
 }
 
-func TestKanbanMoveTaskReturnsForbiddenForOtherOwner(t *testing.T) {
+func TestKanbanReorderTasksReturnsForbiddenForOtherOwner(t *testing.T) {
 	// Requirement: API-005
 	t.Parallel()
 
@@ -849,11 +902,12 @@ func TestKanbanMoveTaskReturnsForbiddenForOtherOwner(t *testing.T) {
 	columnAID := createColumn(t, muxOwner, boardID)
 	columnBID := createColumn(t, muxOwner, boardID)
 	taskA0ID := createTask(t, muxOwner, boardID, columnAID)
+	taskA1ID := createTask(t, muxOwner, boardID, columnAID)
+	taskB0ID := createTask(t, muxOwner, boardID, columnBID)
 
 	muxIntruder := newKanbanMuxForUser(repo, "intruder")
-
-	body := strings.NewReader(`{"destinationColumnId":"` + columnBID + `","destinationPosition":0}`)
-	request := httptest.NewRequest(http.MethodPatch, "/boards/"+boardID+"/tasks/"+taskA0ID+"/move", body)
+	body := strings.NewReader(`{"columns":[{"columnId":"` + columnAID + `","taskIds":["` + taskA1ID + `"]},{"columnId":"` + columnBID + `","taskIds":["` + taskB0ID + `","` + taskA0ID + `"]}]}`)
+	request := httptest.NewRequest(http.MethodPut, "/boards/"+boardID+"/tasks/order", body)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()

@@ -276,26 +276,6 @@ components:
         - userId
         - email
       type: object
-    MoveTaskRequest:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          example: https://example.com/MoveTaskRequest.json
-          format: uri
-          readOnly: true
-          type: string
-        destinationColumnId:
-          format: uuid
-          type: string
-        destinationPosition:
-          format: int64
-          minimum: 0
-          type: integer
-      required:
-        - destinationColumnId
-        - destinationPosition
-      type: object
     ReorderColumnsRequest:
       additionalProperties: false
       properties:
@@ -312,6 +292,23 @@ components:
           type: array
       required:
         - columnIds
+      type: object
+    ReorderTasksRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/ReorderTasksRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        columns:
+          items:
+            $ref: "#/components/schemas/TaskColumnOrderRequest"
+          minItems: 1
+          type: array
+      required:
+        - columns
       type: object
     Task:
       additionalProperties: false
@@ -357,6 +354,20 @@ components:
         - position
         - createdAt
         - updatedAt
+      type: object
+    TaskColumnOrderRequest:
+      additionalProperties: false
+      properties:
+        columnId:
+          format: uuid
+          type: string
+        taskIds:
+          items:
+            type: string
+          type: array
+      required:
+        - columnId
+        - taskIds
       type: object
     UpdateBoardRequest:
       additionalProperties: false
@@ -805,6 +816,44 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a task
+  /boards/{boardId}/tasks/order:
+    put:
+      operationId: reorderTasks
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderTasksRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Task"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Replace board task order
   /boards/{boardId}/tasks/{taskId}:
     delete:
       operationId: deleteTask
@@ -874,46 +923,6 @@ paths:
       security:
         - bearerAuth: []
       summary: Update a task
-  /boards/{boardId}/tasks/{taskId}/move:
-    patch:
-      operationId: moveTask
-      parameters:
-        - in: header
-          name: Authorization
-          schema:
-            type: string
-        - in: path
-          name: boardId
-          required: true
-          schema:
-            type: string
-        - in: path
-          name: taskId
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MoveTaskRequest"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Task"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Error
-      security:
-        - bearerAuth: []
-      summary: Move a task
   /hello:
     get:
       operationId: getHello

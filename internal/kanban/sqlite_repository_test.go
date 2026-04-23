@@ -53,15 +53,11 @@ func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
 		t.Fatalf("create task B0: %v", err)
 	}
 
-	movedTask, _, err := repo.MoveTask(ctx, "user-1", board.ID, taskA0.ID, columnB.ID, 1)
-	if err != nil {
-		t.Fatalf("move task A0 to column B: %v", err)
-	}
-	if movedTask.ColumnID != columnB.ID {
-		t.Fatalf("moved task column = %q, want %q", movedTask.ColumnID, columnB.ID)
-	}
-	if movedTask.Position != 1 {
-		t.Fatalf("moved task position = %d, want 1", movedTask.Position)
+	if _, err := repo.ReorderTasks(ctx, "user-1", board.ID, []TaskColumnOrder{
+		{ColumnID: columnA.ID, TaskIDs: []string{taskA1.ID}},
+		{ColumnID: columnB.ID, TaskIDs: []string{taskB0.ID, taskA0.ID}},
+	}); err != nil {
+		t.Fatalf("reorder tasks to move A0 to column B: %v", err)
 	}
 
 	details, err := repo.GetBoard(ctx, "user-1", board.ID)

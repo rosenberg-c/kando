@@ -108,7 +108,7 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 		}
 	})
 
-	t.Run("MoveTask", func(t *testing.T) {
+	t.Run("ReorderTasks", func(t *testing.T) {
 		ctx := context.Background()
 		repo := makeRepo()
 		ownerUserID := "user-" + uuid.NewString()
@@ -140,12 +140,11 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			t.Fatalf("create task B0: %v", err)
 		}
 
-		movedTask, _, err := repo.MoveTask(ctx, ownerUserID, board.ID, taskA0.ID, columnB.ID, 1)
-		if err != nil {
-			t.Fatalf("move task: %v", err)
-		}
-		if movedTask.ColumnID != columnB.ID || movedTask.Position != 1 {
-			t.Fatalf("moved task = %+v, want column=%q position=1", movedTask, columnB.ID)
+		if _, err := repo.ReorderTasks(ctx, ownerUserID, board.ID, []kanban.TaskColumnOrder{
+			{ColumnID: columnA.ID, TaskIDs: []string{taskA1.ID}},
+			{ColumnID: columnB.ID, TaskIDs: []string{taskB0.ID, taskA0.ID}},
+		}); err != nil {
+			t.Fatalf("reorder tasks: %v", err)
 		}
 
 		details, err := repo.GetBoard(ctx, ownerUserID, board.ID)
@@ -166,8 +165,11 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			t.Fatalf("task A0 = %+v, want column=%q position=1", got, columnB.ID)
 		}
 
-		if _, _, err := repo.MoveTask(ctx, ownerUserID, board.ID, taskA1.ID, columnB.ID, 99); !errors.Is(err, kanban.ErrInvalidInput) {
-			t.Fatalf("move task with invalid position err = %v, want ErrInvalidInput", err)
+		if _, err := repo.ReorderTasks(ctx, ownerUserID, board.ID, []kanban.TaskColumnOrder{
+			{ColumnID: columnA.ID, TaskIDs: []string{taskA1.ID}},
+			{ColumnID: columnB.ID, TaskIDs: []string{taskA1.ID, taskB0.ID, taskA0.ID}},
+		}); !errors.Is(err, kanban.ErrInvalidInput) {
+			t.Fatalf("reorder tasks invalid payload err = %v, want ErrInvalidInput", err)
 		}
 
 		details, err = repo.GetBoard(ctx, ownerUserID, board.ID)
@@ -179,7 +181,7 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			tasksByID[task.ID] = task
 		}
 		if got := tasksByID[taskA1.ID]; got.ColumnID != columnA.ID || got.Position != 0 {
-			t.Fatalf("task A1 after invalid move = %+v, want column=%q position=0", got, columnA.ID)
+			t.Fatalf("task A1 after invalid reorder = %+v, want column=%q position=0", got, columnA.ID)
 		}
 
 		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {

@@ -125,7 +125,7 @@ struct BoardViewModelTests {
         #expect(viewModel.debugMessage.contains("detail=column has tasks"))
     }
 
-    @Test func moveTaskConflictSurfacesStatusDetails() async {
+    @Test func reorderTasksConflictSurfacesStatusDetails() async {
         // Requirements: UX-006, API-005
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
@@ -140,12 +140,12 @@ struct BoardViewModelTests {
         let api = MockKanbanAPI(
             ensureBoardHandler: { _, _, _ in board },
             getBoardHandler: { _, _, _ in details },
-            moveTaskHandler: { _, _, _, _, _, _ in
+            reorderTasksHandler: { _, _, _, _ in
                 throw KanbanAPIError.unexpectedStatus(
                     code: 409,
-                    operation: "moveTask",
+                    operation: "reorderTasks",
                     title: "Conflict",
-                    detail: "invalid destination position"
+                    detail: "invalid task list"
                 )
             }
         )
@@ -157,13 +157,13 @@ struct BoardViewModelTests {
         )
 
         await viewModel.reloadBoard()
-        await viewModel.moveTask(taskID: "task-1", destinationColumnID: "column-2", destinationPosition: 99)
+        await viewModel.moveTask(taskID: "task-1", destinationColumnID: "column-2", destinationPosition: 0)
 
         #expect(viewModel.statusIsError)
         #expect(viewModel.statusMessage.contains("409"))
-        #expect(viewModel.debugMessage.contains("operation=moveTask"))
+        #expect(viewModel.debugMessage.contains("operation=reorderTasks"))
         #expect(viewModel.debugMessage.contains("status=409"))
-        #expect(viewModel.debugMessage.contains("detail=invalid destination position"))
+        #expect(viewModel.debugMessage.contains("detail=invalid task list"))
     }
 
     @Test func reorderColumnsOptimisticallyReordersAndPersists() async {

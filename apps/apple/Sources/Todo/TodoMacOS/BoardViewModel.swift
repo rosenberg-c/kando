@@ -169,14 +169,43 @@ final class BoardViewModel: ObservableObject {
             return
         }
 
+        guard let sourceColumnID = tasksByColumnID.first(where: { _, tasks in
+            tasks.contains(where: { $0.id == taskID })
+        })?.key else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        var reorderedTasksByColumn = tasksByColumnID
+        guard var sourceTasks = reorderedTasksByColumn[sourceColumnID],
+              let sourceIndex = sourceTasks.firstIndex(where: { $0.id == taskID }) else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        let movingTask = sourceTasks.remove(at: sourceIndex)
+        reorderedTasksByColumn[sourceColumnID] = sourceTasks
+
+        var destinationTasks = reorderedTasksByColumn[destinationColumnID] ?? []
+        let insertionIndex = min(destinationPosition, destinationTasks.count)
+        destinationTasks.insert(movingTask, at: insertionIndex)
+        reorderedTasksByColumn[destinationColumnID] = destinationTasks
+
+        let orderedTasksByColumn = columns
+            .sorted { $0.position < $1.position }
+            .map { column in
+                KanbanTaskColumnOrder(
+                    columnID: column.id,
+                    taskIDs: (reorderedTasksByColumn[column.id] ?? []).map(\.id)
+                )
+            }
+
         await runMutation {
             let context = try await self.resolveContext(requireBoard: true)
             let boardID = try self.requireBoardID(context)
-            try await self.api.moveTask(
+            try await self.api.reorderTasks(
                 boardID: boardID,
-                taskID: taskID,
-                destinationColumnID: destinationColumnID,
-                destinationPosition: destinationPosition,
+                orderedTasksByColumn: orderedTasksByColumn,
                 accessToken: context.accessToken,
                 baseURL: context.baseURL
             )

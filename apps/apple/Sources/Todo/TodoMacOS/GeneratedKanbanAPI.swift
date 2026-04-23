@@ -106,15 +106,16 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
-    func moveTask(boardID: String, taskID: String, destinationColumnID: String, destinationPosition: Int, accessToken: String, baseURL: URL) async throws {
+    func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let payload = Components.Schemas.MoveTaskRequest(
-            destinationColumnId: destinationColumnID,
-            destinationPosition: Int64(destinationPosition)
+        let payload = Components.Schemas.ReorderTasksRequest(
+            columns: orderedTasksByColumn.map {
+                Components.Schemas.TaskColumnOrderRequest(columnId: $0.columnID, taskIds: $0.taskIDs)
+            }
         )
-        let output = try await client.moveTask(path: .init(boardId: boardID, taskId: taskID), body: .json(payload))
+        let output = try await client.reorderTasks(path: .init(boardId: boardID), body: .json(payload))
         if case let .default(statusCode, payload) = output {
-            throw mapStatus(statusCode, operation: "moveTask", model: problem(from: payload.body))
+            throw mapStatus(statusCode, operation: "reorderTasks", model: problem(from: payload.body))
         }
     }
 
@@ -171,7 +172,7 @@ struct GeneratedKanbanAPI: KanbanAPI {
            case let .applicationProblemJson(model) = body {
             return model
         }
-        if let body = body as? Operations.MoveTask.Output.Default.Body,
+        if let body = body as? Operations.ReorderTasks.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }

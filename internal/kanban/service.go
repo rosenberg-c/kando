@@ -96,11 +96,11 @@ func (s *Service) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, 
 	return s.repo.UpdateTask(ctx, ownerUserID, boardID, taskID, trimmedTitle, strings.TrimSpace(description))
 }
 
-func (s *Service) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
-	if destinationPosition < 0 {
-		return Task{}, Board{}, ErrInvalidInput
+func (s *Service) ReorderTasks(ctx context.Context, ownerUserID, boardID string, orderedTasksByColumn []TaskColumnOrder) (Board, error) {
+	if len(orderedTasksByColumn) == 0 {
+		return Board{}, ErrInvalidInput
 	}
-	return s.repo.MoveTask(ctx, ownerUserID, boardID, taskID, destinationColumnID, destinationPosition)
+	return s.repo.ReorderTasks(ctx, ownerUserID, boardID, orderedTasksByColumn)
 }
 
 func (s *Service) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {

@@ -12,8 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
-
-	"go_macos_todo/internal/sliceutil"
 )
 
 type SQLiteRepository struct {
@@ -480,84 +478,71 @@ func (r *SQLiteRepository) UpdateTask(ctx context.Context, ownerUserID, boardID,
 	return task, board, nil
 }
 
-func (r *SQLiteRepository) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
-	if destinationPosition < 0 {
-		return Task{}, Board{}, ErrInvalidInput
-	}
-
+func (r *SQLiteRepository) ReorderTasks(ctx context.Context, ownerUserID, boardID string, orderedTasksByColumn []TaskColumnOrder) (Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return Task{}, Board{}, fmt.Errorf("begin tx: %w", err)
+		return Board{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer rollback(tx)
 
 	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
 	if err != nil {
-		return Task{}, Board{}, err
+		return Board{}, err
 	}
 
-	task, err := getOwnedTask(ctx, tx, ownerUserID, boardID, taskID)
+	currentColumnIDs, err := columnIDsByBoardTx(ctx, tx, boardID)
 	if err != nil {
-		return Task{}, Board{}, err
+		return Board{}, err
+	}
+	candidateColumnIDs := make([]string, 0, len(orderedTasksByColumn))
+	for _, columnOrder := range orderedTasksByColumn {
+		candidateColumnIDs = append(candidateColumnIDs, columnOrder.ColumnID)
+	}
+	if err := ValidateExactOrder(currentColumnIDs, candidateColumnIDs); err != nil {
+		return Board{}, err
 	}
 
-	if _, err := getOwnedColumn(ctx, tx, ownerUserID, boardID, destinationColumnID); err != nil {
-		return Task{}, Board{}, err
-	}
-
-	sourceColumnID := task.ColumnID
-	sourceTaskIDs, err := taskIDsByColumnTx(ctx, tx, sourceColumnID)
+	currentTaskIDs, err := taskIDsByBoardTx(ctx, tx, boardID)
 	if err != nil {
-		return Task{}, Board{}, err
+		return Board{}, err
 	}
-
-	sourceWithoutTask := sliceutil.RemoveString(sourceTaskIDs, taskID)
-	if len(sourceWithoutTask) != len(sourceTaskIDs)-1 {
-		return Task{}, Board{}, ErrNotFound
+	candidateTaskIDs := make([]string, 0)
+	for _, columnOrder := range orderedTasksByColumn {
+		for _, taskID := range columnOrder.TaskIDs {
+			task, err := getOwnedTask(ctx, tx, ownerUserID, boardID, taskID)
+			if err != nil {
+				if err == ErrNotFound || err == ErrForbidden {
+					return Board{}, ErrInvalidInput
+				}
+				return Board{}, err
+			}
+			if task.BoardID != boardID {
+				return Board{}, ErrInvalidInput
+			}
+			candidateTaskIDs = append(candidateTaskIDs, taskID)
+		}
+	}
+	if err := ValidateExactOrder(currentTaskIDs, candidateTaskIDs); err != nil {
+		return Board{}, err
 	}
 
 	now := r.now().UTC()
-	if sourceColumnID == destinationColumnID {
-		if destinationPosition > len(sourceWithoutTask) {
-			return Task{}, Board{}, ErrInvalidInput
+	for _, columnOrder := range orderedTasksByColumn {
+		if err := applyTaskOrderTx(ctx, tx, columnOrder.ColumnID, columnOrder.TaskIDs, now); err != nil {
+			return Board{}, err
 		}
-		updatedOrder := sliceutil.InsertStringAt(sourceWithoutTask, destinationPosition, taskID)
-		if err := applyTaskOrderTx(ctx, tx, sourceColumnID, updatedOrder, now); err != nil {
-			return Task{}, Board{}, err
-		}
-	} else {
-		destinationTaskIDs, err := taskIDsByColumnTx(ctx, tx, destinationColumnID)
-		if err != nil {
-			return Task{}, Board{}, err
-		}
-		if destinationPosition > len(destinationTaskIDs) {
-			return Task{}, Board{}, ErrInvalidInput
-		}
-
-		updatedDestinationOrder := sliceutil.InsertStringAt(destinationTaskIDs, destinationPosition, taskID)
-		if err := applyTaskOrderTx(ctx, tx, sourceColumnID, sourceWithoutTask, now); err != nil {
-			return Task{}, Board{}, err
-		}
-		if err := applyTaskOrderTx(ctx, tx, destinationColumnID, updatedDestinationOrder, now); err != nil {
-			return Task{}, Board{}, err
-		}
-	}
-
-	task, err = getOwnedTask(ctx, tx, ownerUserID, boardID, taskID)
-	if err != nil {
-		return Task{}, Board{}, err
 	}
 
 	board, err = bumpBoardTx(ctx, tx, board, now)
 	if err != nil {
-		return Task{}, Board{}, err
+		return Board{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Task{}, Board{}, fmt.Errorf("commit tx: %w", err)
+		return Board{}, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return task, board, nil
+	return board, nil
 }
 
 func (r *SQLiteRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {

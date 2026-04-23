@@ -318,64 +318,58 @@ func (r *MemoryRepository) UpdateTask(_ context.Context, ownerUserID, boardID, t
 	return task, board, nil
 }
 
-func (r *MemoryRepository) MoveTask(_ context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error) {
-	if destinationPosition < 0 {
-		return Task{}, Board{}, ErrInvalidInput
-	}
-
+func (r *MemoryRepository) ReorderTasks(_ context.Context, ownerUserID, boardID string, orderedTasksByColumn []TaskColumnOrder) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	board, err := r.getOwnedBoard(ownerUserID, boardID)
 	if err != nil {
-		return Task{}, Board{}, err
+		return Board{}, err
 	}
 
-	task, ok := r.tasks[taskID]
-	if !ok || task.BoardID != boardID {
-		return Task{}, Board{}, ErrNotFound
+	currentColumnIDs := r.boardColumns[boardID]
+	candidateColumnIDs := make([]string, 0, len(orderedTasksByColumn))
+	for _, columnOrder := range orderedTasksByColumn {
+		candidateColumnIDs = append(candidateColumnIDs, columnOrder.ColumnID)
 	}
-	if task.OwnerUserID != ownerUserID {
-		return Task{}, Board{}, ErrForbidden
-	}
-
-	destinationColumn, ok := r.columns[destinationColumnID]
-	if !ok || destinationColumn.BoardID != boardID {
-		return Task{}, Board{}, ErrNotFound
-	}
-	if destinationColumn.OwnerUserID != ownerUserID {
-		return Task{}, Board{}, ErrForbidden
+	if err := ValidateExactOrder(currentColumnIDs, candidateColumnIDs); err != nil {
+		return Board{}, err
 	}
 
-	sourceColumnID := task.ColumnID
-	sourceTaskIDs := sliceutil.RemoveString(r.columnTasks[sourceColumnID], taskID)
+	currentTaskIDs := make([]string, 0)
+	for _, columnID := range currentColumnIDs {
+		currentTaskIDs = append(currentTaskIDs, r.columnTasks[columnID]...)
+	}
 
-	if sourceColumnID == destinationColumnID {
-		if destinationPosition > len(sourceTaskIDs) {
-			return Task{}, Board{}, ErrInvalidInput
+	candidateTaskIDs := make([]string, 0)
+	for _, columnOrder := range orderedTasksByColumn {
+		for _, taskID := range columnOrder.TaskIDs {
+			task, ok := r.tasks[taskID]
+			if !ok || task.BoardID != boardID {
+				return Board{}, ErrInvalidInput
+			}
+			candidateTaskIDs = append(candidateTaskIDs, taskID)
 		}
-		r.columnTasks[sourceColumnID] = sliceutil.InsertStringAt(sourceTaskIDs, destinationPosition, taskID)
-		r.reindexTasks(sourceColumnID)
-	} else {
-		destinationTaskIDs := r.columnTasks[destinationColumnID]
-		if destinationPosition > len(destinationTaskIDs) {
-			return Task{}, Board{}, ErrInvalidInput
-		}
-
-		task.ColumnID = destinationColumnID
-		r.tasks[task.ID] = task
-
-		r.columnTasks[sourceColumnID] = sourceTaskIDs
-		r.columnTasks[destinationColumnID] = sliceutil.InsertStringAt(destinationTaskIDs, destinationPosition, taskID)
-		r.reindexTasks(sourceColumnID)
-		r.reindexTasks(destinationColumnID)
+	}
+	if err := ValidateExactOrder(currentTaskIDs, candidateTaskIDs); err != nil {
+		return Board{}, err
 	}
 
-	task = r.tasks[task.ID]
+	now := r.now().UTC()
+	for _, columnOrder := range orderedTasksByColumn {
+		r.columnTasks[columnOrder.ColumnID] = append([]string(nil), columnOrder.TaskIDs...)
+		for position, taskID := range columnOrder.TaskIDs {
+			task := r.tasks[taskID]
+			task.ColumnID = columnOrder.ColumnID
+			task.Position = position
+			task.UpdatedAt = now
+			r.tasks[taskID] = task
+		}
+	}
 
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
-	return task, board, nil
+	return board, nil
 }
 
 func (r *MemoryRepository) DeleteTask(_ context.Context, ownerUserID, boardID, taskID string) (Board, error) {

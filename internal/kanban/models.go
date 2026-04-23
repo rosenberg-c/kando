@@ -38,3 +38,8 @@ type BoardDetails struct {
 	Columns []Column
 	Tasks   []Task
 }
+
+type TaskColumnOrder struct {
+	ColumnID string
+	TaskIDs  []string
+}

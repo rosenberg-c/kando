@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 
 	"go_macos_todo/internal/kanban"
-	"go_macos_todo/internal/sliceutil"
 )
 
 // KanbanRepositoryConfig defines the Appwrite database and table IDs used by KanbanRepository.
@@ -476,31 +475,61 @@ func (r *KanbanRepository) UpdateTask(ctx context.Context, ownerUserID, boardID,
 	return mapTaskRow(task), mapBoardRow(board), nil
 }
 
-func (r *KanbanRepository) MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (kanban.Task, kanban.Board, error) {
-	if destinationPosition < 0 {
-		return kanban.Task{}, kanban.Board{}, kanban.ErrInvalidInput
-	}
-
+func (r *KanbanRepository) ReorderTasks(ctx context.Context, ownerUserID, boardID string, orderedTasksByColumn []kanban.TaskColumnOrder) (kanban.Board, error) {
 	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
 	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
+		return kanban.Board{}, err
 	}
-	task, err := r.getOwnedTask(ctx, ownerUserID, boardID, taskID)
+
+	columns, err := r.listColumns(ctx)
 	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
+		return kanban.Board{}, err
 	}
-	if _, err := r.getOwnedColumn(ctx, ownerUserID, boardID, destinationColumnID); err != nil {
-		return kanban.Task{}, kanban.Board{}, err
+	currentColumnIDs := make([]string, 0)
+	for _, column := range columns {
+		if column.BoardID == boardID {
+			currentColumnIDs = append(currentColumnIDs, column.ID)
+		}
+	}
+
+	candidateColumnIDs := make([]string, 0, len(orderedTasksByColumn))
+	for _, columnOrder := range orderedTasksByColumn {
+		candidateColumnIDs = append(candidateColumnIDs, columnOrder.ColumnID)
+	}
+	if err := kanban.ValidateExactOrder(currentColumnIDs, candidateColumnIDs); err != nil {
+		return kanban.Board{}, err
 	}
 
 	tasks, err := r.listTasks(ctx)
 	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
+		return kanban.Board{}, err
+	}
+	currentTaskIDs := make([]string, 0)
+	boardTaskByID := map[string]taskRow{}
+	for _, task := range tasks {
+		if task.BoardID == boardID {
+			currentTaskIDs = append(currentTaskIDs, task.ID)
+			boardTaskByID[task.ID] = task
+		}
+	}
+
+	candidateTaskIDs := make([]string, 0)
+	for _, columnOrder := range orderedTasksByColumn {
+		for _, taskID := range columnOrder.TaskIDs {
+			task, ok := boardTaskByID[taskID]
+			if !ok || task.OwnerUserID != ownerUserID {
+				return kanban.Board{}, kanban.ErrInvalidInput
+			}
+			candidateTaskIDs = append(candidateTaskIDs, taskID)
+		}
+	}
+	if err := kanban.ValidateExactOrder(currentTaskIDs, candidateTaskIDs); err != nil {
+		return kanban.Board{}, err
 	}
 
 	transactionID, err := r.client.createTransaction(ctx, transactionTTLSec)
 	if err != nil {
-		return kanban.Task{}, kanban.Board{}, mapAppwriteError(err)
+		return kanban.Board{}, mapAppwriteError(err)
 	}
 	committed := false
 	defer func() {
@@ -512,56 +541,29 @@ func (r *KanbanRepository) MoveTask(ctx context.Context, ownerUserID, boardID, t
 		_ = r.client.rollbackTransaction(rollbackCtx, transactionID)
 	}()
 
-	sourceColumnID := task.ColumnID
-	sourceTaskIDs := orderedTaskIDsByColumn(tasks, sourceColumnID)
-	sourceWithoutTask := sliceutil.RemoveString(sourceTaskIDs, taskID)
-	if len(sourceWithoutTask) != len(sourceTaskIDs)-1 {
-		return kanban.Task{}, kanban.Board{}, kanban.ErrNotFound
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339)
-	if sourceColumnID == destinationColumnID {
-		if destinationPosition > len(sourceWithoutTask) {
-			return kanban.Task{}, kanban.Board{}, kanban.ErrInvalidInput
-		}
-		updatedOrder := sliceutil.InsertStringAt(sourceWithoutTask, destinationPosition, taskID)
-		if err := r.applyTaskOrder(ctx, sourceColumnID, updatedOrder, now, transactionID); err != nil {
-			return kanban.Task{}, kanban.Board{}, err
-		}
-	} else {
-		destinationTaskIDs := orderedTaskIDsByColumn(tasks, destinationColumnID)
-		if destinationPosition > len(destinationTaskIDs) {
-			return kanban.Task{}, kanban.Board{}, kanban.ErrInvalidInput
-		}
-		updatedDestinationOrder := sliceutil.InsertStringAt(destinationTaskIDs, destinationPosition, taskID)
-		if err := r.applyTaskOrder(ctx, sourceColumnID, sourceWithoutTask, now, transactionID); err != nil {
-			return kanban.Task{}, kanban.Board{}, err
-		}
-		if err := r.applyTaskOrder(ctx, destinationColumnID, updatedDestinationOrder, now, transactionID); err != nil {
-			return kanban.Task{}, kanban.Board{}, err
+	for _, columnOrder := range orderedTasksByColumn {
+		if err := r.applyTaskOrder(ctx, columnOrder.ColumnID, columnOrder.TaskIDs, now, transactionID); err != nil {
+			return kanban.Board{}, err
 		}
 	}
 
 	boardUpdate := map[string]any{"data": map[string]any{"boardVersion": board.BoardVersion + 1, "updatedAt": now}, "transactionId": transactionID}
 	if err := r.updateRow(ctx, r.boards, board.ID, boardUpdate, nil); err != nil {
-		return kanban.Task{}, kanban.Board{}, err
+		return kanban.Board{}, err
 	}
 
 	if err := r.client.commitTransaction(ctx, transactionID); err != nil {
-		return kanban.Task{}, kanban.Board{}, mapAppwriteError(err)
+		return kanban.Board{}, mapAppwriteError(err)
 	}
 	committed = true
 
 	board, err = r.getBoardRow(ctx, board.ID)
 	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-	updatedTask, err := r.getTaskRow(ctx, taskID)
-	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
+		return kanban.Board{}, err
 	}
 
-	return mapTaskRow(updatedTask), mapBoardRow(board), nil
+	return mapBoardRow(board), nil
 }
 
 func (r *KanbanRepository) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Board, error) {

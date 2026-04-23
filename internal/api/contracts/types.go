@@ -88,7 +88,11 @@ type UpdateTaskRequest struct {
 	Description string `json:"description" maxLength:"4000"`
 }
 
-type MoveTaskRequest struct {
-	DestinationColumnID string `json:"destinationColumnId" format:"uuid"`
-	DestinationPosition int    `json:"destinationPosition" minimum:"0"`
+type TaskColumnOrderRequest struct {
+	ColumnID string   `json:"columnId" format:"uuid"`
+	TaskIDs  []string `json:"taskIds" nullable:"false"`
+}
+
+type ReorderTasksRequest struct {
+	Columns []TaskColumnOrderRequest `json:"columns" minItems:"1" nullable:"false"`
 }

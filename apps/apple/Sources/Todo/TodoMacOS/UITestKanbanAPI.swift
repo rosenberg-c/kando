@@ -81,59 +81,43 @@ actor UITestKanbanAPI: KanbanAPI {
         tasks[index] = KanbanTask(id: current.id, columnID: current.columnID, title: title, description: description, position: current.position)
     }
 
-    func moveTask(boardID: String, taskID: String, destinationColumnID: String, destinationPosition: Int, accessToken: String, baseURL: URL) async throws {
-        guard destinationPosition >= 0 else {
-            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "moveTask", title: "Bad Request", detail: "invalid destination position")
-        }
-        guard columns.contains(where: { $0.id == destinationColumnID }) else {
-            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "moveTask", title: "Not Found", detail: "destination column not found")
-        }
-        guard let movingIndex = tasks.firstIndex(where: { $0.id == taskID }) else {
-            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "moveTask", title: "Not Found", detail: "task not found")
+    func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws {
+        let expectedColumns = Set(columns.map(\.id))
+        let providedColumns = Set(orderedTasksByColumn.map(\.columnID))
+        guard expectedColumns == providedColumns else {
+            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "reorderTasks", title: "Bad Request", detail: "invalid column list")
         }
 
-        let movingTask = tasks[movingIndex]
-        var sourceTasks = tasks.filter { $0.columnID == movingTask.columnID && $0.id != movingTask.id }
-        sourceTasks.sort { $0.position < $1.position }
+        let expectedTaskIDs = Set(tasks.map(\.id))
+        let providedTaskIDs = Set(orderedTasksByColumn.flatMap(\.taskIDs))
+        guard expectedTaskIDs == providedTaskIDs else {
+            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "reorderTasks", title: "Bad Request", detail: "invalid task list")
+        }
 
-        if movingTask.columnID == destinationColumnID {
-            guard destinationPosition <= sourceTasks.count else {
-                throw KanbanAPIError.unexpectedStatus(code: 400, operation: "moveTask", title: "Bad Request", detail: "invalid destination position")
-            }
-            sourceTasks.insert(
-                KanbanTask(id: movingTask.id, columnID: destinationColumnID, title: movingTask.title, description: movingTask.description, position: destinationPosition),
-                at: destinationPosition
-            )
-            for (index, task) in sourceTasks.enumerated() {
-                if let fullIndex = tasks.firstIndex(where: { $0.id == task.id }) {
-                    tasks[fullIndex] = KanbanTask(id: task.id, columnID: destinationColumnID, title: task.title, description: task.description, position: index)
+        var taskByID: [String: KanbanTask] = [:]
+        for task in tasks {
+            taskByID[task.id] = task
+        }
+
+        var reordered: [KanbanTask] = []
+        for columnOrder in orderedTasksByColumn {
+            for (position, taskID) in columnOrder.taskIDs.enumerated() {
+                guard let task = taskByID[taskID] else {
+                    throw KanbanAPIError.unexpectedStatus(code: 400, operation: "reorderTasks", title: "Bad Request", detail: "invalid task id")
                 }
-            }
-            return
-        }
-
-        var destinationTasks = tasks.filter { $0.columnID == destinationColumnID }
-        destinationTasks.sort { $0.position < $1.position }
-        guard destinationPosition <= destinationTasks.count else {
-            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "moveTask", title: "Bad Request", detail: "invalid destination position")
-        }
-
-        destinationTasks.insert(
-            KanbanTask(id: movingTask.id, columnID: destinationColumnID, title: movingTask.title, description: movingTask.description, position: destinationPosition),
-            at: destinationPosition
-        )
-
-        for (index, task) in sourceTasks.enumerated() {
-            if let fullIndex = tasks.firstIndex(where: { $0.id == task.id }) {
-                tasks[fullIndex] = KanbanTask(id: task.id, columnID: task.columnID, title: task.title, description: task.description, position: index)
+                reordered.append(
+                    KanbanTask(
+                        id: task.id,
+                        columnID: columnOrder.columnID,
+                        title: task.title,
+                        description: task.description,
+                        position: position
+                    )
+                )
             }
         }
 
-        for (index, task) in destinationTasks.enumerated() {
-            if let fullIndex = tasks.firstIndex(where: { $0.id == task.id }) {
-                tasks[fullIndex] = KanbanTask(id: task.id, columnID: destinationColumnID, title: task.title, description: task.description, position: index)
-            }
-        }
+        tasks = reordered
     }
 
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {

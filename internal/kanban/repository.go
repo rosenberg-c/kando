@@ -16,6 +16,6 @@ type Repository interface {
 
 	CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error)
 	UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error)
-	MoveTask(ctx context.Context, ownerUserID, boardID, taskID, destinationColumnID string, destinationPosition int) (Task, Board, error)
+	ReorderTasks(ctx context.Context, ownerUserID, boardID string, orderedTasksByColumn []TaskColumnOrder) (Board, error)
 	DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error)
 }
