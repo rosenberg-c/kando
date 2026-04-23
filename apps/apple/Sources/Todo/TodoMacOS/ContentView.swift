@@ -162,6 +162,7 @@ private struct LoggedInWorkspaceView: View {
                         Task { await board.reloadBoard() }
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("board-refresh-button")
 
                     Button("board.column.reorder.mode.enter") {
                         reorderSheetColumns = board.columns
@@ -450,6 +451,8 @@ private struct BlockingLoadingOverlay: View {
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(message)
         .accessibilityIdentifier(accessibilityID)
     }
 }

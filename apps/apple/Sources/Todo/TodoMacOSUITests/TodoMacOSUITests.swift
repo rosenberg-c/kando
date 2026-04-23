@@ -101,19 +101,25 @@ final class TodoMacOSUITests: XCTestCase {
     @MainActor
     func testBoardLoadingOverlayAppearsDuringSlowLoad() throws {
         // Requirement: UX-009
-        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.mockDelayMs: "1200"])
-
-        let loadingOverlay = app.otherElements["board-loading-overlay"]
-        XCTAssertTrue(loadingOverlay.waitForExistence(timeout: 3), "Expected board loading overlay during pending load")
-
-        XCTAssertTrue(
-            waitUntil(timeout: 6) { !loadingOverlay.exists },
-            "Expected board loading overlay to disappear after load completes"
-        )
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.mockDelayMs: "1500"])
 
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
-        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 2), "Expected edit mode toggle after board load")
-        XCTAssertTrue(waitUntil(timeout: 3) { editModeToggle.isEnabled }, "Expected interactions to be re-enabled after loading")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 6), "Expected edit mode toggle after initial board load")
+        XCTAssertTrue(waitUntil(timeout: 6) { editModeToggle.isEnabled }, "Expected board interactions to be enabled before refresh")
+
+        let refreshButton = app.buttons["board-refresh-button"]
+        XCTAssertTrue(refreshButton.waitForExistence(timeout: 3), "Expected refresh button")
+        refreshButton.tap()
+
+        let loadingOverlay = app.otherElements["board-loading-overlay"]
+        XCTAssertTrue(loadingOverlay.waitForExistence(timeout: 2), "Expected board loading overlay during pending refresh")
+        XCTAssertTrue(waitUntil(timeout: 2) { !editModeToggle.isHittable }, "Expected interactions blocked while overlay is visible")
+
+        XCTAssertTrue(
+            waitUntil(timeout: 8) { !loadingOverlay.exists },
+            "Expected board loading overlay to disappear after refresh completes"
+        )
+        XCTAssertTrue(waitUntil(timeout: 3) { editModeToggle.isHittable }, "Expected interactions to be re-enabled after loading")
     }
 
     @MainActor
