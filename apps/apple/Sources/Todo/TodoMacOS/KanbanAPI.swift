@@ -71,6 +71,7 @@ protocol KanbanAPI: Sendable {
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails
     func createColumn(boardID: String, title: String, accessToken: String, baseURL: URL) async throws
     func updateColumn(boardID: String, columnID: String, title: String, accessToken: String, baseURL: URL) async throws
+    func reorderColumns(boardID: String, orderedColumnIDs: [String], accessToken: String, baseURL: URL) async throws
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws

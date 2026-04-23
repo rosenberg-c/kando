@@ -154,6 +154,13 @@ type MoveTaskRequest struct {
 	DestinationPosition int64              `json:"destinationPosition"`
 }
 
+// ReorderColumnsRequest defines model for ReorderColumnsRequest.
+type ReorderColumnsRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema    *string  `json:"$schema,omitempty"`
+	ColumnIds []string `json:"columnIds"`
+}
+
 // Task defines model for Task.
 type Task struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -220,6 +227,11 @@ type CreateColumnParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
+// ReorderColumnsParams defines parameters for ReorderColumns.
+type ReorderColumnsParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // DeleteColumnParams defines parameters for DeleteColumn.
 type DeleteColumnParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -272,6 +284,9 @@ type UpdateBoardJSONRequestBody = UpdateBoardRequest
 
 // CreateColumnJSONRequestBody defines body for CreateColumn for application/json ContentType.
 type CreateColumnJSONRequestBody = CreateColumnRequest
+
+// ReorderColumnsJSONRequestBody defines body for ReorderColumns for application/json ContentType.
+type ReorderColumnsJSONRequestBody = ReorderColumnsRequest
 
 // UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
 type UpdateColumnJSONRequestBody = UpdateColumnRequest
@@ -396,6 +411,11 @@ type ClientInterface interface {
 	CreateColumnWithBody(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateColumn(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReorderColumnsWithBody request with any body
+	ReorderColumnsWithBody(ctx context.Context, boardId string, params *ReorderColumnsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReorderColumns(ctx context.Context, boardId string, params *ReorderColumnsParams, body ReorderColumnsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteColumn request
 	DeleteColumn(ctx context.Context, boardId string, columnId string, params *DeleteColumnParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -600,6 +620,30 @@ func (c *Client) CreateColumnWithBody(ctx context.Context, boardId string, param
 
 func (c *Client) CreateColumn(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateColumnRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReorderColumnsWithBody(ctx context.Context, boardId string, params *ReorderColumnsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReorderColumnsRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReorderColumns(ctx context.Context, boardId string, params *ReorderColumnsParams, body ReorderColumnsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReorderColumnsRequest(c.Server, boardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1193,6 +1237,68 @@ func NewCreateColumnRequestWithBody(server string, boardId string, params *Creat
 	return req, nil
 }
 
+// NewReorderColumnsRequest calls the generic ReorderColumns builder with application/json body
+func NewReorderColumnsRequest(server string, boardId string, params *ReorderColumnsParams, body ReorderColumnsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReorderColumnsRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewReorderColumnsRequestWithBody generates requests for ReorderColumns with any type of body
+func NewReorderColumnsRequestWithBody(server string, boardId string, params *ReorderColumnsParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/columns/order", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDeleteColumnRequest generates requests for DeleteColumn
 func NewDeleteColumnRequest(server string, boardId string, columnId string, params *DeleteColumnParams) (*http.Request, error) {
 	var err error
@@ -1725,6 +1831,11 @@ type ClientWithResponsesInterface interface {
 
 	CreateColumnWithResponse(ctx context.Context, boardId string, params *CreateColumnParams, body CreateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateColumnResponse, error)
 
+	// ReorderColumnsWithBodyWithResponse request with any body
+	ReorderColumnsWithBodyWithResponse(ctx context.Context, boardId string, params *ReorderColumnsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReorderColumnsResponse, error)
+
+	ReorderColumnsWithResponse(ctx context.Context, boardId string, params *ReorderColumnsParams, body ReorderColumnsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReorderColumnsResponse, error)
+
 	// DeleteColumnWithResponse request
 	DeleteColumnWithResponse(ctx context.Context, boardId string, columnId string, params *DeleteColumnParams, reqEditors ...RequestEditorFn) (*DeleteColumnResponse, error)
 
@@ -1957,6 +2068,29 @@ func (r CreateColumnResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateColumnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReorderColumnsResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]Column
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ReorderColumnsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReorderColumnsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2271,6 +2405,23 @@ func (c *ClientWithResponses) CreateColumnWithResponse(ctx context.Context, boar
 		return nil, err
 	}
 	return ParseCreateColumnResponse(rsp)
+}
+
+// ReorderColumnsWithBodyWithResponse request with arbitrary body returning *ReorderColumnsResponse
+func (c *ClientWithResponses) ReorderColumnsWithBodyWithResponse(ctx context.Context, boardId string, params *ReorderColumnsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReorderColumnsResponse, error) {
+	rsp, err := c.ReorderColumnsWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReorderColumnsResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReorderColumnsWithResponse(ctx context.Context, boardId string, params *ReorderColumnsParams, body ReorderColumnsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReorderColumnsResponse, error) {
+	rsp, err := c.ReorderColumns(ctx, boardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReorderColumnsResponse(rsp)
 }
 
 // DeleteColumnWithResponse request returning *DeleteColumnResponse
@@ -2643,6 +2794,39 @@ func ParseCreateColumnResponse(rsp *http.Response) (*CreateColumnResponse, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Column
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReorderColumnsResponse parses an HTTP response from a ReorderColumnsWithResponse call
+func ParseReorderColumnsResponse(rsp *http.Response) (*ReorderColumnsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReorderColumnsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Column
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

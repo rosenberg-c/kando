@@ -296,6 +296,23 @@ components:
         - destinationColumnId
         - destinationPosition
       type: object
+    ReorderColumnsRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/ReorderColumnsRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        columnIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - columnIds
+      type: object
     Task:
       additionalProperties: false
       properties:
@@ -646,6 +663,44 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a column
+  /boards/{boardId}/columns/order:
+    put:
+      operationId: reorderColumns
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderColumnsRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Column"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Replace board column order
   /boards/{boardId}/columns/{columnId}:
     delete:
       operationId: deleteColumn

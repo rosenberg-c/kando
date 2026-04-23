@@ -203,6 +203,28 @@ func (r *MemoryRepository) UpdateColumnTitle(_ context.Context, ownerUserID, boa
 	return column, board, nil
 }
 
+func (r *MemoryRepository) ReorderColumns(_ context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (Board, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+
+	currentIDs := r.boardColumns[boardID]
+	if err := ValidateExactOrder(currentIDs, orderedColumnIDs); err != nil {
+		return Board{}, err
+	}
+
+	r.boardColumns[boardID] = append([]string(nil), orderedColumnIDs...)
+	r.reindexColumns(boardID)
+
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+	return board, nil
+}
+
 func (r *MemoryRepository) DeleteColumn(_ context.Context, ownerUserID, boardID, columnID string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

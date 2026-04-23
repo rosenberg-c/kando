@@ -60,6 +60,13 @@ func (s *Service) UpdateColumnTitle(ctx context.Context, ownerUserID, boardID, c
 	return s.repo.UpdateColumnTitle(ctx, ownerUserID, boardID, columnID, trimmedTitle)
 }
 
+func (s *Service) ReorderColumns(ctx context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (Board, error) {
+	if len(orderedColumnIDs) == 0 {
+		return Board{}, ErrInvalidInput
+	}
+	return s.repo.ReorderColumns(ctx, ownerUserID, boardID, orderedColumnIDs)
+}
+
 func (s *Service) DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (Board, error) {
 	details, err := s.repo.GetBoard(ctx, ownerUserID, boardID)
 	if err != nil {

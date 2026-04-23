@@ -73,6 +73,10 @@ type UpdateColumnRequest struct {
 	Title string `json:"title" minLength:"1" maxLength:"120"`
 }
 
+type ReorderColumnsRequest struct {
+	ColumnIDs []string `json:"columnIds" minItems:"1" nullable:"false"`
+}
+
 type CreateTaskRequest struct {
 	ColumnID    string `json:"columnId" format:"uuid"`
 	Title       string `json:"title" minLength:"1" maxLength:"200"`

@@ -300,6 +300,43 @@ func (r *SQLiteRepository) UpdateColumnTitle(ctx context.Context, ownerUserID, b
 	return column, board, nil
 }
 
+func (r *SQLiteRepository) ReorderColumns(ctx context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (Board, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Board{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+
+	currentIDs, err := columnIDsByBoardTx(ctx, tx, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+	if err := ValidateExactOrder(currentIDs, orderedColumnIDs); err != nil {
+		return Board{}, err
+	}
+
+	now := r.now().UTC()
+	if err := applyColumnOrderTx(ctx, tx, orderedColumnIDs, now); err != nil {
+		return Board{}, err
+	}
+
+	board, err = bumpBoardTx(ctx, tx, board, now)
+	if err != nil {
+		return Board{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Board{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return board, nil
+}
+
 func (r *SQLiteRepository) DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -566,7 +603,7 @@ func (r *SQLiteRepository) listColumns(ctx context.Context, boardID string) ([]C
 		`SELECT id, board_id, owner_user_id, title, position, created_at_ms, updated_at_ms
 		 FROM columns
 		 WHERE board_id = ?
-		 ORDER BY position`,
+		 ORDER BY position, id`,
 		boardID,
 	)
 	if err != nil {

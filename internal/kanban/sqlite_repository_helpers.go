@@ -164,7 +164,7 @@ func nextPosition(ctx context.Context, q queryRower, query string, arg string) (
 }
 
 func reindexColumnsTx(ctx context.Context, tx *sql.Tx, boardID string, now time.Time) error {
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM columns WHERE board_id = ? ORDER BY position`, boardID)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM columns WHERE board_id = ? ORDER BY position, id`, boardID)
 	if err != nil {
 		return fmt.Errorf("list columns for reindex: %w", err)
 	}
@@ -264,6 +264,44 @@ func applyTaskOrderTx(ctx context.Context, tx *sql.Tx, columnID string, taskIDs 
 			id,
 		); err != nil {
 			return fmt.Errorf("apply task order: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func columnIDsByBoardTx(ctx context.Context, tx *sql.Tx, boardID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM columns WHERE board_id = ? ORDER BY position, id`, boardID)
+	if err != nil {
+		return nil, fmt.Errorf("list column ids by board: %w", err)
+	}
+	defer rows.Close()
+
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan column id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate column ids by board: %w", err)
+	}
+
+	return ids, nil
+}
+
+func applyColumnOrderTx(ctx context.Context, tx *sql.Tx, columnIDs []string, now time.Time) error {
+	for i, id := range columnIDs {
+		if _, err := tx.ExecContext(
+			ctx,
+			`UPDATE columns SET position = ?, updated_at_ms = ? WHERE id = ?`,
+			i,
+			toUnixMillis(now),
+			id,
+		); err != nil {
+			return fmt.Errorf("apply column order: %w", err)
 		}
 	}
 

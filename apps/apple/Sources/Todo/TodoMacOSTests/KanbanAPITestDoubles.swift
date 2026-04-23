@@ -38,6 +38,7 @@ struct MockKanbanAPI: KanbanAPI {
     var getBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoardDetails
     var createColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
     var updateColumnHandler: @Sendable (String, String, String, String, URL) async throws -> Void
+    var reorderColumnsHandler: @Sendable (String, [String], String, URL) async throws -> Void
     var deleteColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
     var createTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
@@ -53,6 +54,7 @@ struct MockKanbanAPI: KanbanAPI {
         },
         createColumnHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
         updateColumnHandler: @escaping @Sendable (String, String, String, String, URL) async throws -> Void = { _, _, _, _, _ in },
+        reorderColumnsHandler: @escaping @Sendable (String, [String], String, URL) async throws -> Void = { _, _, _, _ in },
         deleteColumnHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
         createTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
@@ -63,6 +65,7 @@ struct MockKanbanAPI: KanbanAPI {
         self.getBoardHandler = getBoardHandler
         self.createColumnHandler = createColumnHandler
         self.updateColumnHandler = updateColumnHandler
+        self.reorderColumnsHandler = reorderColumnsHandler
         self.deleteColumnHandler = deleteColumnHandler
         self.createTaskHandler = createTaskHandler
         self.updateTaskHandler = updateTaskHandler
@@ -84,6 +87,10 @@ struct MockKanbanAPI: KanbanAPI {
 
     func updateColumn(boardID: String, columnID: String, title: String, accessToken: String, baseURL: URL) async throws {
         try await updateColumnHandler(boardID, columnID, title, accessToken, baseURL)
+    }
+
+    func reorderColumns(boardID: String, orderedColumnIDs: [String], accessToken: String, baseURL: URL) async throws {
+        try await reorderColumnsHandler(boardID, orderedColumnIDs, accessToken, baseURL)
     }
 
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {

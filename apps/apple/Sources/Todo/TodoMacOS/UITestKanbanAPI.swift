@@ -48,6 +48,13 @@ actor UITestKanbanAPI: KanbanAPI {
         columns[index] = KanbanColumn(id: columns[index].id, title: title, position: columns[index].position)
     }
 
+    func reorderColumns(boardID: String, orderedColumnIDs: [String], accessToken: String, baseURL: URL) async throws {
+        guard let reordered = reorderedColumns(columns, orderedIDs: orderedColumnIDs) else {
+            throw KanbanAPIError.unexpectedStatus(code: 400, operation: "reorderColumns", title: "Bad Request", detail: "invalid column order")
+        }
+        columns = reordered
+    }
+
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {
         if tasks.contains(where: { $0.columnID == columnID }) {
             throw KanbanAPIError.unexpectedStatus(

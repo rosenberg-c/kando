@@ -7,19 +7,22 @@ import (
 )
 
 type serviceRepoStub struct {
-	details           BoardDetails
-	createBoardResult Board
-	deleteColumnBoard Board
-	moveTaskTask      Task
-	moveTaskBoard     Board
-	createBoardCalls  int
-	getBoardCalls     int
-	deleteColumnCalls int
-	moveTaskCalls     int
-	createBoardErr    error
-	getBoardErr       error
-	deleteColumnErr   error
-	moveTaskErr       error
+	details             BoardDetails
+	createBoardResult   Board
+	deleteColumnBoard   Board
+	moveTaskTask        Task
+	moveTaskBoard       Board
+	reorderColumnsBoard Board
+	createBoardCalls    int
+	getBoardCalls       int
+	deleteColumnCalls   int
+	moveTaskCalls       int
+	reorderColumnsCalls int
+	createBoardErr      error
+	getBoardErr         error
+	deleteColumnErr     error
+	moveTaskErr         error
+	reorderColumnsErr   error
 }
 
 func (s *serviceRepoStub) ListBoardsByOwner(context.Context, string) ([]Board, error) {
@@ -64,6 +67,14 @@ func (s *serviceRepoStub) DeleteColumn(context.Context, string, string, string) 
 		return Board{}, s.deleteColumnErr
 	}
 	return s.deleteColumnBoard, nil
+}
+
+func (s *serviceRepoStub) ReorderColumns(context.Context, string, string, []string) (Board, error) {
+	s.reorderColumnsCalls++
+	if s.reorderColumnsErr != nil {
+		return Board{}, s.reorderColumnsErr
+	}
+	return s.reorderColumnsBoard, nil
 }
 
 func (s *serviceRepoStub) CreateTask(context.Context, string, string, string, string, string) (Task, Board, error) {
@@ -162,6 +173,41 @@ func TestServiceMoveTaskRejectsNegativePosition(t *testing.T) {
 	}
 	if stub.moveTaskCalls != 0 {
 		t.Fatalf("move task calls = %d, want 0", stub.moveTaskCalls)
+	}
+}
+
+func TestServiceReorderColumnsRejectsEmptyList(t *testing.T) {
+	// Requirement: COL-MOVE-006
+	t.Parallel()
+
+	stub := &serviceRepoStub{}
+	svc := NewService(stub)
+
+	_, err := svc.ReorderColumns(context.Background(), "user-1", "board-1", nil)
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("reorder columns err = %v, want ErrInvalidInput", err)
+	}
+	if stub.reorderColumnsCalls != 0 {
+		t.Fatalf("reorder columns calls = %d, want 0", stub.reorderColumnsCalls)
+	}
+}
+
+func TestServiceReorderColumnsDelegates(t *testing.T) {
+	// Requirement: COL-MOVE-001
+	t.Parallel()
+
+	stub := &serviceRepoStub{reorderColumnsBoard: Board{ID: "board-1"}}
+	svc := NewService(stub)
+
+	board, err := svc.ReorderColumns(context.Background(), "user-1", "board-1", []string{"a", "b"})
+	if err != nil {
+		t.Fatalf("reorder columns: %v", err)
+	}
+	if board.ID != "board-1" {
+		t.Fatalf("board id = %q, want %q", board.ID, "board-1")
+	}
+	if stub.reorderColumnsCalls != 1 {
+		t.Fatalf("reorder columns calls = %d, want 1", stub.reorderColumnsCalls)
 	}
 }
 

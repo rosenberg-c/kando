@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -33,6 +34,10 @@ type remoteAddrContextKey struct{}
 
 func NewAPI() (*http.ServeMux, huma.API) {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, _ *http.Request) {
+		writeProblem(writer, http.StatusNotFound, "Not Found", "not found")
+	})
+
 	config := huma.DefaultConfig("Go MacOS Task API", "0.1.0")
 	config.OpenAPIPath = ""
 	config.DocsPath = ""
@@ -95,4 +100,14 @@ func bearerToken(value string) (string, bool) {
 	}
 
 	return token, true
+}
+
+func writeProblem(writer http.ResponseWriter, status int, title, detail string) {
+	writer.Header().Set("Content-Type", "application/problem+json")
+	writer.WriteHeader(status)
+	_ = json.NewEncoder(writer).Encode(map[string]any{
+		"title":  title,
+		"detail": detail,
+		"status": status,
+	})
 }

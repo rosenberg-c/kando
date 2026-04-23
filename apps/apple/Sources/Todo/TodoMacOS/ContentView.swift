@@ -123,6 +123,9 @@ private struct LoggedInWorkspaceView: View {
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
+    @State private var isReorderSheetPresented = false
+    @State private var reorderSheetColumns: [KanbanColumn] = []
+    @State private var isApplyingReorder = false
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -154,6 +157,14 @@ private struct LoggedInWorkspaceView: View {
                     Task { await board.reloadBoard() }
                 }
                 .buttonStyle(.bordered)
+
+                Button("board.column.reorder.mode.enter") {
+                    reorderSheetColumns = board.columns
+                    isReorderSheetPresented = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(!board.canMutateBoardActions)
+                .accessibilityIdentifier("board-edit-mode-toggle")
 
                 Button("loggedin.signout", action: onSignOut)
                     .buttonStyle(.bordered)
@@ -288,6 +299,26 @@ private struct LoggedInWorkspaceView: View {
                 }
             )
         }
+        .sheet(isPresented: $isReorderSheetPresented) {
+            ColumnReorderSheet(
+                columns: $reorderSheetColumns,
+                isApplying: isApplyingReorder,
+                onCancel: {
+                    guard !isApplyingReorder else { return }
+                    isReorderSheetPresented = false
+                },
+                onDone: {
+                    guard !isApplyingReorder else { return }
+                    isApplyingReorder = true
+                    Task {
+                        defer { isApplyingReorder = false }
+                        if await applyColumnReorder(targetOrderIDs: reorderSheetColumns.map(\.id)) {
+                            isReorderSheetPresented = false
+                        }
+                    }
+                }
+            )
+        }
         .sheet(item: $creatingTaskInColumn) { target in
             TaskEditorSheet(
                 title: Strings.t("board.task.create.title"),
@@ -380,6 +411,12 @@ private struct LoggedInWorkspaceView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    private func applyColumnReorder(targetOrderIDs: [String]) async -> Bool {
+        let didReorder = await board.reorderColumns(orderedColumnIDs: targetOrderIDs)
+        reorderSheetColumns = board.columns
+        return didReorder
     }
 }
 
@@ -491,6 +528,109 @@ private struct ColumnCard: View {
                 .allowsHitTesting(false)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+private struct ColumnReorderSheet: View {
+    @Binding var columns: [KanbanColumn]
+    let isApplying: Bool
+    let onCancel: () -> Void
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("board.column.reorder.title")
+                .font(.title3.weight(.semibold))
+            Text("board.column.reorder.subtitle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(columns, id: \.id) { column in
+                        reorderTile(for: column)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .accessibilityIdentifier("board-reorder-row")
+
+            HStack {
+                Spacer()
+                Button("common.cancel", action: onCancel)
+                    .disabled(isApplying)
+                Button("board.column.reorder.done", action: onDone)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isApplying)
+                    .accessibilityIdentifier("board-reorder-done")
+            }
+        }
+        .padding(20)
+        .frame(width: 680)
+        .overlay(alignment: .topTrailing) {
+            if isApplying {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.top, 4)
+            }
+        }
+        .accessibilityIdentifier("board-reorder-sheet")
+    }
+
+    @ViewBuilder
+    private func reorderTile(for column: KanbanColumn) -> some View {
+        let index = columns.firstIndex(where: { $0.id == column.id }) ?? 0
+        let canMoveLeft = index > 0
+        let canMoveRight = index < columns.count - 1
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text(column.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            HStack(spacing: 6) {
+                Button("board.column.move_left") {
+                    moveColumnLocally(from: index, to: index - 1)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!canMoveLeft || isApplying)
+                .accessibilityIdentifier("board-reorder-move-left-\(column.id)")
+
+                Button("board.column.move_right") {
+                    moveColumnLocally(from: index, to: index + 1)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!canMoveRight || isApplying)
+                .accessibilityIdentifier("board-reorder-move-right-\(column.id)")
+            }
+        }
+        .padding(10)
+        .frame(width: 180, alignment: .leading)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+        )
+        .draggable(ColumnDragItem(columnID: column.id))
+        .dropDestination(for: ColumnDragItem.self) { items, _ in
+            guard let sourceID = items.first?.columnID else { return false }
+            guard
+                let sourceIndex = columns.firstIndex(where: { $0.id == sourceID }),
+                let destinationIndex = columns.firstIndex(where: { $0.id == column.id }),
+                sourceIndex != destinationIndex
+            else {
+                return false
+            }
+            moveColumnLocally(from: sourceIndex, to: destinationIndex)
+            return true
+        }
+    }
+
+    private func moveColumnLocally(from source: Int, to destination: Int) {
+        guard let reordered = reorderedColumns(columns, from: source, to: destination) else {
+            return
+        }
+        columns = reordered
     }
 }
 
@@ -649,7 +789,42 @@ private struct TaskDragItem: Transferable {
     }
 }
 
+private struct ColumnDragItem: Transferable {
+    let columnID: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(
+            contentType: ColumnDragPayload.type,
+            exporting: { item in encodedPayload(for: item.columnID) },
+            importing: { data in ColumnDragItem(columnID: try decodeColumnID(from: data)) }
+        )
+    }
+
+    private static func encodedPayload(for columnID: String) -> Data {
+        Data("\(ColumnDragPayload.payloadPrefix)\(columnID)".utf8)
+    }
+
+    private static func decodeColumnID(from data: Data) throws -> String {
+        guard
+            let payload = String(data: data, encoding: .utf8),
+            payload.hasPrefix(ColumnDragPayload.payloadPrefix)
+        else {
+            throw ColumnDragItemTransferError.invalidPayload
+        }
+
+        let columnID = String(payload.dropFirst(ColumnDragPayload.payloadPrefix.count))
+        guard !columnID.isEmpty else {
+            throw ColumnDragItemTransferError.invalidPayload
+        }
+        return columnID
+    }
+}
+
 private enum TaskDragItemTransferError: Error {
+    case invalidPayload
+}
+
+private enum ColumnDragItemTransferError: Error {
     case invalidPayload
 }
 
@@ -658,6 +833,13 @@ private enum TaskDragPayload {
     static let sessionToken = UUID().uuidString.lowercased()
     static let payloadPrefix = "\(prefix):\(sessionToken):"
     static let type = UTType(exportedAs: "com.todo.task-id", conformingTo: .data)
+}
+
+private enum ColumnDragPayload {
+    static let prefix = "todo-column"
+    static let sessionToken = UUID().uuidString.lowercased()
+    static let payloadPrefix = "\(prefix):\(sessionToken):"
+    static let type = UTType(exportedAs: "com.todo.column-id", conformingTo: .data)
 }
 
 #Preview {

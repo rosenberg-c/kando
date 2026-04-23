@@ -272,6 +272,47 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testReorderColumnsFromEditBoardModal() throws {
+        // Requirement: COL-MOVE-009
+        let app = launchSignedInApp()
+        let uiTimeout: TimeInterval = 8
+        let perElementTimeout: TimeInterval = 2
+
+        let workColumnCard = columnDropZoneElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
+        let emptyColumnCard = columnDropZoneElement(in: app, columnID: "column-empty", fallbackIndex: 1, waitTimeout: perElementTimeout)
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
+        let reorderSheet = app.sheets.firstMatch
+        let reorderContainer = app.otherElements["board-reorder-sheet"]
+        let moveLeftButton = app.descendants(matching: .button).matching(identifier: "board-reorder-move-left-column-empty").firstMatch
+        let doneButton = app.buttons["Done"]
+
+        XCTAssertTrue(workColumnCard.waitForExistence(timeout: uiTimeout), "Expected work column card")
+        XCTAssertTrue(emptyColumnCard.waitForExistence(timeout: uiTimeout), "Expected empty column card")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: uiTimeout), "Expected board edit mode toggle")
+        XCTAssertTrue(waitUntil(timeout: uiTimeout) { editModeToggle.isEnabled }, "Expected board edit mode toggle to be enabled")
+        editModeToggle.tap()
+        XCTAssertTrue(
+            reorderSheet.waitForExistence(timeout: uiTimeout) || reorderContainer.waitForExistence(timeout: uiTimeout),
+            "Expected reorder sheet"
+        )
+        XCTAssertTrue(moveLeftButton.waitForExistence(timeout: uiTimeout), "Expected move-left button for empty column. UI:\n\(app.debugDescription)")
+        XCTAssertGreaterThan(emptyColumnCard.frame.minX, workColumnCard.frame.minX)
+
+        moveLeftButton.tap()
+        XCTAssertTrue(doneButton.waitForExistence(timeout: uiTimeout), "Expected Done button in reorder sheet")
+        doneButton.tap()
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { !reorderSheet.exists && !reorderContainer.exists },
+            "Expected reorder sheet to dismiss after tapping Done"
+        )
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { emptyColumnCard.frame.minX < workColumnCard.frame.minX },
+            "Expected empty column to move before work column after modal reorder"
+        )
+    }
+
+    @MainActor
     func testDropTaskOnDestinationColumnHeaderDoesNotFail() throws {
         // Requirement: UX-007
         let app = launchSignedInApp()
@@ -358,6 +399,17 @@ final class TodoMacOSUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         return false
+    }
+
+    private func waitUntil(timeout: TimeInterval, condition: @escaping () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return condition()
     }
 
     private func preferredElement(primary: XCUIElement, fallback: XCUIElement, waitTimeout: TimeInterval) -> XCUIElement {

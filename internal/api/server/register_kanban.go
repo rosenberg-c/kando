@@ -61,6 +61,16 @@ type updateColumnInput struct {
 	Body          contracts.UpdateColumnRequest
 }
 
+type reorderColumnsInput struct {
+	Authorization string `header:"Authorization"`
+	BoardID       string `path:"boardId"`
+	Body          contracts.ReorderColumnsRequest
+}
+
+type columnsOutput struct {
+	Body []contracts.Column
+}
+
 type columnPathInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
@@ -254,6 +264,35 @@ func registerKanban(api huma.API, deps Dependencies) {
 		}
 
 		return &columnOutput{Body: toContractColumn(column)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "reorderColumns",
+		Method:      http.MethodPut,
+		Path:        "/boards/{boardId}/columns/order",
+		Summary:     "Replace board column order",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *reorderColumnsInput) (*columnsOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := repo.ReorderColumns(ctx, identity.UserID, input.BoardID, input.Body.ColumnIDs); err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		details, err := repo.GetBoard(ctx, identity.UserID, input.BoardID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		columns := make([]contracts.Column, 0, len(details.Columns))
+		for _, column := range details.Columns {
+			columns = append(columns, toContractColumn(column))
+		}
+
+		return &columnsOutput{Body: columns}, nil
 	})
 
 	huma.Register(api, huma.Operation{
