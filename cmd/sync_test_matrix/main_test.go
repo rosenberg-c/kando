@@ -45,6 +45,51 @@ func TestIgnoresNonCommentTag(t *testing.T) {
 	}
 }
 
+// Requirement: TEST-HARNESS-001
+func TestCollectFromFileSupportsAdjacentMultiLineRequirementComments(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "multiline_test.go")
+	content := `package sample
+
+// Requirements: API-001, API-003
+// Requirements: UX-001, UX-002
+func TestMultiLineAbove(t *testing.T) {
+}
+`
+
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write multiline test file: %v", err)
+	}
+
+	refs := map[string][]string{}
+	if err := collectFromGoFile(root, path, refs); err != nil {
+		t.Fatalf("collect from file: %v", err)
+	}
+
+	assertHasRef(t, refs, "API-001", "multiline_test.go", "TestMultiLineAbove")
+	assertHasRef(t, refs, "API-003", "multiline_test.go", "TestMultiLineAbove")
+	assertHasRef(t, refs, "UX-001", "multiline_test.go", "TestMultiLineAbove")
+	assertHasRef(t, refs, "UX-002", "multiline_test.go", "TestMultiLineAbove")
+}
+
+func TestCollectAdjacentTagIDsSupportsConsecutiveBelowComments(t *testing.T) {
+	t.Parallel()
+
+	lines := []string{
+		"func TestFromBelow(t *testing.T) {",
+		"// Requirements: CLI-001, CLI-002",
+		"// Requirements: CLI-003",
+		"}",
+	}
+
+	ids := collectAdjacentTagIDs(lines, 0)
+	assertContainsID(t, ids, "CLI-001")
+	assertContainsID(t, ids, "CLI-002")
+	assertContainsID(t, ids, "CLI-003")
+}
+
 func TestCollectFromFileIgnoresFixtureStringsThatLookLikeTests(t *testing.T) {
 	t.Parallel()
 
@@ -180,4 +225,14 @@ func assertHasRef(t *testing.T, refs map[string][]string, id, file, testName str
 	}
 
 	t.Fatalf("missing expected ref %q in %+v", expected, items)
+}
+
+func assertContainsID(t *testing.T, ids []string, expected string) {
+	t.Helper()
+	for _, id := range ids {
+		if id == expected {
+			return
+		}
+	}
+	t.Fatalf("missing expected id %q in %+v", expected, ids)
 }
