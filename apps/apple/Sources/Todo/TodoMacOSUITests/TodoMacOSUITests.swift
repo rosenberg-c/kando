@@ -296,6 +296,85 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testTaskMoveButtonsReorderWithinColumn() throws {
+        // Requirement: TASK-008
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "3"])
+        let uiTimeout: TimeInterval = 8
+
+        let firstTaskTitle = app.staticTexts["task-title-task-1"]
+        let secondTaskTitle = app.staticTexts["task-title-task-2"]
+        let moveDownButton = app.buttons["task-move-down-task-1"]
+        let moveUpButton = app.buttons["task-move-up-task-1"]
+
+        XCTAssertTrue(firstTaskTitle.waitForExistence(timeout: uiTimeout), "Expected first task title")
+        XCTAssertTrue(secondTaskTitle.waitForExistence(timeout: uiTimeout), "Expected second task title")
+        XCTAssertTrue(moveDownButton.waitForExistence(timeout: uiTimeout), "Expected move-down button for first task")
+        XCTAssertTrue(moveUpButton.waitForExistence(timeout: uiTimeout), "Expected move-up button for first task")
+
+        XCTAssertTrue(moveDownButton.isEnabled, "Expected move-down enabled for first task")
+        XCTAssertFalse(moveUpButton.isEnabled, "Expected move-up disabled for first task at top")
+        XCTAssertLessThan(firstTaskTitle.frame.minY, secondTaskTitle.frame.minY, "Expected task-1 above task-2 before move")
+
+        moveDownButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { firstTaskTitle.frame.minY > secondTaskTitle.frame.minY },
+            "Expected task-1 below task-2 after moving down"
+        )
+    }
+
+    @MainActor
+    func testTaskTopBottomButtonsMoveTaskToColumnExtremes() throws {
+        // Requirement: TASK-009
+        // Requirement: TASK-010
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
+        let uiTimeout: TimeInterval = 8
+
+        let taskOneTitle = app.staticTexts["task-title-task-1"]
+        let taskThreeTitle = app.staticTexts["task-title-task-3"]
+        let taskFourTitle = app.staticTexts["task-title-task-4"]
+        let taskThreeCard = taskCardElement(in: app, taskID: "task-3", waitTimeout: uiTimeout)
+        let moveTopButton = app.buttons["task-move-top-task-3"]
+        let moveBottomButton = app.buttons["task-move-bottom-task-3"]
+        let taskOneMoveTopButton = app.buttons["task-move-top-task-1"]
+        let taskFourMoveBottomButton = app.buttons["task-move-bottom-task-4"]
+
+        XCTAssertTrue(taskOneTitle.waitForExistence(timeout: uiTimeout), "Expected task-1 title")
+        XCTAssertTrue(taskThreeTitle.waitForExistence(timeout: uiTimeout), "Expected task-3 title")
+        XCTAssertTrue(taskFourTitle.waitForExistence(timeout: uiTimeout), "Expected task-4 title")
+        XCTAssertTrue(taskThreeCard.waitForExistence(timeout: uiTimeout), "Expected task-3 card")
+        XCTAssertTrue(moveTopButton.waitForExistence(timeout: uiTimeout), "Expected move-top button for task-3")
+        XCTAssertTrue(moveBottomButton.waitForExistence(timeout: uiTimeout), "Expected move-bottom button for task-3")
+        XCTAssertTrue(taskOneMoveTopButton.waitForExistence(timeout: uiTimeout), "Expected move-top button for task-1")
+        XCTAssertTrue(taskFourMoveBottomButton.waitForExistence(timeout: uiTimeout), "Expected move-bottom button for task-4")
+
+        XCTAssertTrue(moveTopButton.isEnabled, "Expected move-top enabled for middle task")
+        XCTAssertTrue(moveBottomButton.isEnabled, "Expected move-bottom enabled for middle task")
+        XCTAssertFalse(taskOneMoveTopButton.isEnabled, "Expected move-top disabled for first task")
+        XCTAssertFalse(taskFourMoveBottomButton.isEnabled, "Expected move-bottom disabled for last task")
+        XCTAssertLessThan(moveTopButton.frame.minX, moveBottomButton.frame.minX, "Expected move-top to be left of move-bottom")
+        XCTAssertLessThan(moveTopButton.frame.midX, taskThreeCard.frame.midX, "Expected move-top near left side of task card")
+        XCTAssertGreaterThan(moveBottomButton.frame.midX, taskThreeCard.frame.midX, "Expected move-bottom near right side of task card")
+        XCTAssertLessThan(moveTopButton.frame.maxY, taskThreeTitle.frame.minY, "Expected move-top above task title")
+        XCTAssertLessThan(moveBottomButton.frame.maxY, taskThreeTitle.frame.minY, "Expected move-bottom above task title")
+        XCTAssertGreaterThan(taskThreeTitle.frame.minY, taskOneTitle.frame.minY, "Expected task-3 below task-1 before move")
+
+        moveTopButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY },
+            "Expected task-3 above task-1 after moving to top"
+        )
+
+        moveBottomButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY },
+            "Expected task-3 below task-4 after moving to bottom"
+        )
+    }
+
+    @MainActor
     func testReorderColumnsFromEditBoardModal() throws {
         // Requirement: COL-MOVE-009
         let app = launchSignedInApp()
@@ -441,11 +520,7 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     private func sourceTaskDragElement(in app: XCUIApplication, waitTimeout: TimeInterval) -> XCUIElement? {
-        let sourceTaskCard = preferredElement(
-            primary: app.descendants(matching: .any).matching(identifier: "task-card-task-1").firstMatch,
-            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "task-card-")).element(boundBy: 0),
-            waitTimeout: waitTimeout
-        )
+        let sourceTaskCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: waitTimeout)
         if sourceTaskCard.exists {
             return sourceTaskCard
         }
@@ -456,6 +531,14 @@ final class TodoMacOSUITests: XCTestCase {
             waitTimeout: waitTimeout
         )
         return sourceTaskTitle.exists ? sourceTaskTitle : nil
+    }
+
+    private func taskCardElement(in app: XCUIApplication, taskID: String, waitTimeout: TimeInterval) -> XCUIElement {
+        preferredElement(
+            primary: app.otherElements["task-card-\(taskID)"],
+            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "task-card-")).firstMatch,
+            waitTimeout: waitTimeout
+        )
     }
 
     private func columnDropZoneElement(in app: XCUIApplication, columnID: String, fallbackIndex: Int, waitTimeout: TimeInterval) -> XCUIElement {

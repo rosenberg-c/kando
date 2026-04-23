@@ -66,6 +66,10 @@
 "board.column.delete.confirm.action" = "Delete column";
 
 "board.task.add" = "Add task";
+"board.task.move_top" = "Top";
+"board.task.move_bottom" = "Bottom";
+"board.task.move_up" = "↑";
+"board.task.move_down" = "↓";
 "board.task.edit" = "Edit";
 "board.task.delete" = "Delete";
 "board.task.title.placeholder" = "Task title";

@@ -496,40 +496,21 @@ private struct ColumnCard: View {
 
             ScrollView(.vertical) {
                 LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(tasks, id: \.id) { task in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(task.title)
-                                .font(.subheadline.weight(.semibold))
-                                .accessibilityIdentifier("task-title-\(task.id)")
-                            if !task.description.isEmpty {
-                                Text(task.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(3)
+                    ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
+                        TaskCardView(
+                            task: task,
+                            index: index,
+                            taskCount: tasks.count,
+                            isEnabled: isEnabled,
+                            onEditTask: onEditTask,
+                            onDeleteTask: onDeleteTask,
+                            onMoveToPosition: { position in
+                                onMoveTask(task.id, column.id, position)
+                            },
+                            onDropTask: { draggedTaskID in
+                                onMoveTask(draggedTaskID, column.id, task.position)
                             }
-                            HStack(spacing: 8) {
-                                Button("board.task.edit") { onEditTask(task) }
-                                    .buttonStyle(.bordered)
-                                    .disabled(!isEnabled)
-                                Button("board.task.delete") { onDeleteTask(task) }
-                                    .buttonStyle(.bordered)
-                                    .disabled(!isEnabled)
-                                    .accessibilityIdentifier("task-delete-\(task.id)")
-                            }
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("task-card-\(task.id)")
-                        .draggable(TaskDragItem(taskID: task.id))
-                        .dropDestination(for: TaskDragItem.self) { items, _ in
-                            guard let item = items.first else { return false }
-                            onMoveTask(item.taskID, column.id, task.position)
-                            return true
-                        }
+                        )
                     }
                 }
             }
@@ -565,6 +546,93 @@ private struct ColumnCard: View {
                 .allowsHitTesting(false)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+private struct TaskCardView: View {
+    let task: KanbanTask
+    let index: Int
+    let taskCount: Int
+    let isEnabled: Bool
+    let onEditTask: (KanbanTask) -> Void
+    let onDeleteTask: (KanbanTask) -> Void
+    let onMoveToPosition: (Int) -> Void
+    let onDropTask: (String) -> Void
+
+    private var isFirstTask: Bool { index == 0 }
+    private var isLastTask: Bool { index == taskCount - 1 }
+    private var topPosition: Int { 0 }
+    private var bottomPosition: Int { taskCount }
+    private var upPosition: Int { max(0, index - 1) }
+    private var downPosition: Int { min(taskCount - 1, index + 1) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Button("board.task.move_top") {
+                    onMoveToPosition(topPosition)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!isEnabled || isFirstTask)
+                .accessibilityIdentifier("task-move-top-\(task.id)")
+
+                Spacer(minLength: 0)
+
+                Button("board.task.move_bottom") {
+                    onMoveToPosition(bottomPosition)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!isEnabled || isLastTask)
+                .accessibilityIdentifier("task-move-bottom-\(task.id)")
+            }
+
+            Text(task.title)
+                .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("task-title-\(task.id)")
+            if !task.description.isEmpty {
+                Text(task.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+
+            HStack(spacing: 8) {
+                Button("board.task.move_up") {
+                    onMoveToPosition(upPosition)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!isEnabled || isFirstTask)
+                .accessibilityIdentifier("task-move-up-\(task.id)")
+
+                Button("board.task.move_down") {
+                    onMoveToPosition(downPosition)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!isEnabled || isLastTask)
+                .accessibilityIdentifier("task-move-down-\(task.id)")
+
+                Button("board.task.edit") { onEditTask(task) }
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled)
+                Button("board.task.delete") { onDeleteTask(task) }
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled)
+                    .accessibilityIdentifier("task-delete-\(task.id)")
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("task-card-\(task.id)")
+        .draggable(TaskDragItem(taskID: task.id))
+        .dropDestination(for: TaskDragItem.self) { items, _ in
+            guard let item = items.first else { return false }
+            onDropTask(item.taskID)
+            return true
+        }
     }
 }
 
