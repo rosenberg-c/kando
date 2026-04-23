@@ -1,6 +1,7 @@
 # AGENTS
 
 Before starting any task, read all files in `docs/` and PROJECT_NOTES.md.
+Don´t read /docs/requirements at this moment, do it if you have to.
 
 A question is not a change request!!
 
