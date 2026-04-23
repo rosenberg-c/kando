@@ -1,0 +1,1 @@
+Task reorder currently returns the full task list from `PUT /boards/{boardId}/tasks/order`, while the macOS client immediately reloads board state after mutation. Consider either using the reorder response to update local state (skip extra reload) or changing reorder to `204` to avoid redundant payload work.
