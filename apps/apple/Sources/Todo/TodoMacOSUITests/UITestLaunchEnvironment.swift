@@ -7,6 +7,7 @@ enum UITestEnvKey {
     static let mockBoard = "TODO_UITEST_MOCK_BOARD"
     static let signedIn = "TODO_UITEST_SIGNED_IN"
     static let email = "TODO_UITEST_EMAIL"
+    static let workTaskCount = "TODO_UITEST_WORK_TASK_COUNT"
 }
 
 func configuredAppForUITests() -> XCUIApplication {

@@ -1,13 +1,23 @@
 import Foundation
 
+enum AppEnvironmentKey {
+    static let uiTestMode = "TODO_UITEST_MODE"
+    static let testMode = "TODO_TEST_MODE"
+    static let disableKeychain = "TODO_DISABLE_KEYCHAIN"
+    static let mockBoard = "TODO_UITEST_MOCK_BOARD"
+    static let signedIn = "TODO_UITEST_SIGNED_IN"
+    static let email = "TODO_UITEST_EMAIL"
+    static let workTaskCount = "TODO_UITEST_WORK_TASK_COUNT"
+}
+
 enum RuntimeFlags {
     static func shouldUseMockBoard(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         isXCTestRuntime: Bool = isRunningXCTest()
     ) -> Bool {
-        environment["TODO_UITEST_MOCK_BOARD"] == "1"
-            || environment["TODO_UITEST_MODE"] == "1"
-            || environment["TODO_TEST_MODE"] == "1"
+        environment[AppEnvironmentKey.mockBoard] == "1"
+            || environment[AppEnvironmentKey.uiTestMode] == "1"
+            || environment[AppEnvironmentKey.testMode] == "1"
             || isXCTestRuntime
     }
 
@@ -15,9 +25,9 @@ enum RuntimeFlags {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         isXCTestRuntime: Bool = isRunningXCTest()
     ) -> Bool {
-        environment["TODO_DISABLE_KEYCHAIN"] == "1"
-            || environment["TODO_UITEST_MODE"] == "1"
-            || environment["TODO_TEST_MODE"] == "1"
+        environment[AppEnvironmentKey.disableKeychain] == "1"
+            || environment[AppEnvironmentKey.uiTestMode] == "1"
+            || environment[AppEnvironmentKey.testMode] == "1"
             || isXCTestRuntime
     }
 

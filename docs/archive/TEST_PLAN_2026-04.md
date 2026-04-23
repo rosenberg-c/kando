@@ -40,3 +40,9 @@ Close remaining requirement coverage gaps with a prioritized sequence of tests.
 - Added `BOARD-004` view-model refresh coverage with `manualRefreshReloadsBoardStateFromAPI`.
 - Added `UX-001` XCUITest anchor assertion with `testWorkspaceAnchorsTopLeading`.
 - Added generation verification in local test flow (`make test` runs `make verify-generate`) and a manual CI workflow `.github/workflows/verify-generate.yml` for `API-002`.
+
+## Phase 5: Column Overflow and Scroll Safety
+
+- Status: done
+- Added `UX-008` coverage with `testOverflowingColumnTaskListScrollsWithoutPushingWorkspaceOutOfBounds`.
+- Validates that overflowing task lists remain vertically scrollable and workspace title/header content stays anchored in-bounds.

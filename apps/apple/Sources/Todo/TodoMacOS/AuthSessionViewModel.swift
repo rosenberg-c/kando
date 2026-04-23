@@ -28,7 +28,7 @@ final class AuthSessionViewModel: ObservableObject {
 
         let env = ProcessInfo.processInfo.environment
         if Self.shouldUseUITestSignedInSession(environment: env) {
-            applyUITestSignedInSession(email: env["TODO_UITEST_EMAIL"] ?? "ui-test@example.com")
+            applyUITestSignedInSession(email: env[AppEnvironmentKey.email] ?? "ui-test@example.com")
         }
     }
 
@@ -224,7 +224,8 @@ final class AuthSessionViewModel: ObservableObject {
     }
 
     private static func shouldUseUITestSignedInSession(environment: [String: String]) -> Bool {
-        environment["TODO_UITEST_MODE"] == "1" && environment["TODO_UITEST_SIGNED_IN"] == "1"
+        environment[AppEnvironmentKey.uiTestMode] == "1"
+            && environment[AppEnvironmentKey.signedIn] == "1"
     }
     private func setSessionExpiredStatus() {
         statusIsError = true

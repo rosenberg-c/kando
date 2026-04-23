@@ -6,9 +6,29 @@ actor UITestKanbanAPI: KanbanAPI {
         KanbanColumn(id: "column-work", title: "Work", position: 0),
         KanbanColumn(id: "column-empty", title: "Empty", position: 1)
     ]
-    private var tasks: [KanbanTask] = [
-        KanbanTask(id: "task-1", columnID: "column-work", title: "Example task", description: "UI test item", position: 0)
-    ]
+
+    private var tasks: [KanbanTask]
+
+    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+        let requestedTaskCount = Int(environment[AppEnvironmentKey.workTaskCount] ?? "") ?? 1
+        let taskCount = max(1, requestedTaskCount)
+        tasks = Self.makeInitialTasks(count: taskCount)
+    }
+
+    private static func makeInitialTasks(count: Int) -> [KanbanTask] {
+        (0..<count).map { index in
+            let position = index
+            let id = "task-\(index + 1)"
+            let title = index == 0 ? "Example task" : "Example task \(index + 1)"
+            return KanbanTask(
+                id: id,
+                columnID: "column-work",
+                title: title,
+                description: "UI test item",
+                position: position
+            )
+        }
+    }
 
     func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
         board
