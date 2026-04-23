@@ -48,7 +48,7 @@ struct BoardViewModelTests {
     }
 
     @Test func mutationActionsEnabledOnlyWhenBoardReady() async {
-        // Requirement: BOARD-003
+        // Requirements: BOARD-003, UX-009
         let gate = SuspendedOperationGate()
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(board: board, columns: [], tasks: [])

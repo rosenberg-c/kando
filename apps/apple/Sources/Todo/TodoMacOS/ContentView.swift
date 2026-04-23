@@ -64,11 +64,6 @@ struct ContentView: View {
                     .controlSize(.large)
                     .disabled(!canSubmit)
 
-                    if auth.isSigningIn {
-                        ProgressView("signin.submit_in_progress")
-                            .controlSize(.small)
-                    }
-
                     if !auth.statusMessage.isEmpty {
                         Text(auth.statusMessage)
                             .font(.caption)
@@ -94,6 +89,15 @@ struct ContentView: View {
                 }
                 .padding(24)
                 .frame(width: 420)
+                .allowsHitTesting(!auth.isSigningIn)
+                .overlay {
+                    if auth.isSigningIn {
+                        BlockingLoadingOverlay(
+                            message: Strings.t("signin.submit_in_progress"),
+                            accessibilityID: "auth-loading-overlay"
+                        )
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -145,143 +149,148 @@ private struct LoggedInWorkspaceView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Text(board.board?.title ?? Strings.t("board.title"))
-                    .font(.largeTitle.weight(.semibold))
-                    .accessibilityIdentifier("workspace-board-title")
+        ZStack {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    Text(board.board?.title ?? Strings.t("board.title"))
+                        .font(.largeTitle.weight(.semibold))
+                        .accessibilityIdentifier("workspace-board-title")
 
-                Spacer()
+                    Spacer()
 
-                Button("board.refresh") {
-                    Task { await board.reloadBoard() }
-                }
-                .buttonStyle(.bordered)
-
-                Button("board.column.reorder.mode.enter") {
-                    reorderSheetColumns = board.columns
-                    isReorderSheetPresented = true
-                }
-                .buttonStyle(.bordered)
-                .disabled(!board.canMutateBoardActions)
-                .accessibilityIdentifier("board-edit-mode-toggle")
-
-                Button("loggedin.signout", action: onSignOut)
-                    .buttonStyle(.bordered)
-            }
-
-            Text(Strings.f("loggedin.subtitle", auth.signedInEmail))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 10) {
-                TextField("board.column.add.placeholder", text: $newColumnTitle)
-                    .textFieldStyle(.roundedBorder)
-
-                Button("board.column.add.submit") {
-                    let title = newColumnTitle
-                    newColumnTitle = ""
-                    Task { await board.createColumn(title: title) }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!board.canMutateBoardActions)
-            }
-
-            GeometryReader { geometry in
-                let taskListMaxHeight = max(
-                    WorkspaceLayout.taskListMinHeight,
-                    geometry.size.height - WorkspaceLayout.reservedVerticalChromeHeight
-                )
-
-                ScrollView(.horizontal) {
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach(board.columns, id: \.id) { column in
-                            ColumnCard(
-                                column: column,
-                                tasks: board.tasks(for: column.id),
-                                taskListMaxHeight: taskListMaxHeight,
-                                isEnabled: board.canMutateBoardActions,
-                                onRename: { editingColumn = EditableColumn(column: column) },
-                                onDelete: {
-                                    pendingColumnDeletion = EditableColumn(column: column)
-                                },
-                                onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
-                                onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
-                                onDeleteTask: { task in
-                                    pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
-                                },
-                                onMoveTask: { taskID, destinationColumnID, destinationPosition in
-                                    Task {
-                                        await board.moveTask(
-                                            taskID: taskID,
-                                            destinationColumnID: destinationColumnID,
-                                            destinationPosition: destinationPosition
-                                        )
-                                    }
-                                }
-                            )
-                        }
+                    Button("board.refresh") {
+                        Task { await board.reloadBoard() }
                     }
-                    .padding(.vertical, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.bordered)
+
+                    Button("board.column.reorder.mode.enter") {
+                        reorderSheetColumns = board.columns
+                        isReorderSheetPresented = true
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!board.canMutateBoardActions)
+                    .accessibilityIdentifier("board-edit-mode-toggle")
+
+                    Button("loggedin.signout", action: onSignOut)
+                        .buttonStyle(.bordered)
+                }
+
+                Text(Strings.f("loggedin.subtitle", auth.signedInEmail))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    TextField("board.column.add.placeholder", text: $newColumnTitle)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("board.column.add.submit") {
+                        let title = newColumnTitle
+                        newColumnTitle = ""
+                        Task { await board.createColumn(title: title) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!board.canMutateBoardActions)
+                }
+
+                GeometryReader { geometry in
+                    let taskListMaxHeight = max(
+                        WorkspaceLayout.taskListMinHeight,
+                        geometry.size.height - WorkspaceLayout.reservedVerticalChromeHeight
+                    )
+
+                    ScrollView(.horizontal) {
+                        HStack(alignment: .top, spacing: 12) {
+                            ForEach(board.columns, id: \.id) { column in
+                                ColumnCard(
+                                    column: column,
+                                    tasks: board.tasks(for: column.id),
+                                    taskListMaxHeight: taskListMaxHeight,
+                                    isEnabled: board.canMutateBoardActions,
+                                    onRename: { editingColumn = EditableColumn(column: column) },
+                                    onDelete: {
+                                        pendingColumnDeletion = EditableColumn(column: column)
+                                    },
+                                    onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
+                                    onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
+                                    onDeleteTask: { task in
+                                        pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
+                                    },
+                                    onMoveTask: { taskID, destinationColumnID, destinationPosition in
+                                        Task {
+                                            await board.moveTask(
+                                                taskID: taskID,
+                                                destinationColumnID: destinationColumnID,
+                                                destinationPosition: destinationPosition
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+                if !board.statusMessage.isEmpty {
+                    Text(board.statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(board.statusIsError ? .red : .green)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("board-status-message")
+                }
+
+                if board.statusIsError || !board.debugMessage.isEmpty {
+                    DisclosureGroup(Strings.t("board.dev.title")) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Spacer()
+                                Button(Strings.t("board.dev.copy")) {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(devDiagnosticText, forType: .string)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+
+                            Text(Strings.f("board.dev.base_url", auth.currentAPIBaseURL()?.absoluteString ?? "(nil)"))
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+
+                            if let boardID = board.board?.id {
+                                Text(Strings.f("board.dev.board_id", boardID))
+                                    .font(.caption.monospaced())
+                                    .textSelection(.enabled)
+                            }
+
+                            if !board.debugMessage.isEmpty {
+                                Text(board.debugMessage)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .font(.caption)
+                    .accessibilityIdentifier("board-dev-diagnostics")
+                }
+
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .allowsHitTesting(!board.isLoading)
 
             if board.isLoading {
-                ProgressView("board.loading")
-                    .controlSize(.small)
+                BlockingLoadingOverlay(
+                    message: Strings.t("board.loading"),
+                    accessibilityID: "board-loading-overlay"
+                )
             }
-
-            if !board.statusMessage.isEmpty {
-                Text(board.statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(board.statusIsError ? .red : .green)
-                    .textSelection(.enabled)
-                    .accessibilityIdentifier("board-status-message")
-            }
-
-            if board.statusIsError || !board.debugMessage.isEmpty {
-                DisclosureGroup(Strings.t("board.dev.title")) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Spacer()
-                            Button(Strings.t("board.dev.copy")) {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(devDiagnosticText, forType: .string)
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-
-                        Text(Strings.f("board.dev.base_url", auth.currentAPIBaseURL()?.absoluteString ?? "(nil)"))
-                            .font(.caption.monospaced())
-                            .textSelection(.enabled)
-
-                        if let boardID = board.board?.id {
-                            Text(Strings.f("board.dev.board_id", boardID))
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-                        }
-
-                        if !board.debugMessage.isEmpty {
-                            Text(board.debugMessage)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-                .font(.caption)
-                .accessibilityIdentifier("board-dev-diagnostics")
-            }
-
-            Spacer(minLength: 0)
         }
         .padding(24)
         .frame(minWidth: 980, minHeight: 620)
@@ -417,6 +426,31 @@ private struct LoggedInWorkspaceView: View {
         let didReorder = await board.reorderColumns(orderedColumnIDs: targetOrderIDs)
         reorderSheetColumns = board.columns
         return didReorder
+    }
+}
+
+private struct BlockingLoadingOverlay: View {
+    let message: String
+    let accessibilityID: String
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.08)
+                .ignoresSafeArea()
+
+            VStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.regular)
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .accessibilityIdentifier(accessibilityID)
     }
 }
 

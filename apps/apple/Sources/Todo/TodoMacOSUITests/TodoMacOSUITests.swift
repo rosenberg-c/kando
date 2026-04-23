@@ -99,6 +99,24 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testBoardLoadingOverlayAppearsDuringSlowLoad() throws {
+        // Requirement: UX-009
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.mockDelayMs: "1200"])
+
+        let loadingOverlay = app.otherElements["board-loading-overlay"]
+        XCTAssertTrue(loadingOverlay.waitForExistence(timeout: 3), "Expected board loading overlay during pending load")
+
+        XCTAssertTrue(
+            waitUntil(timeout: 6) { !loadingOverlay.exists },
+            "Expected board loading overlay to disappear after load completes"
+        )
+
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 2), "Expected edit mode toggle after board load")
+        XCTAssertTrue(waitUntil(timeout: 3) { editModeToggle.isEnabled }, "Expected interactions to be re-enabled after loading")
+    }
+
+    @MainActor
     func testOverflowingColumnTaskListScrollsWithoutPushingWorkspaceOutOfBounds() throws {
         // Requirement: UX-008
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "28"])

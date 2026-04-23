@@ -8,11 +8,19 @@ actor UITestKanbanAPI: KanbanAPI {
     ]
 
     private var tasks: [KanbanTask]
+    private let operationDelayNanoseconds: UInt64
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let requestedTaskCount = Int(environment[AppEnvironmentKey.workTaskCount] ?? "") ?? 1
         let taskCount = max(1, requestedTaskCount)
         tasks = Self.makeInitialTasks(count: taskCount)
+        let requestedDelayMs = Int(environment[AppEnvironmentKey.mockDelayMs] ?? "") ?? 0
+        operationDelayNanoseconds = UInt64(max(0, requestedDelayMs)) * 1_000_000
+    }
+
+    private func maybeDelay() async {
+        guard operationDelayNanoseconds > 0 else { return }
+        try? await Task.sleep(nanoseconds: operationDelayNanoseconds)
     }
 
     private static func makeInitialTasks(count: Int) -> [KanbanTask] {
@@ -31,24 +39,29 @@ actor UITestKanbanAPI: KanbanAPI {
     }
 
     func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
-        board
+        await maybeDelay()
+        return board
     }
 
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails {
-        KanbanBoardDetails(board: board, columns: columns, tasks: tasks)
+        await maybeDelay()
+        return KanbanBoardDetails(board: board, columns: columns, tasks: tasks)
     }
 
     func createColumn(boardID: String, title: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         let nextPosition = (columns.map(\.position).max() ?? -1) + 1
         columns.append(KanbanColumn(id: UUID().uuidString, title: title, position: nextPosition))
     }
 
     func updateColumn(boardID: String, columnID: String, title: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         guard let index = columns.firstIndex(where: { $0.id == columnID }) else { return }
         columns[index] = KanbanColumn(id: columns[index].id, title: title, position: columns[index].position)
     }
 
     func reorderColumns(boardID: String, orderedColumnIDs: [String], accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         guard let reordered = reorderedColumns(columns, orderedIDs: orderedColumnIDs) else {
             throw KanbanAPIError.unexpectedStatus(code: 400, operation: "reorderColumns", title: "Bad Request", detail: "invalid column order")
         }
@@ -56,6 +69,7 @@ actor UITestKanbanAPI: KanbanAPI {
     }
 
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         if tasks.contains(where: { $0.columnID == columnID }) {
             throw KanbanAPIError.unexpectedStatus(
                 code: 409,
@@ -71,17 +85,20 @@ actor UITestKanbanAPI: KanbanAPI {
     }
 
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         let nextPosition = (tasks.filter { $0.columnID == columnID }.map(\.position).max() ?? -1) + 1
         tasks.append(KanbanTask(id: UUID().uuidString, columnID: columnID, title: title, description: description, position: nextPosition))
     }
 
     func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
         let current = tasks[index]
         tasks[index] = KanbanTask(id: current.id, columnID: current.columnID, title: title, description: description, position: current.position)
     }
 
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         let expectedColumns = Set(columns.map(\.id))
         let providedColumns = Set(orderedTasksByColumn.map(\.columnID))
         guard expectedColumns == providedColumns else {
@@ -121,6 +138,7 @@ actor UITestKanbanAPI: KanbanAPI {
     }
 
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
         tasks.removeAll { $0.id == taskID }
     }
 }
