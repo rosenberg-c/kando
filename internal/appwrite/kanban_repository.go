@@ -132,7 +132,12 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 			colRows = append(colRows, col)
 		}
 	}
-	sort.Slice(colRows, func(i, j int) bool { return colRows[i].Position < colRows[j].Position })
+	sort.Slice(colRows, func(i, j int) bool {
+		if colRows[i].Position != colRows[j].Position {
+			return colRows[i].Position < colRows[j].Position
+		}
+		return colRows[i].ID < colRows[j].ID
+	})
 
 	columnsOut := make([]kanban.Column, 0, len(colRows))
 	columnPositionByID := make(map[string]int, len(colRows))
@@ -318,6 +323,58 @@ func (r *KanbanRepository) UpdateColumnTitle(ctx context.Context, ownerUserID, b
 		return kanban.Column{}, kanban.Board{}, err
 	}
 	return mapColumnRow(column), mapBoardRow(board), nil
+}
+
+func (r *KanbanRepository) ReorderColumns(ctx context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (kanban.Board, error) {
+	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+
+	columns, err := r.listColumns(ctx)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+	currentIDs := orderedColumnIDsByBoard(columns, boardID)
+	if err := kanban.ValidateExactOrder(currentIDs, orderedColumnIDs); err != nil {
+		return kanban.Board{}, err
+	}
+
+	transactionID, err := r.client.createTransaction(ctx, transactionTTLSec)
+	if err != nil {
+		return kanban.Board{}, mapAppwriteError(err)
+	}
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
+		defer cancel()
+		_ = r.client.rollbackTransaction(rollbackCtx, transactionID)
+	}()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := r.applyColumnOrder(ctx, orderedColumnIDs, now, transactionID); err != nil {
+		return kanban.Board{}, err
+	}
+
+	boardUpdate := map[string]any{"data": map[string]any{"boardVersion": board.BoardVersion + 1, "updatedAt": now}, "transactionId": transactionID}
+	if err := r.updateRow(ctx, r.boards, board.ID, boardUpdate, nil); err != nil {
+		return kanban.Board{}, err
+	}
+
+	if err := r.client.commitTransaction(ctx, transactionID); err != nil {
+		return kanban.Board{}, mapAppwriteError(err)
+	}
+	committed = true
+
+	board, err = r.getBoardRow(ctx, board.ID)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+
+	return mapBoardRow(board), nil
 }
 
 func (r *KanbanRepository) DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (kanban.Board, error) {
@@ -591,7 +648,12 @@ func (r *KanbanRepository) reindexColumns(ctx context.Context, boardID string) e
 			filtered = append(filtered, row)
 		}
 	}
-	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Position < filtered[j].Position })
+	sort.Slice(filtered, func(i, j int) bool {
+		if filtered[i].Position != filtered[j].Position {
+			return filtered[i].Position < filtered[j].Position
+		}
+		return filtered[i].ID < filtered[j].ID
+	})
 	now := time.Now().UTC().Format(time.RFC3339)
 	for i, row := range filtered {
 		if row.Position == i {
@@ -616,7 +678,12 @@ func (r *KanbanRepository) reindexTasks(ctx context.Context, columnID string) er
 			filtered = append(filtered, row)
 		}
 	}
-	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Position < filtered[j].Position })
+	sort.Slice(filtered, func(i, j int) bool {
+		if filtered[i].Position != filtered[j].Position {
+			return filtered[i].Position < filtered[j].Position
+		}
+		return filtered[i].ID < filtered[j].ID
+	})
 	now := time.Now().UTC().Format(time.RFC3339)
 	for i, row := range filtered {
 		if row.Position == i {
@@ -643,6 +710,31 @@ func orderedTaskIDsByColumn(rows []taskRow, columnID string) []string {
 		ids = append(ids, row.ID)
 	}
 	return ids
+}
+
+func orderedColumnIDsByBoard(rows []columnRow, boardID string) []string {
+	filtered := make([]columnRow, 0)
+	for _, row := range rows {
+		if row.BoardID == boardID {
+			filtered = append(filtered, row)
+		}
+	}
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Position < filtered[j].Position })
+	ids := make([]string, 0, len(filtered))
+	for _, row := range filtered {
+		ids = append(ids, row.ID)
+	}
+	return ids
+}
+
+func (r *KanbanRepository) applyColumnOrder(ctx context.Context, columnIDs []string, now, transactionID string) error {
+	for i, id := range columnIDs {
+		payload := map[string]any{"data": map[string]any{"position": i, "updatedAt": now}, "transactionId": transactionID}
+		if err := r.updateRow(ctx, r.columns, id, payload, nil); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *KanbanRepository) applyTaskOrder(ctx context.Context, columnID string, taskIDs []string, now, transactionID string) error {

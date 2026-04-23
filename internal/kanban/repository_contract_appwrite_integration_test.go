@@ -76,6 +76,10 @@ func (r *trackedRepository) UpdateColumnTitle(ctx context.Context, ownerUserID, 
 	return r.repo.UpdateColumnTitle(ctx, ownerUserID, boardID, columnID, title)
 }
 
+func (r *trackedRepository) ReorderColumns(ctx context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (kanban.Board, error) {
+	return r.repo.ReorderColumns(ctx, ownerUserID, boardID, orderedColumnIDs)
+}
+
 func (r *trackedRepository) DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (kanban.Board, error) {
 	return r.repo.DeleteColumn(ctx, ownerUserID, boardID, columnID)
 }

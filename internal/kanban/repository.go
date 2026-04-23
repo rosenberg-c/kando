@@ -11,6 +11,7 @@ type Repository interface {
 
 	CreateColumn(ctx context.Context, ownerUserID, boardID, title string) (Column, Board, error)
 	UpdateColumnTitle(ctx context.Context, ownerUserID, boardID, columnID, title string) (Column, Board, error)
+	ReorderColumns(ctx context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (Board, error)
 	DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (Board, error)
 
 	CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error)

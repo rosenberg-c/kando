@@ -3,6 +3,7 @@ package contracttest
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -179,6 +180,174 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 		}
 		if got := tasksByID[taskA1.ID]; got.ColumnID != columnA.ID || got.Position != 0 {
 			t.Fatalf("task A1 after invalid move = %+v, want column=%q position=0", got, columnA.ID)
+		}
+
+		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {
+			t.Fatalf("cleanup board: %v", err)
+		}
+	})
+
+	t.Run("ReorderColumns", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		ownerUserID := "user-" + uuid.NewString()
+
+		board, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+
+		columnA, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "A")
+		if err != nil {
+			t.Fatalf("create column A: %v", err)
+		}
+		columnB, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "B")
+		if err != nil {
+			t.Fatalf("create column B: %v", err)
+		}
+		columnC, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "C")
+		if err != nil {
+			t.Fatalf("create column C: %v", err)
+		}
+
+		if _, err := repo.ReorderColumns(ctx, ownerUserID, board.ID, []string{columnC.ID, columnA.ID, columnB.ID}); err != nil {
+			t.Fatalf("reorder columns: %v", err)
+		}
+
+		details, err := repo.GetBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("get board after reorder: %v", err)
+		}
+		if len(details.Columns) != 3 {
+			t.Fatalf("column count = %d, want 3", len(details.Columns))
+		}
+		wantIDs := []string{columnC.ID, columnA.ID, columnB.ID}
+		for i := range wantIDs {
+			if details.Columns[i].ID != wantIDs[i] {
+				t.Fatalf("column order[%d] = %q, want %q", i, details.Columns[i].ID, wantIDs[i])
+			}
+			if details.Columns[i].Position != i {
+				t.Fatalf("column position[%d] = %d, want %d", i, details.Columns[i].Position, i)
+			}
+		}
+
+		if _, err := repo.ReorderColumns(ctx, ownerUserID, board.ID, []string{columnA.ID, columnA.ID, columnB.ID}); !errors.Is(err, kanban.ErrInvalidInput) {
+			t.Fatalf("duplicate reorder err = %v, want ErrInvalidInput", err)
+		}
+
+		details, err = repo.GetBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("get board after invalid reorder: %v", err)
+		}
+		for i := range wantIDs {
+			if details.Columns[i].ID != wantIDs[i] {
+				t.Fatalf("column order after invalid reorder[%d] = %q, want %q", i, details.Columns[i].ID, wantIDs[i])
+			}
+		}
+
+		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {
+			t.Fatalf("cleanup board: %v", err)
+		}
+	})
+
+	t.Run("ReorderColumnsConcurrentAllowsExpectedOutcome", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		ownerUserID := "user-" + uuid.NewString()
+
+		board, err := repo.CreateBoardIfAbsent(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+
+		columnA, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "A")
+		if err != nil {
+			t.Fatalf("create column A: %v", err)
+		}
+		columnB, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "B")
+		if err != nil {
+			t.Fatalf("create column B: %v", err)
+		}
+		columnC, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "C")
+		if err != nil {
+			t.Fatalf("create column C: %v", err)
+		}
+		columnD, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "D")
+		if err != nil {
+			t.Fatalf("create column D: %v", err)
+		}
+
+		for i := 0; i < 20; i++ {
+			var wg sync.WaitGroup
+			wg.Add(2)
+
+			reorderErrs := make(chan error, 2)
+
+			go func() {
+				defer wg.Done()
+				_, err := repo.ReorderColumns(ctx, ownerUserID, board.ID, []string{columnD.ID, columnA.ID, columnB.ID, columnC.ID})
+				reorderErrs <- err
+			}()
+			go func() {
+				defer wg.Done()
+				_, err := repo.ReorderColumns(ctx, ownerUserID, board.ID, []string{columnB.ID, columnC.ID, columnD.ID, columnA.ID})
+				reorderErrs <- err
+			}()
+
+			wg.Wait()
+			close(reorderErrs)
+			for reorderErr := range reorderErrs {
+				if reorderErr != nil {
+					t.Fatalf("concurrent reorder err = %v, want nil", reorderErr)
+				}
+			}
+
+			details, getErr := repo.GetBoard(ctx, ownerUserID, board.ID)
+			if getErr != nil {
+				t.Fatalf("get board after concurrent reorders: %v", getErr)
+			}
+			if len(details.Columns) != 4 {
+				t.Fatalf("column count = %d, want 4", len(details.Columns))
+			}
+
+			gotIDs := make([]string, 0, len(details.Columns))
+			seenIDs := map[string]bool{}
+			for pos, col := range details.Columns {
+				gotIDs = append(gotIDs, col.ID)
+				if col.Position != pos {
+					t.Fatalf("column %q position = %d, want %d", col.ID, col.Position, pos)
+				}
+				if seenIDs[col.ID] {
+					t.Fatalf("duplicate column id in ordering: %s", col.ID)
+				}
+				seenIDs[col.ID] = true
+			}
+
+			for _, id := range []string{columnA.ID, columnB.ID, columnC.ID, columnD.ID} {
+				if !seenIDs[id] {
+					t.Fatalf("missing column id after concurrent reorders: %s", id)
+				}
+			}
+
+			allowedA := []string{columnD.ID, columnA.ID, columnB.ID, columnC.ID}
+			allowedB := []string{columnB.ID, columnC.ID, columnD.ID, columnA.ID}
+			matchesAllowedA := true
+			for idx := range allowedA {
+				if gotIDs[idx] != allowedA[idx] {
+					matchesAllowedA = false
+					break
+				}
+			}
+			matchesAllowedB := true
+			for idx := range allowedB {
+				if gotIDs[idx] != allowedB[idx] {
+					matchesAllowedB = false
+					break
+				}
+			}
+			if !matchesAllowedA && !matchesAllowedB {
+				t.Fatalf("concurrent final order = %v, want one of %v or %v", gotIDs, allowedA, allowedB)
+			}
 		}
 
 		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {

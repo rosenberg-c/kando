@@ -9,7 +9,7 @@ import (
 )
 
 func TestRepositoryContractMemoryService(t *testing.T) {
-	// Requirements: API-001, API-005, API-006, COL-RULE-001, COL-001, TASK-001, TASK-005, TASK-006, TASK-007
+	// Requirements: API-001, API-005, API-006, COL-RULE-001, COL-001, COL-MOVE-001, COL-MOVE-002, COL-MOVE-003, COL-MOVE-004, COL-MOVE-006, COL-MOVE-010, TASK-001, TASK-005, TASK-006, TASK-007
 	t.Parallel()
 	contracttest.RunRepositoryContractTests(t, func() kanban.Repository {
 		return kanban.NewService(kanban.NewMemoryRepository())
@@ -17,7 +17,7 @@ func TestRepositoryContractMemoryService(t *testing.T) {
 }
 
 func TestRepositoryContractSQLiteService(t *testing.T) {
-	// Requirements: API-001, API-005, API-006, COL-RULE-001, COL-001, TASK-001, TASK-005, TASK-006, TASK-007
+	// Requirements: API-001, API-005, API-006, COL-RULE-001, COL-001, COL-MOVE-001, COL-MOVE-002, COL-MOVE-003, COL-MOVE-004, COL-MOVE-006, COL-MOVE-010, TASK-001, TASK-005, TASK-006, TASK-007
 	t.Parallel()
 	contracttest.RunRepositoryContractTests(t, func() kanban.Repository {
 		repo, err := kanban.NewSQLiteRepository(filepath.Join(t.TempDir(), "contract.sqlite"))
