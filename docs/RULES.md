@@ -360,3 +360,16 @@ Rationale:
 * improves testability and compatibility with strict Swift concurrency checks
 
 ---
+
+## 23. Use list-based APIs for collection-scoped mutations
+
+When an operation mutates a collection as a whole (for example reorder, batch actions, or membership updates), expose a list-based request interface.
+
+Rules:
+
+* accept the intended collection result as a list payload
+* validate list semantics at the boundary (membership, duplicates, shape)
+* apply the mutation atomically (all-or-nothing)
+* do not add parallel single-item action endpoints for the same collection behavior
+
+---
