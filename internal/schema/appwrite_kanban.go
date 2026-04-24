@@ -59,7 +59,6 @@ func KanbanAppwriteDatabase() AppwriteDatabase {
 					{Kind: "datetime", Key: "updatedAt", Required: true},
 				},
 				Indexes: []AppwriteIndex{
-					{Key: "boards_owner_unique", Type: "unique", Columns: []string{"ownerUserId"}, Orders: []string{"ASC"}},
 					{Key: "boards_owner_updated", Type: "key", Columns: []string{"ownerUserId", "updatedAt"}, Orders: []string{"ASC", "DESC"}},
 				},
 			},

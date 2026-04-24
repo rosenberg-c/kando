@@ -24,12 +24,12 @@ func (s *Service) GetBoard(ctx context.Context, ownerUserID, boardID string) (Bo
 	return s.repo.GetBoard(ctx, ownerUserID, boardID)
 }
 
-func (s *Service) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (Board, error) {
+func (s *Service) CreateBoard(ctx context.Context, ownerUserID, title string) (Board, error) {
 	trimmedTitle := strings.TrimSpace(title)
 	if trimmedTitle == "" {
 		return Board{}, ErrInvalidInput
 	}
-	return s.repo.CreateBoardIfAbsent(ctx, ownerUserID, trimmedTitle)
+	return s.repo.CreateBoard(ctx, ownerUserID, trimmedTitle)
 }
 
 func (s *Service) UpdateBoardTitle(ctx context.Context, ownerUserID, boardID, title string) (Board, error) {

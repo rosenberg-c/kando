@@ -283,7 +283,7 @@ func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
-	board, err := repo.CreateBoardIfAbsent(context.Background(), "owner-user", "Main")
+	board, err := repo.CreateBoard(context.Background(), "owner-user", "Main")
 	if err != nil {
 		t.Fatalf("seed board: %v", err)
 	}
@@ -598,6 +598,58 @@ func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
 	}
 	if len(response.Tasks) != 1 || response.Tasks[0].ID != taskID {
 		t.Fatalf("tasks = %+v, expected task %q", response.Tasks, taskID)
+	}
+}
+
+func TestKanbanCreateAndListMultipleBoards(t *testing.T) {
+	// Requirements: API-010, API-011
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	firstBoardID := createBoardWithTitle(t, mux, "Project Alpha")
+	secondBoardID := createBoardWithTitle(t, mux, "Project Beta")
+
+	renameBody := strings.NewReader(`{"title":"Project Alpha (Renamed)"}`)
+	renameRequest := httptest.NewRequest(http.MethodPatch, "/boards/"+firstBoardID, renameBody)
+	renameRequest.Header.Set("Content-Type", "application/json")
+	renameRequest.Header.Set("Authorization", "Bearer token")
+	renameRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(renameRecorder, renameRequest)
+
+	if renameRecorder.Code != http.StatusOK {
+		t.Fatalf("rename board status = %d, want %d body=%s", renameRecorder.Code, http.StatusOK, renameRecorder.Body.String())
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("list boards status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response []struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode list boards response: %v", err)
+	}
+
+	if len(response) != 2 {
+		t.Fatalf("board count = %d, want 2", len(response))
+	}
+	if response[0].ID != firstBoardID {
+		t.Fatalf("first board id = %q, want %q", response[0].ID, firstBoardID)
+	}
+	if response[0].Title != "Project Alpha (Renamed)" {
+		t.Fatalf("first board title = %q, want %q", response[0].Title, "Project Alpha (Renamed)")
+	}
+	if response[1].ID != secondBoardID {
+		t.Fatalf("second board id = %q, want %q", response[1].ID, secondBoardID)
 	}
 }
 
@@ -1358,8 +1410,13 @@ func seedBoardABC(t *testing.T, mux *http.ServeMux) (string, string, string, str
 
 func createBoard(t *testing.T, mux *http.ServeMux) string {
 	t.Helper()
+	return createBoardWithTitle(t, mux, "Main Board")
+}
 
-	body, _ := json.Marshal(map[string]string{"title": "Main Board"})
+func createBoardWithTitle(t *testing.T, mux *http.ServeMux, title string) string {
+	t.Helper()
+
+	body, _ := json.Marshal(map[string]string{"title": title})
 	request := httptest.NewRequest(http.MethodPost, "/boards", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")

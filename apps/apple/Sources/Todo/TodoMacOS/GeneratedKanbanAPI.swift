@@ -4,28 +4,38 @@ import OpenAPIRuntime
 import TodoAPIClient
 
 struct GeneratedKanbanAPI: KanbanAPI {
-    func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
+    func listBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let listOutput = try await client.listBoards()
-
-        switch listOutput {
+        let output = try await client.listBoards()
+        switch output {
         case let .ok(ok):
-            let boards = try ok.body.json ?? []
-            if let board = boards.first {
-                return mapBoard(board)
-            }
-
-            let payload = Components.Schemas.CreateBoardRequest(title: defaultTitle)
-            let createOutput = try await client.createBoard(body: .json(payload))
-            switch createOutput {
-            case let .ok(created):
-                return mapBoard(try created.body.json)
-            case let .default(statusCode, payload):
-                throw mapStatus(statusCode, operation: "createBoard", model: problem(from: payload.body))
-            }
-
+            return (try ok.body.json ?? []).map(mapBoard)
         case let .default(statusCode, payload):
             throw mapStatus(statusCode, operation: "listBoards", model: problem(from: payload.body))
+        }
+    }
+
+    func createBoard(title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.CreateBoardRequest(title: title)
+        let output = try await client.createBoard(body: .json(payload))
+        switch output {
+        case let .ok(ok):
+            return mapBoard(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "createBoard", model: problem(from: payload.body))
+        }
+    }
+
+    func updateBoard(boardID: String, title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.UpdateBoardRequest(title: title)
+        let output = try await client.updateBoard(path: .init(boardId: boardID), body: .json(payload))
+        switch output {
+        case let .ok(ok):
+            return mapBoard(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "updateBoard", model: problem(from: payload.body))
         }
     }
 
@@ -163,6 +173,10 @@ struct GeneratedKanbanAPI: KanbanAPI {
             return model
         }
         if let body = body as? Operations.CreateBoard.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.UpdateBoard.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }

@@ -36,16 +36,6 @@
       ],
       "indexes": [
         {
-          "key": "boards_owner_unique",
-          "type": "unique",
-          "columns": [
-            "ownerUserId"
-          ],
-          "orders": [
-            "ASC"
-          ]
-        },
-        {
           "key": "boards_owner_updated",
           "type": "key",
           "columns": [

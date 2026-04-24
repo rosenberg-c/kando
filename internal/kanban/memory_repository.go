@@ -2,7 +2,6 @@ package kanban
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -86,12 +85,9 @@ func (r *MemoryRepository) GetBoard(_ context.Context, ownerUserID, boardID stri
 	return BoardDetails{Board: board, Columns: columns, Tasks: tasks}, nil
 }
 
-func (r *MemoryRepository) CreateBoardIfAbsent(_ context.Context, ownerUserID, title string) (Board, error) {
+func (r *MemoryRepository) CreateBoard(_ context.Context, ownerUserID, title string) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if len(r.ownerBoards[ownerUserID]) > 0 {
-		return Board{}, fmt.Errorf("single board per user: %w", ErrConflict)
-	}
 	return r.createBoardLocked(ownerUserID, title), nil
 }
 

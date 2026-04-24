@@ -29,7 +29,7 @@ struct BoardViewModelTests {
         )
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in details },
             exportTasksHandler: { _, _, _ in exportedPayload }
         )
@@ -65,7 +65,7 @@ struct BoardViewModelTests {
         let capture = ImportCapture()
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in
                 KanbanBoardDetails(
                     board: board,
@@ -133,7 +133,7 @@ struct BoardViewModelTests {
         let callCounter = AsyncCounter()
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in
                 let call = await callCounter.incrementAndGet()
                 if call == 1 {
@@ -167,7 +167,7 @@ struct BoardViewModelTests {
         let details = KanbanBoardDetails(board: board, columns: [], tasks: [])
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in
                 await gate.markStarted()
                 await gate.waitUntilResumed()
@@ -210,7 +210,7 @@ struct BoardViewModelTests {
         )
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in details },
             deleteColumnHandler: { _, _, _, _ in
                 throw KanbanAPIError.unexpectedStatus(
@@ -251,7 +251,7 @@ struct BoardViewModelTests {
         )
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in details },
             reorderTasksHandler: { _, _, _, _ in
                 throw KanbanAPIError.unexpectedStatus(
@@ -294,7 +294,7 @@ struct BoardViewModelTests {
         )
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in details },
             reorderColumnsHandler: { _, _, _, _ in
                 await gate.markStarted()
@@ -341,7 +341,7 @@ struct BoardViewModelTests {
         )
 
         let api = MockKanbanAPI(
-            ensureBoardHandler: { _, _, _ in board },
+            listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in details },
             reorderColumnsHandler: { _, _, _, _ in
                 throw KanbanAPIError.unexpectedStatus(
@@ -366,6 +366,90 @@ struct BoardViewModelTests {
         #expect(viewModel.statusIsError)
         #expect(viewModel.statusMessage.contains("409"))
         #expect(viewModel.debugMessage.contains("operation=reorderColumns"))
+    }
+
+    @Test func switchingBoardsLoadsSelectedBoardDetails() async {
+        // Requirements: BOARD-011, UX-015
+        let boardA = KanbanBoard(id: "board-a", title: "Project A")
+        let boardB = KanbanBoard(id: "board-b", title: "Project B")
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [boardA, boardB] },
+            getBoardHandler: { boardID, _, _ in
+                if boardID == boardA.id {
+                    return KanbanBoardDetails(
+                        board: boardA,
+                        columns: [KanbanColumn(id: "column-a", title: "Backlog", position: 0)],
+                        tasks: [KanbanTask(id: "task-a", columnID: "column-a", title: "A task", description: "", position: 0)]
+                    )
+                }
+                return KanbanBoardDetails(
+                    board: boardB,
+                    columns: [KanbanColumn(id: "column-b", title: "Doing", position: 0)],
+                    tasks: [KanbanTask(id: "task-b", columnID: "column-b", title: "B task", description: "", position: 0)]
+                )
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.board?.id == "board-a")
+
+        await viewModel.selectBoard(boardID: "board-b")
+        #expect(viewModel.board?.id == "board-b")
+        #expect(viewModel.columns.map(\.id) == ["column-b"])
+        #expect(viewModel.tasks(for: "column-b").map(\.id) == ["task-b"])
+    }
+
+    @Test func createAndRenameBoardUpdatesSelectionAndBoardList() async {
+        // Requirements: BOARD-009, BOARD-010, UX-016
+        let boardA = KanbanBoard(id: "board-a", title: "Project A")
+        let boardB = KanbanBoard(id: "board-b", title: "Project B")
+        let createdBoard = KanbanBoard(id: "board-c", title: "Project C")
+        let renamedBoard = KanbanBoard(id: "board-c", title: "Project C Renamed")
+        let boardList = MutableBoardList(initial: [boardA, boardB])
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in await boardList.current() },
+            createBoardHandler: { title, _, _ in
+                #expect(title == "Project C")
+                await boardList.prepend(createdBoard)
+                return createdBoard
+            },
+            updateBoardHandler: { boardID, title, _, _ in
+                #expect(boardID == "board-c")
+                #expect(title == "Project C Renamed")
+                await boardList.replace(boardID: boardID, withTitle: title)
+                return renamedBoard
+            },
+            getBoardHandler: { boardID, _, _ in
+                let boards = await boardList.current()
+                let board = boards.first(where: { $0.id == boardID }) ?? boardA
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.createBoard(title: "Project C")
+
+        #expect(viewModel.board?.id == "board-c")
+        #expect(viewModel.boards.map(\.id).contains("board-c"))
+
+        await viewModel.renameActiveBoard(title: "Project C Renamed")
+
+        #expect(viewModel.board?.title == "Project C Renamed")
+        #expect(viewModel.boards.first(where: { $0.id == "board-c" })?.title == "Project C Renamed")
     }
 }
 
@@ -393,6 +477,32 @@ private actor AsyncCounter {
     func incrementAndGet() -> Int {
         value += 1
         return value
+    }
+}
+
+private actor MutableBoardList {
+    private var boards: [KanbanBoard]
+
+    init(initial: [KanbanBoard]) {
+        boards = initial
+    }
+
+    func current() -> [KanbanBoard] {
+        boards
+    }
+
+    func prepend(_ board: KanbanBoard) {
+        boards.removeAll { $0.id == board.id }
+        boards.insert(board, at: 0)
+    }
+
+    func replace(boardID: String, withTitle title: String) {
+        guard let index = boards.firstIndex(where: { $0.id == boardID }) else {
+            return
+        }
+        boards[index] = KanbanBoard(id: boardID, title: title)
+        let updated = boards.remove(at: index)
+        boards.insert(updated, at: 0)
     }
 }
 

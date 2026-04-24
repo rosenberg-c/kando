@@ -36,7 +36,7 @@ func (s *serviceRepoStub) GetBoard(context.Context, string, string) (BoardDetail
 	return s.details, nil
 }
 
-func (s *serviceRepoStub) CreateBoardIfAbsent(context.Context, string, string) (Board, error) {
+func (s *serviceRepoStub) CreateBoard(context.Context, string, string) (Board, error) {
 	s.createBoardCalls++
 	if s.createBoardErr != nil {
 		return Board{}, s.createBoardErr
@@ -150,7 +150,7 @@ func TestServiceCreateBoardDelegatesAtomicConflict(t *testing.T) {
 	}
 	svc := NewService(stub)
 
-	_, err := svc.CreateBoardIfAbsent(context.Background(), "user-1", "Main")
+	_, err := svc.CreateBoard(context.Background(), "user-1", "Main")
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("create board err = %v, want ErrConflict", err)
 	}

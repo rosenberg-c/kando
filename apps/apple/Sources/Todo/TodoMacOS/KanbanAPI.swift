@@ -100,7 +100,9 @@ enum KanbanAPIError: LocalizedError {
 }
 
 protocol KanbanAPI: Sendable {
-    func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard
+    func listBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard]
+    func createBoard(title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard
+    func updateBoard(boardID: String, title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails
     func createColumn(boardID: String, title: String, accessToken: String, baseURL: URL) async throws
     func updateColumn(boardID: String, columnID: String, title: String, accessToken: String, baseURL: URL) async throws

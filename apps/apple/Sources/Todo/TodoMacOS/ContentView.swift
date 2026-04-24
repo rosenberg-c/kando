@@ -128,7 +128,9 @@ private struct LoggedInWorkspaceView: View {
     @StateObject private var board: BoardViewModel
     @State private var newColumnTitle = ""
     @State private var editingColumn: EditableColumn?
+    @State private var editingBoard: EditableBoard?
     @State private var creatingTaskInColumn: CreateTaskTarget?
+    @State private var isCreateBoardSheetPresented = false
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
@@ -159,11 +161,47 @@ private struct LoggedInWorkspaceView: View {
         ZStack {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
-                    Text(board.board?.title ?? Strings.t("board.title"))
-                        .font(.largeTitle.weight(.semibold))
-                        .accessibilityIdentifier("workspace-board-title")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(board.board?.title ?? Strings.t("board.title"))
+                            .font(.largeTitle.weight(.semibold))
+                            .accessibilityIdentifier("workspace-board-title")
+
+                        Picker(
+                            Strings.t("board.selector.label"),
+                            selection: Binding<String?>(
+                                get: { board.selectedBoardID },
+                                set: { selectedID in
+                                    guard let selectedID else { return }
+                                    Task { await board.selectBoard(boardID: selectedID) }
+                                }
+                            )
+                        ) {
+                            ForEach(board.boards, id: \.id) { boardOption in
+                                Text(boardOption.title).tag(Optional(boardOption.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 260, alignment: .leading)
+                        .disabled(board.isLoading || board.boards.isEmpty)
+                        .accessibilityIdentifier("board-selector-picker")
+                    }
 
                     Spacer()
+
+                    Button("board.create") {
+                        isCreateBoardSheetPresented = true
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(board.isLoading)
+                    .accessibilityIdentifier("board-create-button")
+
+                    Button("board.rename") {
+                        guard let currentBoard = board.board else { return }
+                        editingBoard = EditableBoard(board: currentBoard)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!board.canMutateBoardActions)
+                    .accessibilityIdentifier("board-rename-button")
 
                     Button("board.column.reorder.mode.enter") {
                         reorderSheetColumns = board.columns
@@ -310,6 +348,26 @@ private struct LoggedInWorkspaceView: View {
                 initialTitle: item.title,
                 onSubmit: { title in
                     Task { await board.renameColumn(columnID: item.id, title: title) }
+                }
+            )
+        }
+        .sheet(isPresented: $isCreateBoardSheetPresented) {
+            BoardEditorSheet(
+                title: Strings.t("board.create.title"),
+                submitLabel: Strings.t("board.create.submit"),
+                initialTitle: "",
+                onSubmit: { title in
+                    await board.createBoard(title: title)
+                }
+            )
+        }
+        .sheet(item: $editingBoard) { item in
+            BoardEditorSheet(
+                title: Strings.t("board.rename.title"),
+                submitLabel: Strings.t("board.rename.submit"),
+                initialTitle: item.title,
+                onSubmit: { title in
+                    await board.renameActiveBoard(title: title)
                 }
             )
         }
@@ -972,6 +1030,58 @@ private struct TaskEditorSheet: View {
     }
 }
 
+private struct BoardEditorSheet: View {
+    let title: String
+    let submitLabel: String
+    let initialTitle: String
+    let onSubmit: @Sendable (String) async -> Bool
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var inputTitle: String
+    @State private var isSubmitting = false
+
+    init(title: String, submitLabel: String, initialTitle: String, onSubmit: @escaping @Sendable (String) async -> Bool) {
+        self.title = title
+        self.submitLabel = submitLabel
+        self.initialTitle = initialTitle
+        self.onSubmit = onSubmit
+        _inputTitle = State(initialValue: initialTitle)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+            TextField("board.input.placeholder", text: $inputTitle)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("board-editor-title-input")
+            HStack {
+                Spacer()
+                Button("common.cancel") { dismiss() }
+                    .disabled(isSubmitting)
+                Button(submitLabel) {
+                    isSubmitting = true
+                    Task {
+                        let succeeded = await onSubmit(inputTitle)
+                        await MainActor.run {
+                            isSubmitting = false
+                            if succeeded {
+                                dismiss()
+                            }
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(inputTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSubmitting)
+                .accessibilityIdentifier("board-editor-submit")
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .accessibilityIdentifier("board-editor-sheet")
+    }
+}
+
 private struct EditableColumn: Identifiable {
     let id: String
     let title: String
@@ -979,6 +1089,16 @@ private struct EditableColumn: Identifiable {
     init(column: KanbanColumn) {
         id = column.id
         title = column.title
+    }
+}
+
+private struct EditableBoard: Identifiable {
+    let id: String
+    let title: String
+
+    init(board: KanbanBoard) {
+        id = board.id
+        title = board.title
     }
 }
 

@@ -9,3 +9,6 @@
 - `API-007`: Backend API provides dedicated task transfer endpoints for export/import (`GET /boards/{boardId}/tasks/export`, `POST /boards/{boardId}/tasks/import`) instead of requiring clients to orchestrate row-level transfer mutations.
 - `API-008`: Task import validates payload format version and returns import summary counts (`createdColumnCount`, `importedTaskCount`).
 - `API-009`: Task import applies atomically; on failure, it leaves board task/column state unchanged from pre-import state.
+- `API-010`: Backend API creates a new board for `POST /boards` requests and does not enforce single-board-per-user semantics.
+- `API-011`: Backend API returns all owned boards from `GET /boards`, sorted by most recently updated first.
+- `API-012`: Board-scoped mutations require a valid board ID selected by the client and return stable `404`/`403` errors for missing/forbidden board access.

@@ -111,8 +111,7 @@ func (r *SQLiteRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 	return BoardDetails{Board: board, Columns: columns, Tasks: tasks}, nil
 }
 
-func (r *SQLiteRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (Board, error) {
-	// SQLite atomicity relies on the unique constraint for owner_user_id.
+func (r *SQLiteRepository) CreateBoard(ctx context.Context, ownerUserID, title string) (Board, error) {
 	now := r.now().UTC()
 	board := Board{
 		ID:           uuid.NewString(),
@@ -135,9 +134,6 @@ func (r *SQLiteRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID,
 		toUnixMillis(board.UpdatedAt),
 	)
 	if err != nil {
-		if isUniqueConstraintError(err) {
-			return Board{}, fmt.Errorf("create board conflict: %w", ErrConflict)
-		}
 		return Board{}, fmt.Errorf("create board: %w", err)
 	}
 
