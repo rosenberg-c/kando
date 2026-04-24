@@ -11,6 +11,8 @@
 - `UX-009`: While a board mutation is pending, workspace interactions are disabled and a visible loading indicator is shown until the operation completes.
 - `UX-010`: Workspace header exposes a `Settings` control in the upper-right area.
 - `UX-011`: Refresh and sign-out actions are available from the settings panel instead of inline in the workspace header.
+- `UX-012`: Settings includes an export/import section with controls for task JSON export and import.
+- `UX-013`: Import/export actions surface success/failure feedback with actionable status context.
 
 ## Platform Applicability
 
@@ -25,3 +27,5 @@
 - `UX-009`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-010`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-011`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-012`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-013`: macOS (required), iOS (planned), TUI (N/A).

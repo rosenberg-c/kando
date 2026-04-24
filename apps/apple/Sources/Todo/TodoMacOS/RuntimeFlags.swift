@@ -8,6 +8,8 @@ enum AppEnvironmentKey {
     static let signedIn = "TODO_UITEST_SIGNED_IN"
     static let email = "TODO_UITEST_EMAIL"
     static let workTaskCount = "TODO_UITEST_WORK_TASK_COUNT"
+    static let columnCount = "TODO_UITEST_COLUMN_COUNT"
+    static let spreadTasksAcrossColumns = "TODO_UITEST_SPREAD_TASKS"
     static let mockDelayMs = "TODO_UITEST_MOCK_DELAY_MS"
 }
 

@@ -6,3 +6,6 @@
 - `API-004`: Backend API error responses include stable status and detail fields.
 - `API-005`: Backend API provides list-based task reordering via `PUT /boards/{boardId}/tasks/order` with body `{ columns: [{ columnId: string, taskIds: string[] }] }`.
 - `API-006`: Task reorder operations are atomic and do not expose partial-update states.
+- `API-007`: Backend API provides dedicated task transfer endpoints for export/import (`GET /boards/{boardId}/tasks/export`, `POST /boards/{boardId}/tasks/import`) instead of requiring clients to orchestrate row-level transfer mutations.
+- `API-008`: Task import validates payload format version and returns import summary counts (`createdColumnCount`, `importedTaskCount`).
+- `API-009`: Task import applies atomically; on failure, it leaves board task/column state unchanged from pre-import state.

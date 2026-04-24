@@ -30,6 +30,34 @@ struct KanbanBoardDetails: Sendable, Equatable {
     let tasks: [KanbanTask]
 }
 
+struct TaskExportPayload: Codable, Sendable, Equatable {
+    static let currentFormatVersion = 1
+
+    let formatVersion: Int
+    let boardTitle: String
+    let exportedAt: String
+    let columns: [TaskExportColumn]
+
+    var taskCount: Int {
+        columns.reduce(0) { $0 + $1.tasks.count }
+    }
+}
+
+struct TaskExportColumn: Codable, Sendable, Equatable {
+    let title: String
+    let tasks: [TaskExportTask]
+}
+
+struct TaskExportTask: Codable, Sendable, Equatable {
+    let title: String
+    let description: String
+}
+
+struct TaskImportResult: Sendable, Equatable {
+    let createdColumnCount: Int
+    let importedTaskCount: Int
+}
+
 enum KanbanAPIError: LocalizedError {
     case unauthorized
     case unexpectedStatus(code: Int, operation: String, title: String?, detail: String?)
@@ -82,4 +110,6 @@ protocol KanbanAPI: Sendable {
     func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws
+    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload
+    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult
 }

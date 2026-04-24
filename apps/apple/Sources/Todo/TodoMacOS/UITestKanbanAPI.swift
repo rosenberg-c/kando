@@ -2,18 +2,21 @@ import Foundation
 
 actor UITestKanbanAPI: KanbanAPI {
     private let board = KanbanBoard(id: "board-1", title: "UI Test Board")
-    private var columns: [KanbanColumn] = [
-        KanbanColumn(id: "column-work", title: "Work", position: 0),
-        KanbanColumn(id: "column-empty", title: "Empty", position: 1)
-    ]
+    private var columns: [KanbanColumn]
 
     private var tasks: [KanbanTask]
     private let operationDelayNanoseconds: UInt64
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+        let requestedColumnCount = Int(environment[AppEnvironmentKey.columnCount] ?? "") ?? 2
+        let columnCount = max(2, requestedColumnCount)
+        columns = Self.makeColumns(count: columnCount)
+
         let requestedTaskCount = Int(environment[AppEnvironmentKey.workTaskCount] ?? "") ?? 1
         let taskCount = max(1, requestedTaskCount)
-        tasks = Self.makeInitialTasks(count: taskCount)
+        let shouldSpreadTasks = environment[AppEnvironmentKey.spreadTasksAcrossColumns] == "1"
+        tasks = Self.makeInitialTasks(count: taskCount, columns: columns, spreadAcrossColumns: shouldSpreadTasks)
+
         let requestedDelayMs = Int(environment[AppEnvironmentKey.mockDelayMs] ?? "") ?? 0
         operationDelayNanoseconds = UInt64(max(0, requestedDelayMs)) * 1_000_000
     }
@@ -23,14 +26,36 @@ actor UITestKanbanAPI: KanbanAPI {
         try? await Task.sleep(nanoseconds: operationDelayNanoseconds)
     }
 
-    private static func makeInitialTasks(count: Int) -> [KanbanTask] {
-        (0..<count).map { index in
-            let position = index
+    private static func makeColumns(count: Int) -> [KanbanColumn] {
+        guard count > 2 else {
+            return [
+                KanbanColumn(id: "column-work", title: "Work", position: 0),
+                KanbanColumn(id: "column-empty", title: "Empty", position: 1)
+            ]
+        }
+
+        return (0..<count).map { index in
+            KanbanColumn(
+                id: "column-\(index + 1)",
+                title: "Column \(index + 1)",
+                position: index
+            )
+        }
+    }
+
+    private static func makeInitialTasks(count: Int, columns: [KanbanColumn], spreadAcrossColumns: Bool) -> [KanbanTask] {
+        let destinationColumns = spreadAcrossColumns ? columns : [columns.first!]
+        var nextPositionByColumnID: [String: Int] = [:]
+
+        return (0..<count).map { index in
+            let targetColumn = destinationColumns[index % destinationColumns.count]
+            let position = nextPositionByColumnID[targetColumn.id, default: 0]
+            nextPositionByColumnID[targetColumn.id] = position + 1
             let id = "task-\(index + 1)"
             let title = index == 0 ? "Example task" : "Example task \(index + 1)"
             return KanbanTask(
                 id: id,
-                columnID: "column-work",
+                columnID: targetColumn.id,
                 title: title,
                 description: "UI test item",
                 position: position
@@ -140,5 +165,92 @@ actor UITestKanbanAPI: KanbanAPI {
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
         await maybeDelay()
         tasks.removeAll { $0.id == taskID }
+    }
+
+    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload {
+        await maybeDelay()
+
+        let exportColumns = columns
+            .sorted { $0.position < $1.position }
+            .map { column in
+                TaskExportColumn(
+                    title: column.title,
+                    tasks: tasks
+                        .filter { $0.columnID == column.id }
+                        .sorted { $0.position < $1.position }
+                        .map { TaskExportTask(title: $0.title, description: $0.description) }
+                )
+            }
+
+        return TaskExportPayload(
+            formatVersion: TaskExportPayload.currentFormatVersion,
+            boardTitle: board.title,
+            exportedAt: ISO8601DateFormatter().string(from: Date()),
+            columns: exportColumns
+        )
+    }
+
+    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult {
+        await maybeDelay()
+
+        guard payload.formatVersion == TaskExportPayload.currentFormatVersion else {
+            throw KanbanAPIError.unexpectedStatus(
+                code: 400,
+                operation: "importTasks",
+                title: "Bad Request",
+                detail: "unsupported format version"
+            )
+        }
+
+        var columnIDByTitle: [String: String] = [:]
+        for column in columns.sorted(by: { $0.position < $1.position }) {
+            if columnIDByTitle[column.title] == nil {
+                columnIDByTitle[column.title] = column.id
+            }
+        }
+
+        var createdColumnCount = 0
+        for column in payload.columns {
+            let trimmedTitle = column.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTitle.isEmpty else { continue }
+            if columnIDByTitle[trimmedTitle] != nil { continue }
+
+            let nextPosition = (columns.map(\.position).max() ?? -1) + 1
+            let columnID = UUID().uuidString
+            columns.append(KanbanColumn(id: columnID, title: trimmedTitle, position: nextPosition))
+            columnIDByTitle[trimmedTitle] = columnID
+            createdColumnCount += 1
+        }
+
+        var importedTaskCount = 0
+        var nextPositionByColumnID: [String: Int] = [:]
+        for task in tasks {
+            nextPositionByColumnID[task.columnID] = max(nextPositionByColumnID[task.columnID, default: 0], task.position + 1)
+        }
+
+        for column in payload.columns {
+            let trimmedTitle = column.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let columnID = columnIDByTitle[trimmedTitle] else { continue }
+
+            for task in column.tasks {
+                let trimmedTaskTitle = task.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmedTaskTitle.isEmpty else { continue }
+
+                let position = nextPositionByColumnID[columnID, default: 0]
+                nextPositionByColumnID[columnID] = position + 1
+                tasks.append(
+                    KanbanTask(
+                        id: UUID().uuidString,
+                        columnID: columnID,
+                        title: trimmedTaskTitle,
+                        description: task.description,
+                        position: position
+                    )
+                )
+                importedTaskCount += 1
+            }
+        }
+
+        return TaskImportResult(createdColumnCount: createdColumnCount, importedTaskCount: importedTaskCount)
     }
 }

@@ -119,6 +119,32 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
+    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.exportTasks(path: .init(boardId: boardID))
+        switch output {
+        case let .ok(ok):
+            return mapTaskExportPayload(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "exportTasks", model: problem(from: payload.body))
+        }
+    }
+
+    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.importTasks(path: .init(boardId: boardID), body: .json(try mapTaskExportPayload(payload)))
+        switch output {
+        case let .ok(ok):
+            let body = try ok.body.json
+            return TaskImportResult(
+                createdColumnCount: Int(body.createdColumnCount),
+                importedTaskCount: Int(body.importedTaskCount)
+            )
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "importTasks", model: problem(from: payload.body))
+        }
+    }
+
     private func authenticatedClient(baseURL: URL, accessToken: String) -> Client {
         TodoAPIClientFactory.makeClient(baseURL: baseURL, middlewares: [BearerAuthMiddleware(accessToken: accessToken)])
     }
@@ -176,7 +202,59 @@ struct GeneratedKanbanAPI: KanbanAPI {
            case let .applicationProblemJson(model) = body {
             return model
         }
+        if let body = body as? Operations.ExportTasks.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.ImportTasks.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
         return nil
+    }
+
+    private func mapTaskExportPayload(_ payload: Components.Schemas.TaskExportPayload) -> TaskExportPayload {
+        TaskExportPayload(
+            formatVersion: Int(payload.formatVersion),
+            boardTitle: payload.boardTitle,
+            exportedAt: ExportDateFormatters.plain.string(from: payload.exportedAt),
+            columns: payload.columns.map {
+                TaskExportColumn(
+                    title: $0.title,
+                    tasks: $0.tasks.map { task in
+                        TaskExportTask(title: task.title, description: task.description)
+                    }
+                )
+            }
+        )
+    }
+
+    private func mapTaskExportPayload(_ payload: TaskExportPayload) throws -> Components.Schemas.TaskExportPayload {
+        Components.Schemas.TaskExportPayload(
+            boardTitle: payload.boardTitle,
+            columns: payload.columns.map { column in
+                Components.Schemas.TaskExportColumn(
+                    tasks: column.tasks.map { task in
+                        Components.Schemas.TaskExportTask(description: task.description, title: task.title)
+                    },
+                    title: column.title
+                )
+            },
+            exportedAt: try parseExportedAt(payload.exportedAt),
+            formatVersion: Int64(payload.formatVersion)
+        )
+    }
+
+    private func parseExportedAt(_ value: String) throws -> Date {
+        if let date = ExportDateFormatters.plain.date(from: value) {
+            return date
+        }
+
+        if let date = ExportDateFormatters.fractional.date(from: value) {
+            return date
+        }
+
+        throw KanbanAPIError.invalidResponse
     }
 
     private func mapBoard(_ board: Components.Schemas.Board) -> KanbanBoard {
@@ -190,6 +268,18 @@ struct GeneratedKanbanAPI: KanbanAPI {
     private func mapTask(_ task: Components.Schemas.Task) -> KanbanTask {
         KanbanTask(id: task.id, columnID: task.columnId, title: task.title, description: task.description, position: Int(task.position))
     }
+}
+
+private enum ExportDateFormatters {
+    static let plain: ISO8601DateFormatter = {
+        ISO8601DateFormatter()
+    }()
+
+    static let fractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 }
 
 private struct BearerAuthMiddleware: ClientMiddleware {

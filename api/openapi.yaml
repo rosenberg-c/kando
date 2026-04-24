@@ -369,6 +369,86 @@ components:
         - columnId
         - taskIds
       type: object
+    TaskExportColumn:
+      additionalProperties: false
+      properties:
+        tasks:
+          items:
+            $ref: "#/components/schemas/TaskExportTask"
+          type: array
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - title
+        - tasks
+      type: object
+    TaskExportPayload:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskExportPayload.json
+          format: uri
+          readOnly: true
+          type: string
+        boardTitle:
+          maxLength: 120
+          minLength: 1
+          type: string
+        columns:
+          items:
+            $ref: "#/components/schemas/TaskExportColumn"
+          type: array
+        exportedAt:
+          format: date-time
+          type: string
+        formatVersion:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - formatVersion
+        - boardTitle
+        - exportedAt
+        - columns
+      type: object
+    TaskExportTask:
+      additionalProperties: false
+      properties:
+        description:
+          maxLength: 4000
+          type: string
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - title
+        - description
+      type: object
+    TaskImportResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskImportResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        createdColumnCount:
+          format: int64
+          minimum: 0
+          type: integer
+        importedTaskCount:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - createdColumnCount
+        - importedTaskCount
+      type: object
     UpdateBoardRequest:
       additionalProperties: false
       properties:
@@ -816,6 +896,70 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a task
+  /boards/{boardId}/tasks/export:
+    get:
+      operationId: exportTasks
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskExportPayload"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Export board tasks as versioned payload
+  /boards/{boardId}/tasks/import:
+    post:
+      operationId: importTasks
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskExportPayload"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskImportResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Import board tasks from versioned payload
   /boards/{boardId}/tasks/order:
     put:
       operationId: reorderTasks

@@ -96,3 +96,25 @@ type TaskColumnOrderRequest struct {
 type ReorderTasksRequest struct {
 	Columns []TaskColumnOrderRequest `json:"columns" minItems:"1" nullable:"false"`
 }
+
+type TaskExportPayload struct {
+	FormatVersion int                `json:"formatVersion" minimum:"1"`
+	BoardTitle    string             `json:"boardTitle" minLength:"1" maxLength:"120"`
+	ExportedAt    string             `json:"exportedAt" format:"date-time"`
+	Columns       []TaskExportColumn `json:"columns" nullable:"false"`
+}
+
+type TaskExportColumn struct {
+	Title string           `json:"title" minLength:"1" maxLength:"120"`
+	Tasks []TaskExportTask `json:"tasks" nullable:"false"`
+}
+
+type TaskExportTask struct {
+	Title       string `json:"title" minLength:"1" maxLength:"200"`
+	Description string `json:"description" maxLength:"4000"`
+}
+
+type TaskImportResponse struct {
+	CreatedColumnCount int `json:"createdColumnCount" minimum:"0"`
+	ImportedTaskCount  int `json:"importedTaskCount" minimum:"0"`
+}

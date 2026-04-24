@@ -583,60 +583,9 @@ func (r *SQLiteRepository) DeleteTask(ctx context.Context, ownerUserID, boardID,
 }
 
 func (r *SQLiteRepository) listColumns(ctx context.Context, boardID string) ([]Column, error) {
-	rows, err := r.db.QueryContext(
-		ctx,
-		`SELECT id, board_id, owner_user_id, title, position, created_at_ms, updated_at_ms
-		 FROM columns
-		 WHERE board_id = ?
-		 ORDER BY position, id`,
-		boardID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("list columns: %w", err)
-	}
-	defer rows.Close()
-
-	columns := make([]Column, 0)
-	for rows.Next() {
-		column, scanErr := scanColumn(rows.Scan)
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		columns = append(columns, column)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate columns: %w", err)
-	}
-
-	return columns, nil
+	return listColumnsForQuery(ctx, r.db, boardID)
 }
 
 func (r *SQLiteRepository) listTasks(ctx context.Context, boardID string) ([]Task, error) {
-	rows, err := r.db.QueryContext(
-		ctx,
-		`SELECT t.id, t.board_id, t.column_id, t.owner_user_id, t.title, t.description, t.position, t.created_at_ms, t.updated_at_ms
-		 FROM tasks t
-		 INNER JOIN columns c ON c.id = t.column_id
-		 WHERE t.board_id = ?
-		 ORDER BY c.position, t.position`,
-		boardID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("list tasks: %w", err)
-	}
-	defer rows.Close()
-
-	tasks := make([]Task, 0)
-	for rows.Next() {
-		task, scanErr := scanTask(rows.Scan)
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		tasks = append(tasks, task)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate tasks: %w", err)
-	}
-
-	return tasks, nil
+	return listTasksForQuery(ctx, r.db, boardID)
 }

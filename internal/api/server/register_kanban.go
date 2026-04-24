@@ -3,7 +3,11 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -102,6 +106,12 @@ type taskPathInput struct {
 	TaskID        string `path:"taskId"`
 }
 
+type importTasksInput struct {
+	Authorization string `header:"Authorization"`
+	BoardID       string `path:"boardId"`
+	Body          contracts.TaskExportPayload
+}
+
 type taskOutput struct {
 	Body contracts.Task
 }
@@ -109,6 +119,16 @@ type taskOutput struct {
 type tasksOutput struct {
 	Body []contracts.Task
 }
+
+type exportTasksOutput struct {
+	Body contracts.TaskExportPayload
+}
+
+type importTasksOutput struct {
+	Body contracts.TaskImportResponse
+}
+
+const taskExportFormatVersion = 1
 
 func registerKanban(api huma.API, deps Dependencies) {
 	huma.Register(api, huma.Operation{
@@ -393,6 +413,51 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
+		OperationID: "exportTasks",
+		Method:      http.MethodGet,
+		Path:        "/boards/{boardId}/tasks/export",
+		Summary:     "Export board tasks as versioned payload",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *boardPathInput) (*exportTasksOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		details, err := repo.GetBoard(ctx, identity.UserID, input.BoardID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		payload := buildTaskExportPayload(details, time.Now().UTC())
+		return &exportTasksOutput{Body: payload}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "importTasks",
+		Method:      http.MethodPost,
+		Path:        "/boards/{boardId}/tasks/import",
+		Summary:     "Import board tasks from versioned payload",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *importTasksInput) (*importTasksOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		if input.Body.FormatVersion != taskExportFormatVersion {
+			return nil, huma.Error400BadRequest("unsupported task export format version")
+		}
+
+		result, err := importTasksAtomically(ctx, repo, identity.UserID, input.BoardID, input.Body)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return &importTasksOutput{Body: result}, nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID:   "deleteTask",
 		Method:        http.MethodDelete,
 		Path:          "/boards/{boardId}/tasks/{taskId}",
@@ -484,4 +549,243 @@ func toContractTask(task kanban.Task) contracts.Task {
 		CreatedAt:   task.CreatedAt,
 		UpdatedAt:   task.UpdatedAt,
 	}
+}
+
+func buildTaskExportPayload(details kanban.BoardDetails, exportedAt time.Time) contracts.TaskExportPayload {
+	columns := append([]kanban.Column(nil), details.Columns...)
+	sort.Slice(columns, func(i, j int) bool {
+		return columns[i].Position < columns[j].Position
+	})
+
+	tasksByColumnID := make(map[string][]kanban.Task)
+	for _, task := range details.Tasks {
+		tasksByColumnID[task.ColumnID] = append(tasksByColumnID[task.ColumnID], task)
+	}
+
+	exportColumns := make([]contracts.TaskExportColumn, 0, len(columns))
+	for _, column := range columns {
+		tasks := tasksByColumnID[column.ID]
+		sort.Slice(tasks, func(i, j int) bool {
+			return tasks[i].Position < tasks[j].Position
+		})
+
+		exportTasks := make([]contracts.TaskExportTask, 0, len(tasks))
+		for _, task := range tasks {
+			exportTasks = append(exportTasks, contracts.TaskExportTask{
+				Title:       task.Title,
+				Description: task.Description,
+			})
+		}
+
+		exportColumns = append(exportColumns, contracts.TaskExportColumn{
+			Title: column.Title,
+			Tasks: exportTasks,
+		})
+	}
+
+	return contracts.TaskExportPayload{
+		FormatVersion: taskExportFormatVersion,
+		BoardTitle:    details.Board.Title,
+		ExportedAt:    exportedAt.Format(time.RFC3339),
+		Columns:       exportColumns,
+	}
+}
+
+func importTasksAtomically(ctx context.Context, repo kanban.Repository, ownerUserID, boardID string, payload contracts.TaskExportPayload) (contracts.TaskImportResponse, error) {
+	if txRepo, ok := repo.(kanban.TransactionalRepository); ok {
+		var response contracts.TaskImportResponse
+		err := txRepo.RunInTransaction(ctx, func(transactionRepo kanban.Repository) error {
+			innerResponse, err := importTasksWithoutCompensation(ctx, transactionRepo, ownerUserID, boardID, payload)
+			if err != nil {
+				return importTransactionCallbackError{cause: err}
+			}
+			response = innerResponse
+			return nil
+		})
+
+		var callbackErr importTransactionCallbackError
+		if errors.As(err, &callbackErr) {
+			return contracts.TaskImportResponse{}, callbackErr.cause
+		}
+		if errors.Is(err, kanban.ErrNotImplemented) {
+			return importTasksWithCompensation(ctx, repo, ownerUserID, boardID, payload)
+		}
+		if err != nil {
+			return contracts.TaskImportResponse{}, err
+		}
+
+		return response, nil
+	}
+
+	return importTasksWithCompensation(ctx, repo, ownerUserID, boardID, payload)
+}
+
+type importTransactionCallbackError struct {
+	cause error
+}
+
+func (e importTransactionCallbackError) Error() string {
+	if e.cause == nil {
+		return "transaction callback failed"
+	}
+	return e.cause.Error()
+}
+
+func (e importTransactionCallbackError) Unwrap() error {
+	return e.cause
+}
+
+func importTasksWithoutCompensation(ctx context.Context, repo kanban.Repository, ownerUserID, boardID string, payload contracts.TaskExportPayload) (contracts.TaskImportResponse, error) {
+	columnsByTitle, missingTitles, err := resolveImportColumns(ctx, repo, ownerUserID, boardID, payload)
+	if err != nil {
+		return contracts.TaskImportResponse{}, err
+	}
+
+	createdColumnCount := 0
+	for _, title := range missingTitles {
+		createdColumn, _, createErr := repo.CreateColumn(ctx, ownerUserID, boardID, title)
+		if createErr != nil {
+			return contracts.TaskImportResponse{}, createErr
+		}
+		columnsByTitle[title] = createdColumn.ID
+		createdColumnCount++
+	}
+
+	importedTaskCount, err := importTasksForResolvedColumns(ctx, repo, ownerUserID, boardID, payload, columnsByTitle)
+	if err != nil {
+		return contracts.TaskImportResponse{}, err
+	}
+
+	return contracts.TaskImportResponse{
+		CreatedColumnCount: createdColumnCount,
+		ImportedTaskCount:  importedTaskCount,
+	}, nil
+}
+
+func importTasksWithCompensation(ctx context.Context, repo kanban.Repository, ownerUserID, boardID string, payload contracts.TaskExportPayload) (contracts.TaskImportResponse, error) {
+	columnsByTitle, missingTitles, err := resolveImportColumns(ctx, repo, ownerUserID, boardID, payload)
+	if err != nil {
+		return contracts.TaskImportResponse{}, err
+	}
+
+	createdColumnIDs := make([]string, 0, len(missingTitles))
+	createdTaskIDs := make([]string, 0)
+	rollbackCtx := context.WithoutCancel(ctx)
+
+	rollback := func() error {
+		for i := len(createdTaskIDs) - 1; i >= 0; i-- {
+			if _, err := repo.DeleteTask(rollbackCtx, ownerUserID, boardID, createdTaskIDs[i]); err != nil {
+				return fmt.Errorf("rollback delete task %s: %w", createdTaskIDs[i], err)
+			}
+		}
+		for i := len(createdColumnIDs) - 1; i >= 0; i-- {
+			if _, err := repo.DeleteColumn(rollbackCtx, ownerUserID, boardID, createdColumnIDs[i]); err != nil {
+				return fmt.Errorf("rollback delete column %s: %w", createdColumnIDs[i], err)
+			}
+		}
+		return nil
+	}
+
+	for _, title := range missingTitles {
+		createdColumn, _, err := repo.CreateColumn(ctx, ownerUserID, boardID, title)
+		if err != nil {
+			if rollbackErr := rollback(); rollbackErr != nil {
+				return contracts.TaskImportResponse{}, fmt.Errorf("import create column rollback failed: %w", rollbackErr)
+			}
+			return contracts.TaskImportResponse{}, err
+		}
+		createdColumnIDs = append(createdColumnIDs, createdColumn.ID)
+		columnsByTitle[title] = createdColumn.ID
+	}
+
+	importedTaskCount, err := importTasksForResolvedColumns(ctx, repo, ownerUserID, boardID, payload, columnsByTitle, func(taskID string) {
+		createdTaskIDs = append(createdTaskIDs, taskID)
+	})
+	if err != nil {
+		if rollbackErr := rollback(); rollbackErr != nil {
+			return contracts.TaskImportResponse{}, fmt.Errorf("import create task rollback failed: %w", rollbackErr)
+		}
+		return contracts.TaskImportResponse{}, err
+	}
+
+	return contracts.TaskImportResponse{
+		CreatedColumnCount: len(createdColumnIDs),
+		ImportedTaskCount:  importedTaskCount,
+	}, nil
+}
+
+func resolveImportColumns(ctx context.Context, repo kanban.Repository, ownerUserID, boardID string, payload contracts.TaskExportPayload) (map[string]string, []string, error) {
+	details, err := repo.GetBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	columnsByTitle := make(map[string]string, len(details.Columns))
+	for _, column := range details.Columns {
+		title := strings.TrimSpace(column.Title)
+		if title == "" {
+			continue
+		}
+		if _, exists := columnsByTitle[title]; !exists {
+			columnsByTitle[title] = column.ID
+		}
+	}
+
+	missingTitles := make([]string, 0)
+	seenMissing := make(map[string]struct{})
+	for _, column := range payload.Columns {
+		title := strings.TrimSpace(column.Title)
+		if title == "" {
+			continue
+		}
+		if _, exists := columnsByTitle[title]; exists {
+			continue
+		}
+		if _, exists := seenMissing[title]; exists {
+			continue
+		}
+		seenMissing[title] = struct{}{}
+		missingTitles = append(missingTitles, title)
+	}
+
+	return columnsByTitle, missingTitles, nil
+}
+
+func importTasksForResolvedColumns(
+	ctx context.Context,
+	repo kanban.Repository,
+	ownerUserID, boardID string,
+	payload contracts.TaskExportPayload,
+	columnsByTitle map[string]string,
+	onCreate ...func(taskID string),
+) (int, error) {
+	importedTaskCount := 0
+	for _, column := range payload.Columns {
+		title := strings.TrimSpace(column.Title)
+		if title == "" {
+			continue
+		}
+		columnID, exists := columnsByTitle[title]
+		if !exists {
+			continue
+		}
+
+		for _, task := range column.Tasks {
+			taskTitle := strings.TrimSpace(task.Title)
+			if taskTitle == "" {
+				continue
+			}
+
+			createdTask, _, err := repo.CreateTask(ctx, ownerUserID, boardID, columnID, taskTitle, task.Description)
+			if err != nil {
+				return 0, err
+			}
+			if len(onCreate) > 0 && onCreate[0] != nil {
+				onCreate[0](createdTask.ID)
+			}
+			importedTaskCount++
+		}
+	}
+
+	return importedTaskCount, nil
 }

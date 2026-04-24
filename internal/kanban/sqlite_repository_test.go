@@ -217,6 +217,41 @@ func TestSQLiteRepositoryGetBoardTaskOrderFollowsColumnPosition(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepositoryRunInTransactionRollsBackOnError(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestSQLiteRepository(t)
+
+	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
+	if err != nil {
+		t.Fatalf("create board: %v", err)
+	}
+
+	err = repo.RunInTransaction(ctx, func(txRepo Repository) error {
+		column, _, err := txRepo.CreateColumn(ctx, "owner", board.ID, "Backlog")
+		if err != nil {
+			return err
+		}
+		if _, _, err := txRepo.CreateTask(ctx, "owner", board.ID, column.ID, "Plan", ""); err != nil {
+			return err
+		}
+		return ErrInvalidInput
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("transaction err = %v, want ErrInvalidInput", err)
+	}
+
+	details, err := repo.GetBoard(ctx, "owner", board.ID)
+	if err != nil {
+		t.Fatalf("get board: %v", err)
+	}
+	if len(details.Columns) != 0 {
+		t.Fatalf("column count = %d, want 0 after rollback", len(details.Columns))
+	}
+	if len(details.Tasks) != 0 {
+		t.Fatalf("task count = %d, want 0 after rollback", len(details.Tasks))
+	}
+}
+
 func newTestSQLiteRepository(t *testing.T) *SQLiteRepository {
 	t.Helper()
 

@@ -19,3 +19,9 @@ type Repository interface {
 	ReorderTasks(ctx context.Context, ownerUserID, boardID string, orderedTasksByColumn []TaskColumnOrder) (Board, error)
 	DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error)
 }
+
+// TransactionalRepository allows callers to run a set of repository operations
+// atomically when the underlying storage supports transactions.
+type TransactionalRepository interface {
+	RunInTransaction(ctx context.Context, fn func(repo Repository) error) error
+}

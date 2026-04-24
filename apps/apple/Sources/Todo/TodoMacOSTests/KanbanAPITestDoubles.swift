@@ -44,6 +44,8 @@ struct MockKanbanAPI: KanbanAPI {
     var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var reorderTasksHandler: @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void
     var deleteTaskHandler: @Sendable (String, String, String, URL) async throws -> Void
+    var exportTasksHandler: @Sendable (String, String, URL) async throws -> TaskExportPayload
+    var importTasksHandler: @Sendable (String, TaskExportPayload, String, URL) async throws -> TaskImportResult
 
     init(
         ensureBoardHandler: @escaping @Sendable (String, URL, String) async throws -> KanbanBoard = { _, _, _ in
@@ -59,7 +61,13 @@ struct MockKanbanAPI: KanbanAPI {
         createTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         reorderTasksHandler: @escaping @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void = { _, _, _, _ in },
-        deleteTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in }
+        deleteTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
+        exportTasksHandler: @escaping @Sendable (String, String, URL) async throws -> TaskExportPayload = { _, _, _ in
+            TaskExportPayload(formatVersion: TaskExportPayload.currentFormatVersion, boardTitle: "Main", exportedAt: "2026-04-24T00:00:00Z", columns: [])
+        },
+        importTasksHandler: @escaping @Sendable (String, TaskExportPayload, String, URL) async throws -> TaskImportResult = { _, payload, _, _ in
+            TaskImportResult(createdColumnCount: 0, importedTaskCount: payload.taskCount)
+        }
     ) {
         self.ensureBoardHandler = ensureBoardHandler
         self.getBoardHandler = getBoardHandler
@@ -71,6 +79,8 @@ struct MockKanbanAPI: KanbanAPI {
         self.updateTaskHandler = updateTaskHandler
         self.reorderTasksHandler = reorderTasksHandler
         self.deleteTaskHandler = deleteTaskHandler
+        self.exportTasksHandler = exportTasksHandler
+        self.importTasksHandler = importTasksHandler
     }
 
     func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
@@ -111,5 +121,13 @@ struct MockKanbanAPI: KanbanAPI {
 
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
         try await deleteTaskHandler(boardID, taskID, accessToken, baseURL)
+    }
+
+    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload {
+        try await exportTasksHandler(boardID, accessToken, baseURL)
+    }
+
+    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult {
+        try await importTasksHandler(boardID, payload, accessToken, baseURL)
     }
 }
