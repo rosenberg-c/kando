@@ -2,7 +2,7 @@ package schema
 
 import "testing"
 
-func TestKanbanAppwriteDatabaseIncludesUniqueBoardOwnerIndex(t *testing.T) {
+func TestKanbanAppwriteDatabaseIncludesBoardOwnerUpdatedIndex(t *testing.T) {
 	database := KanbanAppwriteDatabase()
 
 	var boards *AppwriteTable
@@ -17,17 +17,17 @@ func TestKanbanAppwriteDatabaseIncludesUniqueBoardOwnerIndex(t *testing.T) {
 	}
 
 	for _, index := range boards.Indexes {
-		if index.Key != "boards_owner_unique" {
+		if index.Key != "boards_owner_updated" {
 			continue
 		}
-		if index.Type != "unique" {
-			t.Fatalf("boards_owner_unique type = %q, want %q", index.Type, "unique")
+		if index.Type != "key" {
+			t.Fatalf("boards_owner_updated type = %q, want %q", index.Type, "key")
 		}
-		if len(index.Columns) != 1 || index.Columns[0] != "ownerUserId" {
-			t.Fatalf("boards_owner_unique columns = %v, want [ownerUserId]", index.Columns)
+		if len(index.Columns) != 2 || index.Columns[0] != "ownerUserId" || index.Columns[1] != "updatedAt" {
+			t.Fatalf("boards_owner_updated columns = %v, want [ownerUserId updatedAt]", index.Columns)
 		}
 		return
 	}
 
-	t.Fatal("boards_owner_unique index missing")
+	t.Fatal("boards_owner_updated index missing")
 }

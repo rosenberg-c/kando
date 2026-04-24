@@ -14,7 +14,7 @@ func TestSQLiteRepositoryCRUDAndReindex(t *testing.T) {
 	ctx := context.Background()
 	repo := newTestSQLiteRepository(t)
 
-	board, err := repo.CreateBoardIfAbsent(ctx, "user-1", "Main")
+	board, err := repo.CreateBoard(ctx, "user-1", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestSQLiteRepositoryOwnershipEnforcement(t *testing.T) {
 	ctx := context.Background()
 	repo := newTestSQLiteRepository(t)
 
-	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
+	board, err := repo.CreateBoard(ctx, "owner", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestSQLiteRepositoryGetBoardTaskOrderFollowsColumnPosition(t *testing.T) {
 	ctx := context.Background()
 	repo := newTestSQLiteRepository(t)
 
-	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
+	board, err := repo.CreateBoard(ctx, "owner", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestSQLiteRepositoryRunInTransactionRollsBackOnError(t *testing.T) {
 	ctx := context.Background()
 	repo := newTestSQLiteRepository(t)
 
-	board, err := repo.CreateBoardIfAbsent(ctx, "owner", "Main")
+	board, err := repo.CreateBoard(ctx, "owner", "Main")
 	if err != nil {
 		t.Fatalf("create board: %v", err)
 	}

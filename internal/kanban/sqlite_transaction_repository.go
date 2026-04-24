@@ -56,7 +56,7 @@ func (r *sqliteTxRepository) GetBoard(ctx context.Context, ownerUserID, boardID 
 	return BoardDetails{Board: board, Columns: columns, Tasks: tasks}, nil
 }
 
-func (r *sqliteTxRepository) CreateBoardIfAbsent(context.Context, string, string) (Board, error) {
+func (r *sqliteTxRepository) CreateBoard(context.Context, string, string) (Board, error) {
 	return Board{}, ErrNotImplemented
 }
 

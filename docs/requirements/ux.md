@@ -13,6 +13,9 @@
 - `UX-011`: Refresh and sign-out actions are available from the settings panel instead of inline in the workspace header.
 - `UX-012`: Settings includes an export/import section with controls for task JSON export and import.
 - `UX-013`: Import/export actions surface success/failure feedback with actionable status context.
+- `UX-014`: Workspace header includes a board selector dropdown that lists owned boards.
+- `UX-015`: Switching boards shows loading feedback and disables board mutation controls until the destination board is loaded.
+- `UX-016`: The UI exposes create-board and rename-board actions with success/failure status feedback.
 
 ## Platform Applicability
 
@@ -29,3 +32,6 @@
 - `UX-011`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-012`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-013`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-014`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-015`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-016`: macOS (required), iOS (planned), TUI (N/A).

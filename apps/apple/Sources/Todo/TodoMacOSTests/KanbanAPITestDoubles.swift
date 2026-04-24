@@ -34,7 +34,9 @@ actor SuspendedOperationGate {
 }
 
 struct MockKanbanAPI: KanbanAPI {
-    var ensureBoardHandler: @Sendable (String, URL, String) async throws -> KanbanBoard
+    var listBoardsHandler: @Sendable (String, URL) async throws -> [KanbanBoard]
+    var createBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoard
+    var updateBoardHandler: @Sendable (String, String, String, URL) async throws -> KanbanBoard
     var getBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoardDetails
     var createColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
     var updateColumnHandler: @Sendable (String, String, String, String, URL) async throws -> Void
@@ -48,8 +50,14 @@ struct MockKanbanAPI: KanbanAPI {
     var importTasksHandler: @Sendable (String, TaskExportPayload, String, URL) async throws -> TaskImportResult
 
     init(
-        ensureBoardHandler: @escaping @Sendable (String, URL, String) async throws -> KanbanBoard = { _, _, _ in
-            KanbanBoard(id: "board-1", title: "Main")
+        listBoardsHandler: @escaping @Sendable (String, URL) async throws -> [KanbanBoard] = { _, _ in
+            [KanbanBoard(id: "board-1", title: "Main")]
+        },
+        createBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoard = { title, _, _ in
+            KanbanBoard(id: UUID().uuidString, title: title)
+        },
+        updateBoardHandler: @escaping @Sendable (String, String, String, URL) async throws -> KanbanBoard = { boardID, title, _, _ in
+            KanbanBoard(id: boardID, title: title)
         },
         getBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoardDetails = { _, _, _ in
             KanbanBoardDetails(board: KanbanBoard(id: "board-1", title: "Main"), columns: [], tasks: [])
@@ -69,7 +77,9 @@ struct MockKanbanAPI: KanbanAPI {
             TaskImportResult(createdColumnCount: 0, importedTaskCount: payload.taskCount)
         }
     ) {
-        self.ensureBoardHandler = ensureBoardHandler
+        self.listBoardsHandler = listBoardsHandler
+        self.createBoardHandler = createBoardHandler
+        self.updateBoardHandler = updateBoardHandler
         self.getBoardHandler = getBoardHandler
         self.createColumnHandler = createColumnHandler
         self.updateColumnHandler = updateColumnHandler
@@ -83,8 +93,16 @@ struct MockKanbanAPI: KanbanAPI {
         self.importTasksHandler = importTasksHandler
     }
 
-    func ensureBoard(accessToken: String, baseURL: URL, defaultTitle: String) async throws -> KanbanBoard {
-        try await ensureBoardHandler(accessToken, baseURL, defaultTitle)
+    func listBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
+        try await listBoardsHandler(accessToken, baseURL)
+    }
+
+    func createBoard(title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        try await createBoardHandler(title, accessToken, baseURL)
+    }
+
+    func updateBoard(boardID: String, title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        try await updateBoardHandler(boardID, title, accessToken, baseURL)
     }
 
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails {

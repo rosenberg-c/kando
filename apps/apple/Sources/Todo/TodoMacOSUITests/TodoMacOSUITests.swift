@@ -186,6 +186,76 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testCreateAndRenameBoardFromWorkspaceHeader() throws {
+        // Requirements: BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016
+        let app = launchSignedInApp()
+
+        let boardSelector = app.popUpButtons["board-selector-picker"]
+        let createButton = app.buttons["board-create-button"]
+        let renameButton = app.buttons["board-rename-button"]
+        let titleLabel = app.staticTexts["workspace-board-title"]
+
+        XCTAssertTrue(boardSelector.waitForExistence(timeout: 5), "Expected board selector")
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
+        XCTAssertTrue(renameButton.waitForExistence(timeout: 5), "Expected rename-board button")
+        XCTAssertTrue(titleLabel.waitForExistence(timeout: 5), "Expected workspace title")
+
+        createButton.tap()
+
+        let boardEditorTitleInput = preferredElement(
+            primary: app.textFields["board-editor-title-input"],
+            fallback: app.textFields["Project title"],
+            waitTimeout: 3
+        )
+        let boardEditorSubmit = preferredElement(
+            primary: app.buttons["board-editor-submit"],
+            fallback: app.buttons["Create"],
+            waitTimeout: 3
+        )
+        if !boardEditorTitleInput.waitForExistence(timeout: 3) {
+            app.activate()
+            if createButton.exists {
+                createButton.tap()
+            }
+        }
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input")
+        XCTAssertTrue(boardEditorSubmit.waitForExistence(timeout: 3), "Expected board editor submit button")
+
+        boardEditorTitleInput.tap()
+        boardEditorTitleInput.typeText("New Project")
+        boardEditorSubmit.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["New Project"].waitForExistence(timeout: 3),
+            "Expected new board title after create"
+        )
+
+        renameButton.tap()
+        if !boardEditorTitleInput.waitForExistence(timeout: 3) {
+            app.activate()
+            if renameButton.exists {
+                renameButton.tap()
+            }
+        }
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input for rename")
+
+        boardEditorTitleInput.click()
+        boardEditorTitleInput.typeKey("a", modifierFlags: .command)
+        boardEditorTitleInput.typeText("Project Renamed")
+        let renameSubmit = preferredElement(
+            primary: app.buttons["board-editor-submit"],
+            fallback: app.buttons["Save"],
+            waitTimeout: 2
+        )
+        renameSubmit.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Project Renamed"].waitForExistence(timeout: 3),
+            "Expected board title after rename"
+        )
+    }
+
+    @MainActor
     func testExportFromSettingsShowsSavePanel() throws {
         // Requirements: UX-012, UX-013
         let app = launchSignedInApp(extraEnvironment: [

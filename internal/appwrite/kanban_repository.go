@@ -174,8 +174,7 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 	return kanban.BoardDetails{Board: mapBoardRow(boardRow), Columns: columnsOut, Tasks: todosOut}, nil
 }
 
-func (r *KanbanRepository) CreateBoardIfAbsent(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
-	// Appwrite atomicity relies on uniqueness for ownerUserId in storage.
+func (r *KanbanRepository) CreateBoard(ctx context.Context, ownerUserID, title string) (kanban.Board, error) {
 	now := time.Now().UTC()
 	rowID := uuid.NewString()
 	payload := map[string]any{

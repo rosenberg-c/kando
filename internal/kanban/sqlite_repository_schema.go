@@ -8,7 +8,7 @@ import (
 const sqliteSchema = `
 CREATE TABLE IF NOT EXISTS boards (
 	id TEXT PRIMARY KEY,
-	owner_user_id TEXT NOT NULL UNIQUE,
+	owner_user_id TEXT NOT NULL,
 	title TEXT NOT NULL,
 	board_version INTEGER NOT NULL,
 	created_at_ms INTEGER NOT NULL,
