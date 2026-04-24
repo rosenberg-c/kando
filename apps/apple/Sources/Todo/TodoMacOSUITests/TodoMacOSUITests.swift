@@ -499,9 +499,21 @@ final class TodoMacOSUITests: XCTestCase {
 
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let addTaskButton = app.buttons["task-add-column-empty"]
-        let createSheetTitle = app.staticTexts["Create task"]
-        let taskTitleField = app.textFields["Task title"]
-        let createButton = app.buttons["Create"]
+        let createSheetTitle = preferredElement(
+            primary: app.otherElements["task-editor-sheet"],
+            fallback: app.staticTexts["Create task"],
+            waitTimeout: uiTimeout
+        )
+        let taskTitleField = preferredElement(
+            primary: app.textFields["task-editor-title-input"],
+            fallback: app.textFields["Task title"],
+            waitTimeout: uiTimeout
+        )
+        let createButton = preferredElement(
+            primary: app.buttons["task-editor-submit"],
+            fallback: app.buttons["Create"],
+            waitTimeout: uiTimeout
+        )
         let createdTaskTitle = "Created in empty column"
 
         XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
@@ -536,8 +548,16 @@ final class TodoMacOSUITests: XCTestCase {
         let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let addTaskButton = app.buttons["task-add-column-empty"]
-        let taskTitleField = app.textFields["Task title"]
-        let createButton = app.buttons["Create"]
+        let taskTitleField = preferredElement(
+            primary: app.textFields["task-editor-title-input"],
+            fallback: app.textFields["Task title"],
+            waitTimeout: uiTimeout
+        )
+        let createButton = preferredElement(
+            primary: app.buttons["task-editor-submit"],
+            fallback: app.buttons["Create"],
+            waitTimeout: uiTimeout
+        )
         let createdTaskTitle = "Created with 100 tasks"
 
         XCTAssertTrue(workColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected work column task count")

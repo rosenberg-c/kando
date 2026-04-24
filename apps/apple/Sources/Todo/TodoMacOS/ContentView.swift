@@ -939,13 +939,16 @@ private struct TaskEditorSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.title3.weight(.semibold))
+                .accessibilityIdentifier("task-editor-title")
 
             TextField("board.task.title.placeholder", text: $inputTitle)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("task-editor-title-input")
 
             TextEditor(text: $inputDescription)
                 .font(.body)
                 .frame(height: 110)
+                .accessibilityIdentifier("task-editor-description-input")
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
@@ -954,15 +957,18 @@ private struct TaskEditorSheet: View {
             HStack {
                 Spacer()
                 Button("common.cancel") { dismiss() }
+                    .accessibilityIdentifier("task-editor-cancel")
                 Button(submitLabel) {
                     onSubmit(inputTitle, inputDescription)
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("task-editor-submit")
             }
         }
         .padding(20)
         .frame(width: 460)
+        .accessibilityIdentifier("task-editor-sheet")
     }
 }
 
