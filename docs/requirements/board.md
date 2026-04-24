@@ -4,6 +4,10 @@
 - `BOARD-002`: The workspace shows board title, columns, and tasks.
 - `BOARD-003`: Workspace actions are disabled while the board is not ready (no board context or loading state).
 - `BOARD-004`: The app supports manual refresh of board state.
+- `BOARD-005`: The app supports exporting all tasks on the active board to a JSON file.
+- `BOARD-006`: The app supports importing tasks from a JSON file to populate the active board.
+- `BOARD-007`: Exported task JSON includes a format version so future imports can validate compatibility.
+- `BOARD-008`: Board task export/import uses dedicated backend transfer endpoints rather than client-side row-by-row mutation orchestration.
 
 ## Platform Applicability
 
@@ -11,3 +15,7 @@
 - `BOARD-002`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-003`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-004`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-005`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-006`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-007`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-008`: macOS (required), iOS (planned), TUI (N/A).

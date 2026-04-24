@@ -106,3 +106,14 @@ func (s *Service) ReorderTasks(ctx context.Context, ownerUserID, boardID string,
 func (s *Service) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	return s.repo.DeleteTask(ctx, ownerUserID, boardID, taskID)
 }
+
+func (s *Service) RunInTransaction(ctx context.Context, fn func(repo Repository) error) error {
+	txRepo, ok := s.repo.(TransactionalRepository)
+	if !ok {
+		return ErrNotImplemented
+	}
+
+	return txRepo.RunInTransaction(ctx, func(repo Repository) error {
+		return fn(NewService(repo))
+	})
+}

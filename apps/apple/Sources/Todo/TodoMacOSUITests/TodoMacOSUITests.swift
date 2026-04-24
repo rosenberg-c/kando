@@ -132,7 +132,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsButtonAnchorsTopRightAndShowsActions() throws {
-        // Requirements: UX-010, UX-011
+        // Requirements: UX-010, UX-011, UX-012
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
@@ -170,6 +170,73 @@ final class TodoMacOSUITests: XCTestCase {
 
         XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
         XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
+        let exportButton = preferredElement(
+            primary: app.buttons["board-settings-export-button"],
+            fallback: app.buttons["Export tasks"],
+            waitTimeout: 5
+        )
+        let importButton = preferredElement(
+            primary: app.buttons["board-settings-import-button"],
+            fallback: app.buttons["Import tasks"],
+            waitTimeout: 5
+        )
+
+        XCTAssertTrue(exportButton.exists, "Expected export action in settings")
+        XCTAssertTrue(importButton.exists, "Expected import action in settings")
+    }
+
+    @MainActor
+    func testExportFromSettingsShowsSavePanel() throws {
+        // Requirements: UX-012, UX-013
+        let app = launchSignedInApp(extraEnvironment: [
+            UITestEnvKey.columnCount: "4",
+            UITestEnvKey.workTaskCount: "50",
+            UITestEnvKey.spreadTasksAcrossColumns: "1"
+        ])
+
+        XCTAssertTrue(app.staticTexts["column-title-column-1"].waitForExistence(timeout: 5), "Expected column 1")
+        XCTAssertTrue(app.staticTexts["column-title-column-2"].waitForExistence(timeout: 5), "Expected column 2")
+        XCTAssertTrue(app.staticTexts["column-title-column-3"].waitForExistence(timeout: 5), "Expected column 3")
+        XCTAssertTrue(app.staticTexts["column-title-column-4"].waitForExistence(timeout: 5), "Expected column 4")
+
+        let settingsButton = app.buttons["board-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Expected settings button")
+
+        settingsButton.tap()
+
+        let exportButton = preferredElement(
+            primary: app.buttons["board-settings-export-button"],
+            fallback: app.buttons["Export tasks"],
+            waitTimeout: 5
+        )
+        XCTAssertTrue(exportButton.exists, "Expected export action in settings")
+
+        exportButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 5) {
+                !app.otherElements["board-settings-sheet"].exists
+            },
+            "Expected settings sheet to dismiss after tapping export"
+        )
+
+        let exportSubmitButton = preferredElement(
+            primary: app.buttons["Export"],
+            fallback: app.buttons["Save"],
+            waitTimeout: 5
+        )
+        XCTAssertTrue(exportSubmitButton.exists, "Expected export save panel submit button")
+
+        let savePanelContainer: XCUIElement
+        if app.dialogs.firstMatch.exists {
+            savePanelContainer = app.dialogs.firstMatch
+        } else {
+            savePanelContainer = app.sheets.firstMatch
+        }
+
+        let cancelButton = savePanelContainer.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 3), "Expected cancel button on export save panel")
+        cancelButton.tap()
     }
 
     @MainActor

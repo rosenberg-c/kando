@@ -34,6 +34,18 @@
 "board.settings" = "Settings";
 "board.settings.title" = "Settings";
 "board.settings.subtitle" = "Manage board session actions.";
+"board.settings.transfer.title" = "Export and Import";
+"board.settings.transfer.export" = "Export tasks";
+"board.settings.transfer.import" = "Import tasks";
+"board.export.panel.title" = "Export Tasks";
+"board.export.panel.submit" = "Export";
+"board.export.status.success" = "Exported %d tasks.";
+"board.export.status.failed" = "Export failed: %@";
+"board.import.panel.title" = "Import Tasks";
+"board.import.panel.submit" = "Import";
+"board.import.status.success" = "Imported %d tasks.";
+"board.import.status.failed" = "Import failed: %@";
+"board.import.status.unsupported_version" = "Import failed: unsupported format version %d.";
 "board.status.loaded" = "Board loaded.";
 
 "board.error.unauthorized" = "Your session is not valid. Please sign in again.";

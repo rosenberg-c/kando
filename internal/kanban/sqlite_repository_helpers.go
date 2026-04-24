@@ -13,6 +13,10 @@ type queryRower interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+type queryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
 func getOwnedBoard(ctx context.Context, q queryRower, ownerUserID, boardID string) (Board, error) {
 	board, err := scanBoard(q.QueryRowContext(
 		ctx,
@@ -161,6 +165,65 @@ func nextPosition(ctx context.Context, q queryRower, query string, arg string) (
 	}
 
 	return position, nil
+}
+
+func listColumnsForQuery(ctx context.Context, q queryer, boardID string) ([]Column, error) {
+	rows, err := q.QueryContext(
+		ctx,
+		`SELECT id, board_id, owner_user_id, title, position, created_at_ms, updated_at_ms
+		 FROM columns
+		 WHERE board_id = ?
+		 ORDER BY position, id`,
+		boardID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list columns: %w", err)
+	}
+	defer rows.Close()
+
+	columns := make([]Column, 0)
+	for rows.Next() {
+		column, scanErr := scanColumn(rows.Scan)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		columns = append(columns, column)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate columns: %w", err)
+	}
+
+	return columns, nil
+}
+
+func listTasksForQuery(ctx context.Context, q queryer, boardID string) ([]Task, error) {
+	rows, err := q.QueryContext(
+		ctx,
+		`SELECT t.id, t.board_id, t.column_id, t.owner_user_id, t.title, t.description, t.position, t.created_at_ms, t.updated_at_ms
+		 FROM tasks t
+		 INNER JOIN columns c ON c.id = t.column_id
+		 WHERE t.board_id = ?
+		 ORDER BY c.position, t.position`,
+		boardID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+	defer rows.Close()
+
+	tasks := make([]Task, 0)
+	for rows.Next() {
+		task, scanErr := scanTask(rows.Scan)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		tasks = append(tasks, task)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate tasks: %w", err)
+	}
+
+	return tasks, nil
 }
 
 func reindexColumnsTx(ctx context.Context, tx *sql.Tx, boardID string, now time.Time) error {

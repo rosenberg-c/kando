@@ -214,6 +214,65 @@ final class BoardViewModel: ObservableObject {
         }
     }
 
+    func exportTasks(to fileURL: URL) async {
+        do {
+            let context = try await resolveContext(requireBoard: true)
+            let boardID = try requireBoardID(context)
+            let payload = try await api.exportTasks(
+                boardID: boardID,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            let data = try await Task.detached(priority: .userInitiated) { () throws -> Data in
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                return try encoder.encode(payload)
+            }.value
+            try await Task.detached(priority: .userInitiated) {
+                try data.write(to: fileURL, options: .atomic)
+            }.value
+            setSuccess(Strings.f("board.export.status.success", payload.taskCount))
+            debugMessage = ""
+        } catch {
+            setError(Strings.f("board.export.status.failed", error.localizedDescription))
+            debugMessage = error.localizedDescription
+        }
+    }
+
+    func importTasks(from fileURL: URL) async {
+        let payload: TaskExportPayload
+        do {
+            payload = try await Task.detached(priority: .userInitiated) { () throws -> TaskExportPayload in
+                let data = try Data(contentsOf: fileURL)
+                return try JSONDecoder().decode(TaskExportPayload.self, from: data)
+            }.value
+        } catch {
+            setError(Strings.f("board.import.status.failed", error.localizedDescription))
+            debugMessage = error.localizedDescription
+            return
+        }
+
+        guard payload.formatVersion == TaskExportPayload.currentFormatVersion else {
+            setError(Strings.f("board.import.status.unsupported_version", payload.formatVersion))
+            debugMessage = "unsupported_format_version=\(payload.formatVersion)"
+            return
+        }
+
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            let result = try await self.api.importTasks(
+                boardID: boardID,
+                payload: payload,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.f("board.import.status.success", result.importedTaskCount))
+        }
+    }
+
     func tasks(for columnID: String) -> [KanbanTask] {
         (tasksByColumnID[columnID] ?? []).sorted { $0.position < $1.position }
     }

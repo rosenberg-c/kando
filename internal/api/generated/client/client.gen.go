@@ -180,6 +180,36 @@ type TaskColumnOrderRequest struct {
 	TaskIds  []string           `json:"taskIds"`
 }
 
+// TaskExportColumn defines model for TaskExportColumn.
+type TaskExportColumn struct {
+	Tasks []TaskExportTask `json:"tasks"`
+	Title string           `json:"title"`
+}
+
+// TaskExportPayload defines model for TaskExportPayload.
+type TaskExportPayload struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema        *string            `json:"$schema,omitempty"`
+	BoardTitle    string             `json:"boardTitle"`
+	Columns       []TaskExportColumn `json:"columns"`
+	ExportedAt    time.Time          `json:"exportedAt"`
+	FormatVersion int64              `json:"formatVersion"`
+}
+
+// TaskExportTask defines model for TaskExportTask.
+type TaskExportTask struct {
+	Description string `json:"description"`
+	Title       string `json:"title"`
+}
+
+// TaskImportResponse defines model for TaskImportResponse.
+type TaskImportResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema             *string `json:"$schema,omitempty"`
+	CreatedColumnCount int64   `json:"createdColumnCount"`
+	ImportedTaskCount  int64   `json:"importedTaskCount"`
+}
+
 // UpdateBoardRequest defines model for UpdateBoardRequest.
 type UpdateBoardRequest struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -252,6 +282,16 @@ type CreateTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
+// ExportTasksParams defines parameters for ExportTasks.
+type ExportTasksParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// ImportTasksParams defines parameters for ImportTasks.
+type ImportTasksParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // ReorderTasksParams defines parameters for ReorderTasks.
 type ReorderTasksParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -298,6 +338,9 @@ type UpdateColumnJSONRequestBody = UpdateColumnRequest
 
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CreateTaskRequest
+
+// ImportTasksJSONRequestBody defines body for ImportTasks for application/json ContentType.
+type ImportTasksJSONRequestBody = TaskExportPayload
 
 // ReorderTasksJSONRequestBody defines body for ReorderTasks for application/json ContentType.
 type ReorderTasksJSONRequestBody = ReorderTasksRequest
@@ -434,6 +477,14 @@ type ClientInterface interface {
 	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportTasks request
+	ExportTasks(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportTasksWithBody request with any body
+	ImportTasksWithBody(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ImportTasks(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReorderTasksWithBody request with any body
 	ReorderTasksWithBody(ctx context.Context, boardId string, params *ReorderTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -709,6 +760,42 @@ func (c *Client) CreateTaskWithBody(ctx context.Context, boardId string, params 
 
 func (c *Client) CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateTaskRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExportTasks(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportTasksRequest(c.Server, boardId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ImportTasksWithBody(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportTasksRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ImportTasks(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportTasksRequest(c.Server, boardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1491,6 +1578,117 @@ func NewCreateTaskRequestWithBody(server string, boardId string, params *CreateT
 	return req, nil
 }
 
+// NewExportTasksRequest generates requests for ExportTasks
+func NewExportTasksRequest(server string, boardId string, params *ExportTasksParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/export", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewImportTasksRequest calls the generic ImportTasks builder with application/json body
+func NewImportTasksRequest(server string, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewImportTasksRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewImportTasksRequestWithBody generates requests for ImportTasks with any type of body
+func NewImportTasksRequestWithBody(server string, boardId string, params *ImportTasksParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/import", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewReorderTasksRequest calls the generic ReorderTasks builder with application/json body
 func NewReorderTasksRequest(server string, boardId string, params *ReorderTasksParams, body ReorderTasksJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1847,6 +2045,14 @@ type ClientWithResponsesInterface interface {
 
 	CreateTaskWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
+	// ExportTasksWithResponse request
+	ExportTasksWithResponse(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*ExportTasksResponse, error)
+
+	// ImportTasksWithBodyWithResponse request with any body
+	ImportTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error)
+
+	ImportTasksWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error)
+
 	// ReorderTasksWithBodyWithResponse request with any body
 	ReorderTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ReorderTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReorderTasksResponse, error)
 
@@ -2163,6 +2369,52 @@ func (r CreateTaskResponse) StatusCode() int {
 	return 0
 }
 
+type ExportTasksResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *TaskExportPayload
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportTasksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportTasksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ImportTasksResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *TaskImportResponse
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportTasksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportTasksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ReorderTasksResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -2463,6 +2715,32 @@ func (c *ClientWithResponses) CreateTaskWithResponse(ctx context.Context, boardI
 		return nil, err
 	}
 	return ParseCreateTaskResponse(rsp)
+}
+
+// ExportTasksWithResponse request returning *ExportTasksResponse
+func (c *ClientWithResponses) ExportTasksWithResponse(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*ExportTasksResponse, error) {
+	rsp, err := c.ExportTasks(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportTasksResponse(rsp)
+}
+
+// ImportTasksWithBodyWithResponse request with arbitrary body returning *ImportTasksResponse
+func (c *ClientWithResponses) ImportTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error) {
+	rsp, err := c.ImportTasksWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportTasksResponse(rsp)
+}
+
+func (c *ClientWithResponses) ImportTasksWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error) {
+	rsp, err := c.ImportTasks(ctx, boardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportTasksResponse(rsp)
 }
 
 // ReorderTasksWithBodyWithResponse request with arbitrary body returning *ReorderTasksResponse
@@ -2917,6 +3195,72 @@ func ParseCreateTaskResponse(rsp *http.Response) (*CreateTaskResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Task
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportTasksResponse parses an HTTP response from a ExportTasksWithResponse call
+func ParseExportTasksResponse(rsp *http.Response) (*ExportTasksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportTasksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskExportPayload
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportTasksResponse parses an HTTP response from a ImportTasksWithResponse call
+func ParseImportTasksResponse(rsp *http.Response) (*ImportTasksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportTasksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskImportResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

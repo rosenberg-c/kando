@@ -4,6 +4,119 @@ import Testing
 
 @MainActor
 struct BoardViewModelTests {
+    @Test func exportTasksWritesVersionedJSONSnapshot() async throws {
+        // Requirements: API-007, BOARD-005, BOARD-007, BOARD-008, UX-013
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let exportedPayload = TaskExportPayload(
+            formatVersion: TaskExportPayload.currentFormatVersion,
+            boardTitle: "Main",
+            exportedAt: "2026-04-24T00:00:00Z",
+            columns: [
+                TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: "Plan", description: "notes")]),
+                TaskExportColumn(title: "Done", tasks: [TaskExportTask(title: "Ship", description: "")])
+            ]
+        )
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-1", title: "Backlog", position: 0),
+                KanbanColumn(id: "column-2", title: "Done", position: 1)
+            ],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-1", title: "Plan", description: "notes", position: 0),
+                KanbanTask(id: "task-2", columnID: "column-2", title: "Ship", description: "", position: 0)
+            ]
+        )
+
+        let api = MockKanbanAPI(
+            ensureBoardHandler: { _, _, _ in board },
+            getBoardHandler: { _, _, _ in details },
+            exportTasksHandler: { _, _, _ in exportedPayload }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        let fileURL = makeTemporaryFileURL(fileName: "task-export.json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        await viewModel.exportTasks(to: fileURL)
+
+        let data = try Data(contentsOf: fileURL)
+        let payload = try JSONDecoder().decode(TaskExportPayload.self, from: data)
+
+        #expect(payload.formatVersion == TaskExportPayload.currentFormatVersion)
+        #expect(payload.boardTitle == "Main")
+        #expect(payload.columns.map(\.title) == ["Backlog", "Done"])
+        #expect(payload.columns.first?.tasks.map(\.title) == ["Plan"])
+        #expect(payload.taskCount == 2)
+        #expect(viewModel.statusIsError == false)
+        #expect(viewModel.statusMessage.contains("2"))
+    }
+
+    @Test func importTasksCreatesMissingColumnsAndTasksFromJSON() async throws {
+        // Requirements: API-007, API-008, BOARD-006, BOARD-008, UX-013
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let capture = ImportCapture()
+
+        let api = MockKanbanAPI(
+            ensureBoardHandler: { _, _, _ in board },
+            getBoardHandler: { _, _, _ in
+                KanbanBoardDetails(
+                    board: board,
+                    columns: [
+                        KanbanColumn(id: "column-1", title: "Backlog", position: 0),
+                        KanbanColumn(id: "column-2", title: "Done", position: 1)
+                    ],
+                    tasks: []
+                )
+            },
+            importTasksHandler: { boardID, payload, _, _ in
+                await capture.record(boardID: boardID, payload: payload)
+                return TaskImportResult(createdColumnCount: 1, importedTaskCount: 3)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        let payload = TaskExportPayload(
+            formatVersion: TaskExportPayload.currentFormatVersion,
+            boardTitle: "Main",
+            exportedAt: "2026-04-24T00:00:00Z",
+            columns: [
+                TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: "Plan", description: "")]),
+                TaskExportColumn(title: "Done", tasks: [
+                    TaskExportTask(title: "Ship", description: ""),
+                    TaskExportTask(title: "Celebrate", description: "")
+                ])
+            ]
+        )
+
+        let fileURL = makeTemporaryFileURL(fileName: "task-import.json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        try JSONEncoder().encode(payload).write(to: fileURL, options: .atomic)
+
+        await viewModel.importTasks(from: fileURL)
+
+        #expect(await capture.boardID() == "board-1")
+        let importedPayload = await capture.payload()
+        #expect(importedPayload?.columns.map(\.title) == ["Backlog", "Done"])
+        #expect(importedPayload?.taskCount == 3)
+        #expect(viewModel.statusIsError == false)
+        #expect(viewModel.statusMessage.contains("3"))
+    }
+
     @Test func manualRefreshReloadsBoardStateFromAPI() async {
         // Requirement: BOARD-004
         let board = KanbanBoard(id: "board-1", title: "Main")
@@ -256,6 +369,24 @@ struct BoardViewModelTests {
     }
 }
 
+private actor ImportCapture {
+    private var capturedBoardID: String?
+    private var capturedPayload: TaskExportPayload?
+
+    func record(boardID: String, payload: TaskExportPayload) {
+        capturedBoardID = boardID
+        capturedPayload = payload
+    }
+
+    func boardID() -> String? {
+        capturedBoardID
+    }
+
+    func payload() -> TaskExportPayload? {
+        capturedPayload
+    }
+}
+
 private actor AsyncCounter {
     private var value = 0
 
@@ -263,6 +394,11 @@ private actor AsyncCounter {
         value += 1
         return value
     }
+}
+
+private func makeTemporaryFileURL(fileName: String) -> URL {
+    FileManager.default.temporaryDirectory
+        .appendingPathComponent("\(UUID().uuidString)-\(fileName)")
 }
 
 @MainActor

@@ -117,6 +117,11 @@ private enum WorkspaceLayout {
 }
 
 private struct LoggedInWorkspaceView: View {
+    private enum DeferredSettingsAction {
+        case export
+        case `import`
+    }
+
     @ObservedObject var auth: AuthSessionViewModel
     let onSignOut: () -> Void
 
@@ -129,6 +134,7 @@ private struct LoggedInWorkspaceView: View {
     @State private var pendingTaskDeletion: EditableTask?
     @State private var isReorderSheetPresented = false
     @State private var isSettingsSheetPresented = false
+    @State private var deferredSettingsAction: DeferredSettingsAction?
     @State private var reorderSheetColumns: [KanbanColumn] = []
     @State private var isApplyingReorder = false
 
@@ -327,14 +333,38 @@ private struct LoggedInWorkspaceView: View {
                 }
             )
         }
-        .sheet(isPresented: $isSettingsSheetPresented) {
+        .sheet(
+            isPresented: $isSettingsSheetPresented,
+            onDismiss: {
+                guard let action = deferredSettingsAction else { return }
+                deferredSettingsAction = nil
+
+                switch action {
+                case .export:
+                    exportTasksFromSettings()
+                case .import:
+                    Task { @MainActor in
+                        await importTasksFromSettings()
+                    }
+                }
+            }
+        ) {
             WorkspaceSettingsSheet(
                 canRefresh: board.canMutateBoardActions,
                 onRefresh: {
                     isSettingsSheetPresented = false
                     Task { await board.reloadBoard() }
                 },
+                onExport: {
+                    deferredSettingsAction = .export
+                    isSettingsSheetPresented = false
+                },
+                onImport: {
+                    deferredSettingsAction = .import
+                    isSettingsSheetPresented = false
+                },
                 onSignOut: {
+                    deferredSettingsAction = nil
                     isSettingsSheetPresented = false
                     onSignOut()
                 }
@@ -439,6 +469,46 @@ private struct LoggedInWorkspaceView: View {
         reorderSheetColumns = board.columns
         return didReorder
     }
+
+    @MainActor
+    private func exportTasksFromSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        // NOTE: Keep runModal for export panel.
+        // The sheet-based variants were stable in UI tests but flaky in real app builds
+        // (panel flashing/disappearing or not showing). Until we have a build-reproducible
+        // fix, preserve this implementation to avoid user-facing regressions.
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "board-tasks.json"
+        panel.title = Strings.t("board.export.panel.title")
+        panel.prompt = Strings.t("board.export.panel.submit")
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        Task { @MainActor in
+            await board.exportTasks(to: url)
+        }
+    }
+
+    private func importTasksFromSettings() async {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.title = Strings.t("board.import.panel.title")
+        panel.prompt = Strings.t("board.import.panel.submit")
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        await board.importTasks(from: url)
+    }
 }
 
 private struct BlockingLoadingOverlay: View {
@@ -471,6 +541,8 @@ private struct BlockingLoadingOverlay: View {
 private struct WorkspaceSettingsSheet: View {
     let canRefresh: Bool
     let onRefresh: () -> Void
+    let onExport: () -> Void
+    let onImport: () -> Void
     let onSignOut: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -492,6 +564,21 @@ private struct WorkspaceSettingsSheet: View {
             Button("loggedin.signout", action: onSignOut)
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("board-settings-signout-button")
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("board.settings.transfer.title")
+                    .font(.headline)
+
+                Button("board.settings.transfer.export", action: onExport)
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("board-settings-export-button")
+
+                Button("board.settings.transfer.import", action: onImport)
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("board-settings-import-button")
+            }
 
             HStack {
                 Spacer()
