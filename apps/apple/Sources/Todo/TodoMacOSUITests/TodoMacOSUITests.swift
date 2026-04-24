@@ -100,15 +100,23 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testBoardLoadingOverlayAppearsDuringSlowLoad() throws {
-        // Requirement: UX-009
+        // Requirements: UX-009, UX-011
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.mockDelayMs: "1500"])
 
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
         XCTAssertTrue(editModeToggle.waitForExistence(timeout: 6), "Expected edit mode toggle after initial board load")
         XCTAssertTrue(waitUntil(timeout: 6) { editModeToggle.isEnabled }, "Expected board interactions to be enabled before refresh")
 
-        let refreshButton = app.buttons["board-refresh-button"]
-        XCTAssertTrue(refreshButton.waitForExistence(timeout: 3), "Expected refresh button")
+        let settingsButton = app.buttons["board-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 3), "Expected settings button")
+        settingsButton.tap()
+
+        let refreshButton = preferredElement(
+            primary: app.buttons["board-refresh-button"],
+            fallback: app.buttons["Refresh"],
+            waitTimeout: 3
+        )
+        XCTAssertTrue(refreshButton.exists, "Expected refresh button")
         refreshButton.tap()
 
         let loadingOverlay = app.otherElements["board-loading-overlay"]
@@ -120,6 +128,48 @@ final class TodoMacOSUITests: XCTestCase {
             "Expected board loading overlay to disappear after refresh completes"
         )
         XCTAssertTrue(waitUntil(timeout: 3) { editModeToggle.isHittable }, "Expected interactions to be re-enabled after loading")
+    }
+
+    @MainActor
+    func testSettingsButtonAnchorsTopRightAndShowsActions() throws {
+        // Requirements: UX-010, UX-011
+        let app = launchSignedInApp()
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Expected app window")
+
+        let settingsButton = app.buttons["board-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Expected settings button")
+
+        let rightInset = window.frame.maxX - settingsButton.frame.maxX
+        let topInsetCandidates = [
+            window.frame.maxY - settingsButton.frame.maxY,
+            settingsButton.frame.minY - window.frame.minY
+        ].filter { $0 >= 0 }
+        let topInset = max(0, topInsetCandidates.min() ?? 0)
+        let rightInsetRatio = rightInset / max(window.frame.width, 1)
+        let topInsetRatio = topInset / max(window.frame.height, 1)
+
+        XCTAssertGreaterThanOrEqual(rightInset, 0)
+        XCTAssertGreaterThanOrEqual(topInset, 0)
+        XCTAssertLessThan(rightInsetRatio, 0.2)
+        XCTAssertLessThan(topInsetRatio, 0.25)
+
+        settingsButton.tap()
+
+        let refreshButton = preferredElement(
+            primary: app.buttons["board-refresh-button"],
+            fallback: app.buttons["Refresh"],
+            waitTimeout: 3
+        )
+        let signOutButton = preferredElement(
+            primary: app.buttons["board-settings-signout-button"],
+            fallback: app.buttons["Sign out"],
+            waitTimeout: 3
+        )
+
+        XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
+        XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
     }
 
     @MainActor

@@ -128,6 +128,7 @@ private struct LoggedInWorkspaceView: View {
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
     @State private var isReorderSheetPresented = false
+    @State private var isSettingsSheetPresented = false
     @State private var reorderSheetColumns: [KanbanColumn] = []
     @State private var isApplyingReorder = false
 
@@ -158,12 +159,6 @@ private struct LoggedInWorkspaceView: View {
 
                     Spacer()
 
-                    Button("board.refresh") {
-                        Task { await board.reloadBoard() }
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("board-refresh-button")
-
                     Button("board.column.reorder.mode.enter") {
                         reorderSheetColumns = board.columns
                         isReorderSheetPresented = true
@@ -172,8 +167,11 @@ private struct LoggedInWorkspaceView: View {
                     .disabled(!board.canMutateBoardActions)
                     .accessibilityIdentifier("board-edit-mode-toggle")
 
-                    Button("loggedin.signout", action: onSignOut)
-                        .buttonStyle(.bordered)
+                    Button("board.settings") {
+                        isSettingsSheetPresented = true
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("board-settings-button")
                 }
 
                 Text(Strings.f("loggedin.subtitle", auth.signedInEmail))
@@ -329,6 +327,19 @@ private struct LoggedInWorkspaceView: View {
                 }
             )
         }
+        .sheet(isPresented: $isSettingsSheetPresented) {
+            WorkspaceSettingsSheet(
+                canRefresh: board.canMutateBoardActions,
+                onRefresh: {
+                    isSettingsSheetPresented = false
+                    Task { await board.reloadBoard() }
+                },
+                onSignOut: {
+                    isSettingsSheetPresented = false
+                    onSignOut()
+                }
+            )
+        }
         .sheet(item: $creatingTaskInColumn) { target in
             TaskEditorSheet(
                 title: Strings.t("board.task.create.title"),
@@ -454,6 +465,44 @@ private struct BlockingLoadingOverlay: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(message)
         .accessibilityIdentifier(accessibilityID)
+    }
+}
+
+private struct WorkspaceSettingsSheet: View {
+    let canRefresh: Bool
+    let onRefresh: () -> Void
+    let onSignOut: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("board.settings.title")
+                .font(.title3.weight(.semibold))
+
+            Text("board.settings.subtitle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Button("board.refresh", action: onRefresh)
+                .buttonStyle(.bordered)
+                .disabled(!canRefresh)
+                .accessibilityIdentifier("board-refresh-button")
+
+            Button("loggedin.signout", action: onSignOut)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("board-settings-signout-button")
+
+            HStack {
+                Spacer()
+                Button("common.close") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
+        .accessibilityIdentifier("board-settings-sheet")
     }
 }
 

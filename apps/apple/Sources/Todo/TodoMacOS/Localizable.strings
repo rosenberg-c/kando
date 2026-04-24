@@ -25,11 +25,15 @@
 "loggedin.subtitle" = "You are signed in as %@.";
 "loggedin.signout" = "Sign out";
 "common.cancel" = "Cancel";
+"common.close" = "Close";
 
 "board.title" = "Board";
 "board.default.title" = "My Board";
 "board.loading" = "Loading board...";
 "board.refresh" = "Refresh";
+"board.settings" = "Settings";
+"board.settings.title" = "Settings";
+"board.settings.subtitle" = "Manage board session actions.";
 "board.status.loaded" = "Board loaded.";
 
 "board.error.unauthorized" = "Your session is not valid. Please sign in again.";

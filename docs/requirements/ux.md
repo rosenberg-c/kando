@@ -9,6 +9,8 @@
 - `UX-007`: Releasing a dragged task on a column header area (not just on another task row) resolves to a valid destination position and does not fail with invalid-input errors.
 - `UX-008`: Column content grows as tasks are added, but when a column's content would exceed the app viewport height, the task list area becomes scrollable instead of pushing workspace content (for example app title) out of bounds.
 - `UX-009`: While a board mutation is pending, workspace interactions are disabled and a visible loading indicator is shown until the operation completes.
+- `UX-010`: Workspace header exposes a `Settings` control in the upper-right area.
+- `UX-011`: Refresh and sign-out actions are available from the settings panel instead of inline in the workspace header.
 
 ## Platform Applicability
 
@@ -21,3 +23,5 @@
 - `UX-007`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-008`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-009`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-010`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-011`: macOS (required), iOS (planned), TUI (N/A).
