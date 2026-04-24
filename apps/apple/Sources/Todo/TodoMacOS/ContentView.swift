@@ -521,6 +521,7 @@ private struct ColumnCard: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(!isEnabled)
+                .accessibilityIdentifier("task-add-\(column.id)")
         }
         .padding(12)
         .frame(width: 280, alignment: .topLeading)

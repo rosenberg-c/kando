@@ -375,6 +375,82 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testCreateTaskAppearsInSelectedColumn() throws {
+        // Requirement: TASK-011
+        let app = launchSignedInApp()
+        let uiTimeout: TimeInterval = 8
+
+        let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
+        let addTaskButton = app.buttons["task-add-column-empty"]
+        let createSheetTitle = app.staticTexts["Create task"]
+        let taskTitleField = app.textFields["Task title"]
+        let createButton = app.buttons["Create"]
+        let createdTaskTitle = "Created in empty column"
+
+        XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(addTaskButton.waitForExistence(timeout: uiTimeout), "Expected add-task button for empty column")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column to start with zero tasks")
+
+        addTaskButton.tap()
+
+        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
+        XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+
+        taskTitleField.tap()
+        taskTitleField.typeText(createdTaskTitle)
+        createButton.tap()
+
+        XCTAssertTrue(
+            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 3),
+            "Expected empty column task count to increase after creating task"
+        )
+        XCTAssertTrue(
+            app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
+            "Expected created task title to be visible"
+        )
+    }
+
+    @MainActor
+    func testCreateTaskWithHundredExistingTasksKeepsTaskInSelectedColumn() throws {
+        // Requirement: TASK-011
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "100"])
+        let uiTimeout: TimeInterval = 8
+
+        let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
+        let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
+        let addTaskButton = app.buttons["task-add-column-empty"]
+        let taskTitleField = app.textFields["Task title"]
+        let createButton = app.buttons["Create"]
+        let createdTaskTitle = "Created with 100 tasks"
+
+        XCTAssertTrue(workColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected work column task count")
+        XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(addTaskButton.waitForExistence(timeout: uiTimeout), "Expected add-task button for empty column")
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 100, timeout: 3), "Expected work column to start with 100 tasks")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column to start with 0 tasks")
+
+        addTaskButton.tap()
+
+        XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+        taskTitleField.tap()
+        taskTitleField.typeText(createdTaskTitle)
+        createButton.tap()
+
+        XCTAssertTrue(
+            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 3),
+            "Expected empty column count to increment after create"
+        )
+        XCTAssertTrue(
+            waitForCountValue(element: workColumnTaskCount, equals: 100, timeout: 3),
+            "Expected work column count to remain unchanged after create in empty column"
+        )
+        XCTAssertTrue(
+            app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
+            "Expected created task to be visible in selected column"
+        )
+    }
+
+    @MainActor
     func testReorderColumnsFromEditBoardModal() throws {
         // Requirement: COL-MOVE-009
         let app = launchSignedInApp()

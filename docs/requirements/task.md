@@ -10,6 +10,7 @@
 - `TASK-008`: Each task row exposes explicit move-up and move-down controls to adjust ordering within its column.
 - `TASK-009`: Each task row exposes explicit `Top` and `Bottom` controls to move a task to the first or last position within its column.
 - `TASK-010`: In each task row, `Top` and `Bottom` controls are shown above the task title, with `Top` left-aligned and `Bottom` right-aligned.
+- `TASK-011`: Creating a task adds it to the selected column and the created task is visible after the board refresh cycle.
 
 ## Delete Task Confirmation
 
@@ -23,6 +24,7 @@
 - `TASK-008`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-009`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-010`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-011`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).
