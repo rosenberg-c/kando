@@ -13,3 +13,6 @@ cmd/sync_test_matrix/swift_parser/Package.resolved
 *.xcuserstate
 .DS_Store
 apps/apple/Package.resolved
+
+# db
+*.db

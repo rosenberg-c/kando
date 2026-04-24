@@ -10,7 +10,7 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build run run-cli run-macos open-macos open test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build run run-sqlite run-cli run-macos open-macos open test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
 
 generate:
 	go run ./cmd/gen_openapi
@@ -33,6 +33,9 @@ build:
 
 run:
 	go run $(APP_SERVER)
+
+run-sqlite:
+	KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER)
 
 appwrite-bootstrap:
 	go run ./cmd/bootstrap_appwrite
