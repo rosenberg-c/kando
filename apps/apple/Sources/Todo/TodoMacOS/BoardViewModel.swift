@@ -4,6 +4,7 @@ import Foundation
 final class BoardViewModel: ObservableObject {
     @Published private(set) var board: KanbanBoard?
     @Published private(set) var boards: [KanbanBoard] = []
+    @Published private(set) var archivedBoards: [KanbanBoard] = []
     @Published private(set) var selectedBoardID: String?
     @Published private(set) var columns: [KanbanColumn] = []
     @Published private(set) var tasksByColumnID: [String: [KanbanTask]] = [:]
@@ -14,6 +15,14 @@ final class BoardViewModel: ObservableObject {
 
     var canMutateBoardActions: Bool {
         board != nil && !isLoading
+    }
+
+    var activeTaskCount: Int {
+        tasksByColumnID.values.reduce(0) { $0 + $1.count }
+    }
+
+    var canDeleteActiveBoard: Bool {
+        board != nil && activeTaskCount == 0 && !isLoading
     }
 
     private let api: any KanbanAPI
@@ -42,6 +51,7 @@ final class BoardViewModel: ObservableObject {
         _ = await runMutation {
             let context = try await self.resolveContext()
             let availableBoards = try await self.listBoardsOrCreateDefault(context: context)
+            self.archivedBoards = try await self.api.listArchivedBoards(accessToken: context.accessToken, baseURL: context.baseURL)
 
             let targetBoardID = self.resolveTargetBoardID(from: availableBoards, baseURL: context.baseURL)
             _ = try await self.loadAndApplyBoard(
@@ -50,6 +60,49 @@ final class BoardViewModel: ObservableObject {
                 context: context
             )
             self.setSuccess(Strings.t("board.status.loaded"))
+        }
+    }
+
+    func archiveActiveBoard() async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            _ = try await self.api.archiveBoard(boardID: boardID, accessToken: context.accessToken, baseURL: context.baseURL)
+
+            let availableBoards = try await self.listBoardsOrCreateDefault(context: context)
+            self.archivedBoards = try await self.api.listArchivedBoards(accessToken: context.accessToken, baseURL: context.baseURL)
+            let targetBoardID = self.resolveTargetBoardID(from: availableBoards, baseURL: context.baseURL)
+            _ = try await self.loadAndApplyBoard(
+                boardID: targetBoardID,
+                availableBoards: availableBoards,
+                context: context
+            )
+            self.setSuccess(Strings.t("board.status.archived"))
+        }
+    }
+
+    func restoreArchivedBoard(boardID: String) async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext()
+            _ = try await self.api.restoreBoard(boardID: boardID, accessToken: context.accessToken, baseURL: context.baseURL)
+            let availableBoards = try await self.api.listBoards(accessToken: context.accessToken, baseURL: context.baseURL)
+            self.archivedBoards = try await self.api.listArchivedBoards(accessToken: context.accessToken, baseURL: context.baseURL)
+            if self.board == nil, !availableBoards.isEmpty {
+                let targetBoardID = self.resolveTargetBoardID(from: availableBoards, baseURL: context.baseURL)
+                _ = try await self.loadAndApplyBoard(boardID: targetBoardID, availableBoards: availableBoards, context: context)
+            } else {
+                self.boards = availableBoards
+            }
+            self.setSuccess(Strings.t("board.status.restored"))
+        }
+    }
+
+    func deleteArchivedBoard(boardID: String) async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext()
+            try await self.api.deleteArchivedBoard(boardID: boardID, accessToken: context.accessToken, baseURL: context.baseURL)
+            self.archivedBoards = try await self.api.listArchivedBoards(accessToken: context.accessToken, baseURL: context.baseURL)
+            self.setSuccess(Strings.t("board.status.archived_deleted"))
         }
     }
 
@@ -106,6 +159,24 @@ final class BoardViewModel: ObservableObject {
             )
             _ = try await self.refreshBoardsAndLoad(boardID: boardID, context: context)
             self.setSuccess(Strings.f("board.status.renamed", trimmed))
+        }
+    }
+
+    func deleteActiveBoard() async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            try await self.api.deleteBoard(boardID: boardID, accessToken: context.accessToken, baseURL: context.baseURL)
+
+            let availableBoards = try await self.listBoardsOrCreateDefault(context: context)
+            self.archivedBoards = try await self.api.listArchivedBoards(accessToken: context.accessToken, baseURL: context.baseURL)
+            let targetBoardID = self.resolveTargetBoardID(from: availableBoards, baseURL: context.baseURL)
+            _ = try await self.loadAndApplyBoard(
+                boardID: targetBoardID,
+                availableBoards: availableBoards,
+                context: context
+            )
+            self.setSuccess(Strings.t("board.status.deleted"))
         }
     }
 
@@ -342,6 +413,10 @@ final class BoardViewModel: ObservableObject {
     }
 
     private func runMutation(_ operation: @escaping @MainActor () async throws -> Void) async -> Bool {
+        if isLoading {
+            debugMessage = "mutation_ignored_in_flight"
+            return false
+        }
         isLoading = true
         defer { isLoading = false }
 

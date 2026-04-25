@@ -2,6 +2,7 @@ import Foundation
 
 actor UITestKanbanAPI: KanbanAPI {
     private var boards: [KanbanBoard]
+    private var archivedBoardIDs: Set<String>
     private var columnsByBoardID: [String: [KanbanColumn]]
     private var tasksByBoardID: [String: [KanbanTask]]
     private let operationDelayNanoseconds: UInt64
@@ -9,6 +10,7 @@ actor UITestKanbanAPI: KanbanAPI {
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let initialBoard = KanbanBoard(id: "board-1", title: "UI Test Board")
         boards = [initialBoard]
+        archivedBoardIDs = []
 
         let requestedColumnCount = Int(environment[AppEnvironmentKey.columnCount] ?? "") ?? 2
         let columnCount = max(2, requestedColumnCount)
@@ -70,7 +72,12 @@ actor UITestKanbanAPI: KanbanAPI {
 
     func listBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
         await maybeDelay()
-        return boards
+        return boards.filter { !archivedBoardIDs.contains($0.id) }
+    }
+
+    func listArchivedBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
+        await maybeDelay()
+        return boards.filter { archivedBoardIDs.contains($0.id) }
     }
 
     func createBoard(title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
@@ -93,6 +100,50 @@ actor UITestKanbanAPI: KanbanAPI {
             boards.insert(updated, at: 0)
         }
         return boards[0]
+    }
+
+    func deleteBoard(boardID: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
+        guard boards.contains(where: { $0.id == boardID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "deleteBoard", title: "Not Found", detail: "board not found")
+        }
+        if !(tasksByBoardID[boardID] ?? []).isEmpty {
+            throw KanbanAPIError.unexpectedStatus(code: 409, operation: "deleteBoard", title: "Conflict", detail: "board has tasks")
+        }
+
+        boards.removeAll { $0.id == boardID }
+        archivedBoardIDs.remove(boardID)
+        columnsByBoardID.removeValue(forKey: boardID)
+        tasksByBoardID.removeValue(forKey: boardID)
+    }
+
+    func archiveBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        await maybeDelay()
+        guard let board = boards.first(where: { $0.id == boardID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "archiveBoard", title: "Not Found", detail: "board not found")
+        }
+        archivedBoardIDs.insert(boardID)
+        return board
+    }
+
+    func restoreBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        await maybeDelay()
+        guard let board = boards.first(where: { $0.id == boardID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "restoreBoard", title: "Not Found", detail: "board not found")
+        }
+        archivedBoardIDs.remove(boardID)
+        return board
+    }
+
+    func deleteArchivedBoard(boardID: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
+        guard archivedBoardIDs.contains(boardID) else {
+            throw KanbanAPIError.unexpectedStatus(code: 409, operation: "deleteArchivedBoard", title: "Conflict", detail: "board is not archived")
+        }
+        boards.removeAll { $0.id == boardID }
+        archivedBoardIDs.remove(boardID)
+        columnsByBoardID.removeValue(forKey: boardID)
+        tasksByBoardID.removeValue(forKey: boardID)
     }
 
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails {

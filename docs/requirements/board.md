@@ -12,6 +12,11 @@
 - `BOARD-010`: The app supports renaming the active board.
 - `BOARD-011`: The app supports switching the active board from a board selector in the workspace header.
 - `BOARD-012`: The app restores the last selected board when board context is available for the signed-in user.
+- `BOARD-013`: The app supports deleting the active board only when that board has no tasks.
+- `BOARD-014`: The app supports archiving the active board, including boards with tasks, to remove it from active board selection.
+- `BOARD-015`: The app supports listing archived boards separately from active boards.
+- `BOARD-016`: The app supports restoring an archived board back to active state.
+- `BOARD-017`: The app supports permanent deletion of archived boards.
 
 ## Platform Applicability
 
@@ -27,3 +32,8 @@
 - `BOARD-010`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-011`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-012`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-013`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-014`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-015`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-016`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-017`: macOS (required), iOS (planned), TUI (N/A).

@@ -632,6 +632,33 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a board
+  /boards/archived:
+    get:
+      operationId: listArchivedBoards
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Board"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: List archived boards for the authenticated user
   /boards/{boardId}:
     delete:
       operationId: deleteBoard
@@ -719,6 +746,59 @@ paths:
       security:
         - bearerAuth: []
       summary: Update board title
+  /boards/{boardId}/archive:
+    delete:
+      operationId: deleteArchivedBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Permanently delete an archived board
+    post:
+      operationId: archiveBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Archive a board
   /boards/{boardId}/columns:
     post:
       operationId: createColumn
@@ -861,6 +941,35 @@ paths:
       security:
         - bearerAuth: []
       summary: Update column title
+  /boards/{boardId}/restore:
+    post:
+      operationId: restoreBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Restore an archived board
   /boards/{boardId}/tasks:
     post:
       operationId: createTask

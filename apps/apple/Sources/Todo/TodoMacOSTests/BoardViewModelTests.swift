@@ -451,6 +451,166 @@ struct BoardViewModelTests {
         #expect(viewModel.board?.title == "Project C Renamed")
         #expect(viewModel.boards.first(where: { $0.id == "board-c" })?.title == "Project C Renamed")
     }
+
+    @Test func deleteActiveBoardSwitchesToRemainingBoard() async {
+        // Requirements: BOARD-013, UX-019
+        let boardA = KanbanBoard(id: "board-a", title: "Board A")
+        let boardB = KanbanBoard(id: "board-b", title: "Board B")
+        let boardList = MutableBoardList(initial: [boardA, boardB])
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in await boardList.current() },
+            deleteBoardHandler: { boardID, _, _ in
+                #expect(boardID == boardB.id)
+                await boardList.remove(boardID: boardID)
+            },
+            getBoardHandler: { boardID, _, _ in
+                let board = (await boardList.current()).first(where: { $0.id == boardID }) ?? boardA
+                if board.id == boardA.id {
+                    return KanbanBoardDetails(
+                        board: board,
+                        columns: [KanbanColumn(id: "column-a", title: "A", position: 0)],
+                        tasks: [KanbanTask(id: "task-a", columnID: "column-a", title: "Task", description: "", position: 0)]
+                    )
+                }
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.selectBoard(boardID: boardB.id)
+        #expect(viewModel.canDeleteActiveBoard)
+
+        let didDelete = await viewModel.deleteActiveBoard()
+
+        #expect(didDelete)
+        #expect(viewModel.board?.id == boardA.id)
+        #expect(viewModel.boards.contains(where: { $0.id == boardB.id }) == false)
+        #expect(viewModel.statusIsError == false)
+        #expect(viewModel.statusMessage == Strings.t("board.status.deleted"))
+    }
+
+    @Test func deleteActiveBoardConflictSurfacesStatusDetails() async {
+        // Requirements: BOARD-013, API-013, UX-019
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-1", title: "Backlog", position: 0)],
+            tasks: [KanbanTask(id: "task-1", columnID: "column-1", title: "Task", description: "", position: 0)]
+        )
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            deleteBoardHandler: { _, _, _ in
+                throw KanbanAPIError.unexpectedStatus(
+                    code: 409,
+                    operation: "deleteBoard",
+                    title: "Conflict",
+                    detail: "board has tasks"
+                )
+            },
+            getBoardHandler: { _, _, _ in details }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.canDeleteActiveBoard == false)
+        let didDelete = await viewModel.deleteActiveBoard()
+
+        #expect(didDelete == false)
+        #expect(viewModel.statusIsError)
+        #expect(viewModel.statusMessage.contains("409"))
+        #expect(viewModel.debugMessage.contains("operation=deleteBoard"))
+        #expect(viewModel.debugMessage.contains("status=409"))
+        #expect(viewModel.debugMessage.contains("detail=board has tasks"))
+    }
+
+    @Test func archiveActiveBoardMovesBoardToArchivedList() async {
+        // Requirements: BOARD-014, BOARD-015, UX-020
+        let boardA = KanbanBoard(id: "board-a", title: "Board A")
+        let boardB = KanbanBoard(id: "board-b", title: "Board B")
+        let boardList = MutableBoardList(initial: [boardA, boardB])
+        let archived = MutableBoardList(initial: [])
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in await boardList.current() },
+            listArchivedBoardsHandler: { _, _ in await archived.current() },
+            archiveBoardHandler: { boardID, _, _ in
+                guard let board = (await boardList.current()).first(where: { $0.id == boardID }) else {
+                    throw KanbanAPIError.invalidResponse
+                }
+                await boardList.remove(boardID: boardID)
+                await archived.prepend(KanbanBoard(id: boardID, title: board.title))
+                return board
+            },
+            getBoardHandler: { boardID, _, _ in
+                let board = (await boardList.current()).first(where: { $0.id == boardID }) ?? boardA
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        let didArchive = await viewModel.archiveActiveBoard()
+
+        #expect(didArchive)
+        #expect(viewModel.archivedBoards.contains(where: { $0.id == boardA.id }))
+        #expect(viewModel.boards.contains(where: { $0.id == boardA.id }) == false)
+        #expect(viewModel.board?.id == boardB.id)
+    }
+
+    @Test func restoreArchivedBoardReturnsItToActiveList() async {
+        // Requirements: BOARD-015, BOARD-016, UX-021
+        let boardA = KanbanBoard(id: "board-a", title: "Board A")
+        let active = MutableBoardList(initial: [KanbanBoard(id: "board-b", title: "Board B")])
+        let archived = MutableBoardList(initial: [boardA])
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in await active.current() },
+            listArchivedBoardsHandler: { _, _ in await archived.current() },
+            restoreBoardHandler: { boardID, _, _ in
+                guard let board = (await archived.current()).first(where: { $0.id == boardID }) else {
+                    throw KanbanAPIError.invalidResponse
+                }
+                await archived.remove(boardID: boardID)
+                await active.prepend(KanbanBoard(id: boardID, title: board.title))
+                return board
+            },
+            getBoardHandler: { boardID, _, _ in
+                let board = (await active.current()).first(where: { $0.id == boardID }) ?? boardA
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        let didRestore = await viewModel.restoreArchivedBoard(boardID: boardA.id)
+
+        #expect(didRestore)
+        #expect(viewModel.archivedBoards.contains(where: { $0.id == boardA.id }) == false)
+        #expect(viewModel.boards.contains(where: { $0.id == boardA.id }))
+    }
 }
 
 private actor ImportCapture {
@@ -503,6 +663,10 @@ private actor MutableBoardList {
         boards[index] = KanbanBoard(id: boardID, title: title)
         let updated = boards.remove(at: index)
         boards.insert(updated, at: 0)
+    }
+
+    func remove(boardID: String) {
+        boards.removeAll { $0.id == boardID }
     }
 }
 

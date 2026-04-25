@@ -6,6 +6,7 @@ type Board struct {
 	ID           string
 	OwnerUserID  string
 	Title        string
+	IsArchived   bool
 	BoardVersion int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time

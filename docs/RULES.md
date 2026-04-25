@@ -418,3 +418,40 @@ Examples of discuss-first work:
 * cross-cutting behavior changes across multiple modules
 
 ---
+
+## 26. Block double-tap during UI mutations
+
+For UI code (especially in `apps/apple`), mutation actions must be single-flight from the user perspective.
+
+Rules:
+
+* disable mutation controls immediately when a mutation starts
+* keep related mutation controls disabled until the mutation resolves (success or failure)
+* do not allow repeated taps to enqueue duplicate mutation requests
+* prefer stable accessibility identifiers for mutation controls and test disabled/enabled state transitions in UI tests
+
+Examples:
+
+* board archive/delete/restore buttons become disabled while mutation is in progress
+* reorder/apply actions cannot be tapped repeatedly during apply
+
+---
+
+## 27. Use typed domain errors for stable API conflict mapping
+
+For backend/domain code, model conflict/error categories as typed domain errors instead of relying on wrapped string messages.
+
+Rules:
+
+* keep a stable sentinel error category for transport mapping (for example `errors.Is(err, ErrConflict)`)
+* include typed error detail (for example code/reason/message fields) when callers need user-facing conflict context
+* map API responses from typed error data, not from parsing raw error strings
+* do not expose internal wrapped-error text directly in API `detail` payloads
+* when adding new conflict reasons, add tests at domain and API layers that assert both category and stable response detail
+
+Examples:
+
+* domain returns a typed conflict like `board_has_tasks` while still matching `ErrConflict`
+* API layer returns `409` with a stable detail like `board has tasks` derived from typed conflict data
+
+---

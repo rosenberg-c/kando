@@ -66,9 +66,9 @@ func (r *SQLiteRepository) Close() error {
 func (r *SQLiteRepository) ListBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, owner_user_id, title, board_version, created_at_ms, updated_at_ms
+		`SELECT id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms
 		 FROM boards
-		 WHERE owner_user_id = ?
+		 WHERE owner_user_id = ? AND is_archived = 0
 		 ORDER BY updated_at_ms DESC`,
 		ownerUserID,
 	)
@@ -87,6 +87,35 @@ func (r *SQLiteRepository) ListBoardsByOwner(ctx context.Context, ownerUserID st
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate boards: %w", err)
+	}
+
+	return boards, nil
+}
+
+func (r *SQLiteRepository) ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error) {
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms
+		 FROM boards
+		 WHERE owner_user_id = ? AND is_archived = 1
+		 ORDER BY updated_at_ms DESC`,
+		ownerUserID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list archived boards: %w", err)
+	}
+	defer rows.Close()
+
+	boards := make([]Board, 0)
+	for rows.Next() {
+		board, scanErr := scanBoard(rows.Scan)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		boards = append(boards, board)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate archived boards: %w", err)
 	}
 
 	return boards, nil
@@ -117,6 +146,7 @@ func (r *SQLiteRepository) CreateBoard(ctx context.Context, ownerUserID, title s
 		ID:           uuid.NewString(),
 		OwnerUserID:  ownerUserID,
 		Title:        title,
+		IsArchived:   false,
 		BoardVersion: 1,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -124,11 +154,12 @@ func (r *SQLiteRepository) CreateBoard(ctx context.Context, ownerUserID, title s
 
 	_, err := r.db.ExecContext(
 		ctx,
-		`INSERT INTO boards (id, owner_user_id, title, board_version, created_at_ms, updated_at_ms)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO boards (id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		board.ID,
 		board.OwnerUserID,
 		board.Title,
+		board.IsArchived,
 		board.BoardVersion,
 		toUnixMillis(board.CreatedAt),
 		toUnixMillis(board.UpdatedAt),
@@ -188,6 +219,112 @@ func (r *SQLiteRepository) DeleteBoard(ctx context.Context, ownerUserID, boardID
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM boards WHERE id = ?`, boardID); err != nil {
 		return fmt.Errorf("delete board: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	return nil
+}
+
+func (r *SQLiteRepository) ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (Board, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Board{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+	if board.IsArchived {
+		if err := tx.Commit(); err != nil {
+			return Board{}, fmt.Errorf("commit tx: %w", err)
+		}
+		return board, nil
+	}
+
+	now := r.now().UTC()
+	board.IsArchived = true
+	board.BoardVersion++
+	board.UpdatedAt = now
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE boards SET is_archived = 1, board_version = ?, updated_at_ms = ? WHERE id = ?`,
+		board.BoardVersion,
+		toUnixMillis(board.UpdatedAt),
+		board.ID,
+	); err != nil {
+		return Board{}, fmt.Errorf("archive board: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Board{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return board, nil
+}
+
+func (r *SQLiteRepository) RestoreBoard(ctx context.Context, ownerUserID, boardID string) (Board, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Board{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+	if !board.IsArchived {
+		if err := tx.Commit(); err != nil {
+			return Board{}, fmt.Errorf("commit tx: %w", err)
+		}
+		return board, nil
+	}
+
+	now := r.now().UTC()
+	board.IsArchived = false
+	board.BoardVersion++
+	board.UpdatedAt = now
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE boards SET is_archived = 0, board_version = ?, updated_at_ms = ? WHERE id = ?`,
+		board.BoardVersion,
+		toUnixMillis(board.UpdatedAt),
+		board.ID,
+	); err != nil {
+		return Board{}, fmt.Errorf("restore board: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Board{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return board, nil
+}
+
+func (r *SQLiteRepository) DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return err
+	}
+	if !board.IsArchived {
+		return ErrConflict
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM boards WHERE id = ?`, boardID); err != nil {
+		return fmt.Errorf("delete archived board: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

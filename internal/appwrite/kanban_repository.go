@@ -35,6 +35,7 @@ type boardRow struct {
 	ID           string    `json:"$id"`
 	OwnerUserID  string    `json:"ownerUserId"`
 	Title        string    `json:"title"`
+	IsArchived   bool      `json:"isArchived"`
 	BoardVersion int       `json:"boardVersion"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
@@ -102,7 +103,22 @@ func (r *KanbanRepository) ListBoardsByOwner(ctx context.Context, ownerUserID st
 	}
 	out := make([]kanban.Board, 0, len(rows))
 	for _, row := range rows {
-		if row.OwnerUserID == ownerUserID {
+		if row.OwnerUserID == ownerUserID && !row.IsArchived {
+			out = append(out, mapBoardRow(row))
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt.After(out[j].UpdatedAt) })
+	return out, nil
+}
+
+func (r *KanbanRepository) ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]kanban.Board, error) {
+	rows, err := r.listBoards(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]kanban.Board, 0, len(rows))
+	for _, row := range rows {
+		if row.OwnerUserID == ownerUserID && row.IsArchived {
 			out = append(out, mapBoardRow(row))
 		}
 	}
@@ -182,6 +198,7 @@ func (r *KanbanRepository) CreateBoard(ctx context.Context, ownerUserID, title s
 		"data": map[string]any{
 			"ownerUserId":  ownerUserID,
 			"title":        title,
+			"isArchived":   false,
 			"boardVersion": 1,
 			"createdAt":    now.Format(time.RFC3339),
 			"updatedAt":    now.Format(time.RFC3339),
@@ -251,6 +268,68 @@ func (r *KanbanRepository) DeleteBoard(ctx context.Context, ownerUserID, boardID
 	}
 
 	return r.deleteRow(ctx, r.boards, boardID)
+}
+
+func (r *KanbanRepository) ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (kanban.Board, error) {
+	row, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+	if row.IsArchived {
+		return mapBoardRow(row), nil
+	}
+
+	now := time.Now().UTC()
+	payload := map[string]any{"data": map[string]any{
+		"isArchived":   true,
+		"boardVersion": row.BoardVersion + 1,
+		"updatedAt":    now.Format(time.RFC3339),
+	}}
+	if err := r.updateRow(ctx, r.boards, boardID, payload, nil); err != nil {
+		return kanban.Board{}, err
+	}
+	updated, err := r.getBoardRow(ctx, boardID)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+	return mapBoardRow(updated), nil
+}
+
+func (r *KanbanRepository) RestoreBoard(ctx context.Context, ownerUserID, boardID string) (kanban.Board, error) {
+	row, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+	if !row.IsArchived {
+		return mapBoardRow(row), nil
+	}
+
+	now := time.Now().UTC()
+	payload := map[string]any{"data": map[string]any{
+		"isArchived":   false,
+		"boardVersion": row.BoardVersion + 1,
+		"updatedAt":    now.Format(time.RFC3339),
+	}}
+	if err := r.updateRow(ctx, r.boards, boardID, payload, nil); err != nil {
+		return kanban.Board{}, err
+	}
+	updated, err := r.getBoardRow(ctx, boardID)
+	if err != nil {
+		return kanban.Board{}, err
+	}
+	return mapBoardRow(updated), nil
+}
+
+func (r *KanbanRepository) DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error {
+	row, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return err
+	}
+	if !row.IsArchived {
+		return kanban.ErrConflict
+	}
+
+	return r.DeleteBoard(ctx, ownerUserID, boardID)
 }
 
 func (r *KanbanRepository) CreateColumn(ctx context.Context, ownerUserID, boardID, title string) (kanban.Column, kanban.Board, error) {
@@ -875,7 +954,7 @@ func mapAppwriteError(err error) error {
 }
 
 func mapBoardRow(row boardRow) kanban.Board {
-	return kanban.Board{ID: row.ID, OwnerUserID: row.OwnerUserID, Title: row.Title, BoardVersion: row.BoardVersion, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+	return kanban.Board{ID: row.ID, OwnerUserID: row.OwnerUserID, Title: row.Title, IsArchived: row.IsArchived, BoardVersion: row.BoardVersion, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 }
 
 func mapColumnRow(row columnRow) kanban.Column {

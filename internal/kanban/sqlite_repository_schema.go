@@ -2,6 +2,7 @@ package kanban
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 )
 
@@ -10,6 +11,7 @@ CREATE TABLE IF NOT EXISTS boards (
 	id TEXT PRIMARY KEY,
 	owner_user_id TEXT NOT NULL,
 	title TEXT NOT NULL,
+	is_archived INTEGER NOT NULL DEFAULT 0,
 	board_version INTEGER NOT NULL,
 	created_at_ms INTEGER NOT NULL,
 	updated_at_ms INTEGER NOT NULL
@@ -49,6 +51,53 @@ CREATE INDEX IF NOT EXISTS idx_tasks_column_position ON tasks(column_id, positio
 func (r *SQLiteRepository) initSchema(ctx context.Context) error {
 	if _, err := r.db.ExecContext(ctx, sqliteSchema); err != nil {
 		return fmt.Errorf("initialize sqlite schema: %w", err)
+	}
+
+	if err := ensureBoardArchiveColumn(ctx, r.db); err != nil {
+		return fmt.Errorf("initialize sqlite schema: %w", err)
+	}
+	if _, err := r.db.ExecContext(
+		ctx,
+		`CREATE INDEX IF NOT EXISTS idx_boards_owner_archived ON boards(owner_user_id, is_archived, updated_at_ms)`,
+	); err != nil {
+		return fmt.Errorf("initialize sqlite schema: create archive index: %w", err)
+	}
+
+	return nil
+}
+
+func ensureBoardArchiveColumn(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `PRAGMA table_info(boards)`)
+	if err != nil {
+		return fmt.Errorf("load boards table info: %w", err)
+	}
+	defer rows.Close()
+
+	hasArchiveColumn := false
+	for rows.Next() {
+		var cid int
+		var name string
+		var ctype string
+		var notnull int
+		var dfltValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("scan boards table info: %w", err)
+		}
+		if name == "is_archived" {
+			hasArchiveColumn = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate boards table info: %w", err)
+	}
+
+	if hasArchiveColumn {
+		return nil
+	}
+
+	if _, err := db.ExecContext(ctx, `ALTER TABLE boards ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return fmt.Errorf("add boards.is_archived column: %w", err)
 	}
 
 	return nil

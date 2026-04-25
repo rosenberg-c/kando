@@ -20,7 +20,7 @@ type queryer interface {
 func getOwnedBoard(ctx context.Context, q queryRower, ownerUserID, boardID string) (Board, error) {
 	board, err := scanBoard(q.QueryRowContext(
 		ctx,
-		`SELECT id, owner_user_id, title, board_version, created_at_ms, updated_at_ms
+		`SELECT id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms
 		 FROM boards
 		 WHERE id = ?`,
 		boardID,
@@ -97,6 +97,7 @@ func scanBoard(scan scannerFunc) (Board, error) {
 		&board.ID,
 		&board.OwnerUserID,
 		&board.Title,
+		&board.IsArchived,
 		&board.BoardVersion,
 		&createdAtMS,
 		&updatedAtMS,

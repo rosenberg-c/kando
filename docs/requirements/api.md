@@ -12,3 +12,7 @@
 - `API-010`: Backend API creates a new board for `POST /boards` requests and does not enforce single-board-per-user semantics.
 - `API-011`: Backend API returns all owned boards from `GET /boards`, sorted by most recently updated first.
 - `API-012`: Board-scoped mutations require a valid board ID selected by the client and return stable `404`/`403` errors for missing/forbidden board access.
+- `API-013`: Backend API deletes a board via board-scoped delete endpoint only when the board has zero tasks; otherwise it returns a stable conflict/invalid-state error.
+- `API-014`: Backend API supports board archive state transitions (`active` <-> `archived`) and enforces ownership checks on archive/restore operations.
+- `API-015`: Backend API provides archived-board listing separate from active-board listing.
+- `API-016`: Backend API permanent-delete operation is supported for archived boards and returns stable conflict/invalid-state errors when deletion preconditions are not met.

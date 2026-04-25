@@ -130,6 +130,11 @@ type importTasksOutput struct {
 
 const taskExportFormatVersion = 1
 
+type archiveRepository interface {
+	kanban.Repository
+	kanban.ArchiveCapableRepository
+}
+
 func registerKanban(api huma.API, deps Dependencies) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listBoards",
@@ -144,6 +149,30 @@ func registerKanban(api huma.API, deps Dependencies) {
 		}
 
 		boards, err := repo.ListBoardsByOwner(ctx, identity.UserID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		out := make([]contracts.Board, 0, len(boards))
+		for _, board := range boards {
+			out = append(out, toContractBoard(board))
+		}
+		return &listBoardsOutput{Body: out}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "listArchivedBoards",
+		Method:      http.MethodGet,
+		Path:        "/boards/archived",
+		Summary:     "List archived boards for the authenticated user",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *authHeaderInput) (*listBoardsOutput, error) {
+		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		boards, err := repo.ListArchivedBoardsByOwner(ctx, identity.UserID)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
@@ -243,6 +272,66 @@ func registerKanban(api huma.API, deps Dependencies) {
 		}
 
 		if err := repo.DeleteBoard(ctx, identity.UserID, input.BoardID); err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return nil, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "archiveBoard",
+		Method:      http.MethodPost,
+		Path:        "/boards/{boardId}/archive",
+		Summary:     "Archive a board",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *boardPathInput) (*boardOutput, error) {
+		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		board, err := repo.ArchiveBoard(ctx, identity.UserID, input.BoardID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return &boardOutput{Body: toContractBoard(board)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "restoreBoard",
+		Method:      http.MethodPost,
+		Path:        "/boards/{boardId}/restore",
+		Summary:     "Restore an archived board",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *boardPathInput) (*boardOutput, error) {
+		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		board, err := repo.RestoreBoard(ctx, identity.UserID, input.BoardID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return &boardOutput{Body: toContractBoard(board)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "deleteArchivedBoard",
+		Method:        http.MethodDelete,
+		Path:          "/boards/{boardId}/archive",
+		Summary:       "Permanently delete an archived board",
+		DefaultStatus: http.StatusNoContent,
+		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *boardPathInput) (*struct{}, error) {
+		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := repo.DeleteArchivedBoard(ctx, identity.UserID, input.BoardID); err != nil {
 			return nil, mapKanbanError(err)
 		}
 
@@ -499,6 +588,20 @@ func requireKanban(ctx context.Context, deps Dependencies, authorization string)
 	return deps.KanbanRepo, identity, nil
 }
 
+func requireArchiveKanban(ctx context.Context, deps Dependencies, authorization string) (archiveRepository, auth.Identity, error) {
+	repo, identity, err := requireKanban(ctx, deps, authorization)
+	if err != nil {
+		return nil, auth.Identity{}, err
+	}
+
+	archiveRepo, ok := repo.(archiveRepository)
+	if !ok {
+		return nil, auth.Identity{}, mapKanbanError(kanban.ErrNotImplemented)
+	}
+
+	return archiveRepo, identity, nil
+}
+
 func mapKanbanError(err error) error {
 	switch {
 	case errors.Is(err, kanban.ErrInvalidInput):
@@ -508,7 +611,7 @@ func mapKanbanError(err error) error {
 	case errors.Is(err, kanban.ErrNotFound):
 		return huma.Error404NotFound("not found")
 	case errors.Is(err, kanban.ErrConflict):
-		return huma.Error409Conflict("conflict")
+		return huma.Error409Conflict(kanban.ConflictDetail(err))
 	case errors.Is(err, kanban.ErrNotImplemented):
 		return huma.Error501NotImplemented("not implemented")
 	default:

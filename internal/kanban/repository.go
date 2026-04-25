@@ -20,6 +20,13 @@ type Repository interface {
 	DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error)
 }
 
+type ArchiveCapableRepository interface {
+	ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error)
+	ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (Board, error)
+	RestoreBoard(ctx context.Context, ownerUserID, boardID string) (Board, error)
+	DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error
+}
+
 // TransactionalRepository allows callers to run a set of repository operations
 // atomically when the underlying storage supports transactions.
 type TransactionalRepository interface {

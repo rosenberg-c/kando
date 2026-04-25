@@ -184,6 +184,12 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 			t.Fatalf("task A1 after invalid reorder = %+v, want column=%q position=0", got, columnA.ID)
 		}
 
+		for _, task := range details.Tasks {
+			if _, err := repo.DeleteTask(ctx, ownerUserID, board.ID, task.ID); err != nil {
+				t.Fatalf("cleanup task %s: %v", task.ID, err)
+			}
+		}
+
 		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {
 			t.Fatalf("cleanup board: %v", err)
 		}

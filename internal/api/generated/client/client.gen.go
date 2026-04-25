@@ -242,6 +242,11 @@ type CreateBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
+// ListArchivedBoardsParams defines parameters for ListArchivedBoards.
+type ListArchivedBoardsParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // DeleteBoardParams defines parameters for DeleteBoard.
 type DeleteBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -254,6 +259,16 @@ type GetBoardParams struct {
 
 // UpdateBoardParams defines parameters for UpdateBoard.
 type UpdateBoardParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// DeleteArchivedBoardParams defines parameters for DeleteArchivedBoard.
+type DeleteArchivedBoardParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// ArchiveBoardParams defines parameters for ArchiveBoard.
+type ArchiveBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -274,6 +289,11 @@ type DeleteColumnParams struct {
 
 // UpdateColumnParams defines parameters for UpdateColumn.
 type UpdateColumnParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// RestoreBoardParams defines parameters for RestoreBoard.
+type RestoreBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -444,6 +464,9 @@ type ClientInterface interface {
 
 	CreateBoard(ctx context.Context, params *CreateBoardParams, body CreateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListArchivedBoards request
+	ListArchivedBoards(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteBoard request
 	DeleteBoard(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -454,6 +477,12 @@ type ClientInterface interface {
 	UpdateBoardWithBody(ctx context.Context, boardId string, params *UpdateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateBoard(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteArchivedBoard request
+	DeleteArchivedBoard(ctx context.Context, boardId string, params *DeleteArchivedBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ArchiveBoard request
+	ArchiveBoard(ctx context.Context, boardId string, params *ArchiveBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateColumnWithBody request with any body
 	CreateColumnWithBody(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -472,6 +501,9 @@ type ClientInterface interface {
 	UpdateColumnWithBody(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestoreBoard request
+	RestoreBoard(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateTaskWithBody request with any body
 	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -614,6 +646,18 @@ func (c *Client) CreateBoard(ctx context.Context, params *CreateBoardParams, bod
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListArchivedBoards(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListArchivedBoardsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DeleteBoard(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteBoardRequest(c.Server, boardId, params)
 	if err != nil {
@@ -652,6 +696,30 @@ func (c *Client) UpdateBoardWithBody(ctx context.Context, boardId string, params
 
 func (c *Client) UpdateBoard(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateBoardRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteArchivedBoard(ctx context.Context, boardId string, params *DeleteArchivedBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteArchivedBoardRequest(c.Server, boardId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ArchiveBoard(ctx context.Context, boardId string, params *ArchiveBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewArchiveBoardRequest(c.Server, boardId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -736,6 +804,18 @@ func (c *Client) UpdateColumnWithBody(ctx context.Context, boardId string, colum
 
 func (c *Client) UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateColumnRequest(c.Server, boardId, columnId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RestoreBoard(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreBoardRequest(c.Server, boardId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,6 +1187,48 @@ func NewCreateBoardRequestWithBody(server string, params *CreateBoardParams, con
 	return req, nil
 }
 
+// NewListArchivedBoardsRequest generates requests for ListArchivedBoards
+func NewListArchivedBoardsRequest(server string, params *ListArchivedBoardsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/archived")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDeleteBoardRequest generates requests for DeleteBoard
 func NewDeleteBoardRequest(server string, boardId string, params *DeleteBoardParams) (*http.Request, error) {
 	var err error
@@ -1248,6 +1370,104 @@ func NewUpdateBoardRequestWithBody(server string, boardId string, params *Update
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteArchivedBoardRequest generates requests for DeleteArchivedBoard
+func NewDeleteArchivedBoardRequest(server string, boardId string, params *DeleteArchivedBoardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/archive", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewArchiveBoardRequest generates requests for ArchiveBoard
+func NewArchiveBoardRequest(server string, boardId string, params *ArchiveBoardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/archive", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if params != nil {
 
@@ -1497,6 +1717,55 @@ func NewUpdateColumnRequestWithBody(server string, boardId string, columnId stri
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRestoreBoardRequest generates requests for RestoreBoard
+func NewRestoreBoardRequest(server string, boardId string, params *RestoreBoardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/restore", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if params != nil {
 
@@ -2011,6 +2280,9 @@ type ClientWithResponsesInterface interface {
 
 	CreateBoardWithResponse(ctx context.Context, params *CreateBoardParams, body CreateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateBoardResponse, error)
 
+	// ListArchivedBoardsWithResponse request
+	ListArchivedBoardsWithResponse(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*ListArchivedBoardsResponse, error)
+
 	// DeleteBoardWithResponse request
 	DeleteBoardWithResponse(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*DeleteBoardResponse, error)
 
@@ -2021,6 +2293,12 @@ type ClientWithResponsesInterface interface {
 	UpdateBoardWithBodyWithResponse(ctx context.Context, boardId string, params *UpdateBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateBoardResponse, error)
 
 	UpdateBoardWithResponse(ctx context.Context, boardId string, params *UpdateBoardParams, body UpdateBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateBoardResponse, error)
+
+	// DeleteArchivedBoardWithResponse request
+	DeleteArchivedBoardWithResponse(ctx context.Context, boardId string, params *DeleteArchivedBoardParams, reqEditors ...RequestEditorFn) (*DeleteArchivedBoardResponse, error)
+
+	// ArchiveBoardWithResponse request
+	ArchiveBoardWithResponse(ctx context.Context, boardId string, params *ArchiveBoardParams, reqEditors ...RequestEditorFn) (*ArchiveBoardResponse, error)
 
 	// CreateColumnWithBodyWithResponse request with any body
 	CreateColumnWithBodyWithResponse(ctx context.Context, boardId string, params *CreateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateColumnResponse, error)
@@ -2039,6 +2317,9 @@ type ClientWithResponsesInterface interface {
 	UpdateColumnWithBodyWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
 
 	UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
+
+	// RestoreBoardWithResponse request
+	RestoreBoardWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error)
 
 	// CreateTaskWithBodyWithResponse request with any body
 	CreateTaskWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
@@ -2187,6 +2468,29 @@ func (r CreateBoardResponse) StatusCode() int {
 	return 0
 }
 
+type ListArchivedBoardsResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]Board
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ListArchivedBoardsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListArchivedBoardsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DeleteBoardResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -2249,6 +2553,51 @@ func (r UpdateBoardResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateBoardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteArchivedBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteArchivedBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteArchivedBoardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ArchiveBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Board
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ArchiveBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ArchiveBoardResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2340,6 +2689,29 @@ func (r UpdateColumnResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateColumnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RestoreBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Board
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r RestoreBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestoreBoardResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2605,6 +2977,15 @@ func (c *ClientWithResponses) CreateBoardWithResponse(ctx context.Context, param
 	return ParseCreateBoardResponse(rsp)
 }
 
+// ListArchivedBoardsWithResponse request returning *ListArchivedBoardsResponse
+func (c *ClientWithResponses) ListArchivedBoardsWithResponse(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*ListArchivedBoardsResponse, error) {
+	rsp, err := c.ListArchivedBoards(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListArchivedBoardsResponse(rsp)
+}
+
 // DeleteBoardWithResponse request returning *DeleteBoardResponse
 func (c *ClientWithResponses) DeleteBoardWithResponse(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*DeleteBoardResponse, error) {
 	rsp, err := c.DeleteBoard(ctx, boardId, params, reqEditors...)
@@ -2638,6 +3019,24 @@ func (c *ClientWithResponses) UpdateBoardWithResponse(ctx context.Context, board
 		return nil, err
 	}
 	return ParseUpdateBoardResponse(rsp)
+}
+
+// DeleteArchivedBoardWithResponse request returning *DeleteArchivedBoardResponse
+func (c *ClientWithResponses) DeleteArchivedBoardWithResponse(ctx context.Context, boardId string, params *DeleteArchivedBoardParams, reqEditors ...RequestEditorFn) (*DeleteArchivedBoardResponse, error) {
+	rsp, err := c.DeleteArchivedBoard(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteArchivedBoardResponse(rsp)
+}
+
+// ArchiveBoardWithResponse request returning *ArchiveBoardResponse
+func (c *ClientWithResponses) ArchiveBoardWithResponse(ctx context.Context, boardId string, params *ArchiveBoardParams, reqEditors ...RequestEditorFn) (*ArchiveBoardResponse, error) {
+	rsp, err := c.ArchiveBoard(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseArchiveBoardResponse(rsp)
 }
 
 // CreateColumnWithBodyWithResponse request with arbitrary body returning *CreateColumnResponse
@@ -2698,6 +3097,15 @@ func (c *ClientWithResponses) UpdateColumnWithResponse(ctx context.Context, boar
 		return nil, err
 	}
 	return ParseUpdateColumnResponse(rsp)
+}
+
+// RestoreBoardWithResponse request returning *RestoreBoardResponse
+func (c *ClientWithResponses) RestoreBoardWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error) {
+	rsp, err := c.RestoreBoard(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreBoardResponse(rsp)
 }
 
 // CreateTaskWithBodyWithResponse request with arbitrary body returning *CreateTaskResponse
@@ -2962,6 +3370,39 @@ func ParseCreateBoardResponse(rsp *http.Response) (*CreateBoardResponse, error) 
 	return response, nil
 }
 
+// ParseListArchivedBoardsResponse parses an HTTP response from a ListArchivedBoardsWithResponse call
+func ParseListArchivedBoardsResponse(rsp *http.Response) (*ListArchivedBoardsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListArchivedBoardsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Board
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteBoardResponse parses an HTTP response from a DeleteBoardWithResponse call
 func ParseDeleteBoardResponse(rsp *http.Response) (*DeleteBoardResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -3030,6 +3471,65 @@ func ParseUpdateBoardResponse(rsp *http.Response) (*UpdateBoardResponse, error) 
 	}
 
 	response := &UpdateBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Board
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteArchivedBoardResponse parses an HTTP response from a DeleteArchivedBoardWithResponse call
+func ParseDeleteArchivedBoardResponse(rsp *http.Response) (*DeleteArchivedBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteArchivedBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseArchiveBoardResponse parses an HTTP response from a ArchiveBoardWithResponse call
+func ParseArchiveBoardResponse(rsp *http.Response) (*ArchiveBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ArchiveBoardResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -3162,6 +3662,39 @@ func ParseUpdateColumnResponse(rsp *http.Response) (*UpdateColumnResponse, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Column
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRestoreBoardResponse parses an HTTP response from a RestoreBoardWithResponse call
+func ParseRestoreBoardResponse(rsp *http.Response) (*RestoreBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestoreBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Board
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

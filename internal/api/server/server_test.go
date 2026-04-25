@@ -690,6 +690,123 @@ func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 	}
 }
 
+func TestKanbanDeleteBoardWithTasksReturnsConflict(t *testing.T) {
+	// Requirements: API-003, API-004, API-013, BOARD-013
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
+	mux, api := NewAPI()
+	Register(api, Dependencies{KanbanRepo: repo, Verifier: verifier})
+
+	boardID := createBoard(t, mux)
+	columnID := createColumn(t, mux, boardID)
+	_ = createTask(t, mux, boardID, columnID)
+
+	request := httptest.NewRequest(http.MethodDelete, "/boards/"+boardID, nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+
+	var problem struct {
+		Status int    `json:"status"`
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("decode conflict response: %v body=%s", err, recorder.Body.String())
+	}
+	if problem.Status != http.StatusConflict {
+		t.Fatalf("problem.status = %d, want %d", problem.Status, http.StatusConflict)
+	}
+	if strings.TrimSpace(problem.Detail) == "" {
+		t.Fatalf("problem.detail = %q, want non-empty", problem.Detail)
+	}
+}
+
+func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
+	// Requirements: BOARD-014, BOARD-015, BOARD-016, BOARD-017, API-014, API-015, API-016
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
+	mux, api := NewAPI()
+	Register(api, Dependencies{KanbanRepo: repo, Verifier: verifier})
+
+	boardID := createBoard(t, mux)
+	columnID := createColumn(t, mux, boardID)
+	_ = createTask(t, mux, boardID, columnID)
+
+	archiveReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/archive", nil)
+	archiveReq.Header.Set("Authorization", "Bearer token")
+	archiveRec := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRec, archiveReq)
+	if archiveRec.Code != http.StatusOK {
+		t.Fatalf("archive status = %d, want %d body=%s", archiveRec.Code, http.StatusOK, archiveRec.Body.String())
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	listReq.Header.Set("Authorization", "Bearer token")
+	listRec := httptest.NewRecorder()
+	mux.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list active status = %d, want %d body=%s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var active []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &active); err != nil {
+		t.Fatalf("decode active boards: %v", err)
+	}
+	if len(active) != 0 {
+		t.Fatalf("active board count = %d, want 0", len(active))
+	}
+
+	archivedReq := httptest.NewRequest(http.MethodGet, "/boards/archived", nil)
+	archivedReq.Header.Set("Authorization", "Bearer token")
+	archivedRec := httptest.NewRecorder()
+	mux.ServeHTTP(archivedRec, archivedReq)
+	if archivedRec.Code != http.StatusOK {
+		t.Fatalf("list archived status = %d, want %d body=%s", archivedRec.Code, http.StatusOK, archivedRec.Body.String())
+	}
+	var archived []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(archivedRec.Body.Bytes(), &archived); err != nil {
+		t.Fatalf("decode archived boards: %v", err)
+	}
+	if len(archived) != 1 || archived[0].ID != boardID {
+		t.Fatalf("archived boards = %+v, want [%s]", archived, boardID)
+	}
+
+	restoreReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/restore", nil)
+	restoreReq.Header.Set("Authorization", "Bearer token")
+	restoreRec := httptest.NewRecorder()
+	mux.ServeHTTP(restoreRec, restoreReq)
+	if restoreRec.Code != http.StatusOK {
+		t.Fatalf("restore status = %d, want %d body=%s", restoreRec.Code, http.StatusOK, restoreRec.Body.String())
+	}
+
+	archiveReq = httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/archive", nil)
+	archiveReq.Header.Set("Authorization", "Bearer token")
+	archiveRec = httptest.NewRecorder()
+	mux.ServeHTTP(archiveRec, archiveReq)
+	if archiveRec.Code != http.StatusOK {
+		t.Fatalf("archive again status = %d, want %d body=%s", archiveRec.Code, http.StatusOK, archiveRec.Body.String())
+	}
+
+	deleteArchivedReq := httptest.NewRequest(http.MethodDelete, "/boards/"+boardID+"/archive", nil)
+	deleteArchivedReq.Header.Set("Authorization", "Bearer token")
+	deleteArchivedRec := httptest.NewRecorder()
+	mux.ServeHTTP(deleteArchivedRec, deleteArchivedReq)
+	if deleteArchivedRec.Code != http.StatusNoContent {
+		t.Fatalf("delete archived status = %d, want %d body=%s", deleteArchivedRec.Code, http.StatusNoContent, deleteArchivedRec.Body.String())
+	}
+}
+
 func TestKanbanReorderColumnsAppliesOrderAtomically(t *testing.T) {
 	// Requirements: COL-MOVE-001, COL-MOVE-002, COL-MOVE-003, COL-MOVE-004, COL-MOVE-007, COL-MOVE-011
 	t.Parallel()

@@ -15,6 +15,17 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
+    func listArchivedBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.listArchivedBoards()
+        switch output {
+        case let .ok(ok):
+            return (try ok.body.json ?? []).map(mapBoard)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "listArchivedBoards", model: problem(from: payload.body))
+        }
+    }
+
     func createBoard(title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
         let payload = Components.Schemas.CreateBoardRequest(title: title)
@@ -36,6 +47,44 @@ struct GeneratedKanbanAPI: KanbanAPI {
             return mapBoard(try ok.body.json)
         case let .default(statusCode, payload):
             throw mapStatus(statusCode, operation: "updateBoard", model: problem(from: payload.body))
+        }
+    }
+
+    func deleteBoard(boardID: String, accessToken: String, baseURL: URL) async throws {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.deleteBoard(path: .init(boardId: boardID))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "deleteBoard", model: problem(from: payload.body))
+        }
+    }
+
+    func archiveBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.archiveBoard(path: .init(boardId: boardID))
+        switch output {
+        case let .ok(ok):
+            return mapBoard(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "archiveBoard", model: problem(from: payload.body))
+        }
+    }
+
+    func restoreBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.restoreBoard(path: .init(boardId: boardID))
+        switch output {
+        case let .ok(ok):
+            return mapBoard(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "restoreBoard", model: problem(from: payload.body))
+        }
+    }
+
+    func deleteArchivedBoard(boardID: String, accessToken: String, baseURL: URL) async throws {
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.deleteArchivedBoard(path: .init(boardId: boardID))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "deleteArchivedBoard", model: problem(from: payload.body))
         }
     }
 
@@ -172,11 +221,31 @@ struct GeneratedKanbanAPI: KanbanAPI {
            case let .applicationProblemJson(model) = body {
             return model
         }
+        if let body = body as? Operations.ListArchivedBoards.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
         if let body = body as? Operations.CreateBoard.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }
         if let body = body as? Operations.UpdateBoard.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.DeleteBoard.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.ArchiveBoard.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.RestoreBoard.Output.Default.Body,
+           case let .applicationProblemJson(model) = body {
+            return model
+        }
+        if let body = body as? Operations.DeleteArchivedBoard.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }

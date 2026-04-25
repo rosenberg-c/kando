@@ -281,6 +281,131 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testDeleteBoardAvailableOnlyWhenBoardHasNoTasks() throws {
+        // Requirements: BOARD-013, UX-019
+        let app = launchSignedInApp()
+
+        let createButton = app.buttons["board-create-button"]
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
+
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
+
+        editModeToggle.tap()
+        let deleteButton = app.buttons["board-edit-delete-button"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 3), "Expected delete-board button in edit board panel")
+        XCTAssertFalse(deleteButton.isEnabled, "Expected delete-board action disabled when board has tasks")
+
+        let closeButton = app.buttons["board-edit-close-button"]
+        if closeButton.waitForExistence(timeout: 2) {
+            closeButton.tap()
+        }
+
+        createButton.tap()
+        let boardEditorTitleInput = preferredElement(
+            primary: app.textFields["board-editor-title-input"],
+            fallback: app.textFields["Board title"],
+            waitTimeout: 3
+        )
+        let boardEditorSubmit = preferredElement(
+            primary: app.buttons["board-editor-submit"],
+            fallback: app.buttons["Create"],
+            waitTimeout: 3
+        )
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input")
+        boardEditorTitleInput.tap()
+        boardEditorTitleInput.typeText("Board To Delete")
+        boardEditorSubmit.tap()
+
+        XCTAssertTrue(app.staticTexts["Board To Delete"].waitForExistence(timeout: 3), "Expected created board title")
+
+        editModeToggle.tap()
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 3), "Expected delete-board button")
+        XCTAssertTrue(deleteButton.isEnabled, "Expected delete-board action enabled on empty board")
+        deleteButton.tap()
+
+        let deleteConfirm = app.sheets.firstMatch.buttons["Delete"].firstMatch
+        XCTAssertTrue(deleteConfirm.waitForExistence(timeout: 3), "Expected delete confirmation action")
+        deleteConfirm.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { app.staticTexts["UI Test Board"].exists },
+            "Expected fallback board title after deleting empty board"
+        )
+    }
+
+    @MainActor
+    func testArchivedBoardDeleteRequiresConfirmation() throws {
+        // Requirements: BOARD-017, UX-021
+        let app = launchSignedInApp()
+
+        let createButton = app.buttons["board-create-button"]
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
+        let settingsButton = app.buttons["board-settings-button"]
+
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Expected settings button")
+
+        createButton.tap()
+        let boardEditorTitleInput = preferredElement(
+            primary: app.textFields["board-editor-title-input"],
+            fallback: app.textFields["Board title"],
+            waitTimeout: 3
+        )
+        let boardEditorSubmit = preferredElement(
+            primary: app.buttons["board-editor-submit"],
+            fallback: app.buttons["Create"],
+            waitTimeout: 3
+        )
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input")
+        boardEditorTitleInput.tap()
+        boardEditorTitleInput.typeText("Archive Me")
+        boardEditorSubmit.tap()
+        XCTAssertTrue(app.staticTexts["Archive Me"].waitForExistence(timeout: 3), "Expected created board title")
+
+        editModeToggle.tap()
+        let archiveButton = app.buttons["board-edit-archive-button"]
+        XCTAssertTrue(archiveButton.waitForExistence(timeout: 3), "Expected archive button")
+        archiveButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { app.staticTexts["UI Test Board"].exists },
+            "Expected fallback board after archive"
+        )
+        XCTAssertTrue(
+            app.staticTexts["board-status-message"].waitForExistence(timeout: 3),
+            "Expected board status message after archive"
+        )
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { !archiveButton.exists },
+            "Expected edit board panel to close after archive"
+        )
+
+        settingsButton.tap()
+        let archivedDeleteButton = app.buttons["board-archived-delete-row-0"]
+        XCTAssertTrue(archivedDeleteButton.waitForExistence(timeout: 5), "Expected archived delete button")
+
+        archivedDeleteButton.tap()
+        let deletePermanent = app.sheets.firstMatch.buttons["Delete permanently"]
+        XCTAssertTrue(deletePermanent.waitForExistence(timeout: 3), "Expected delete confirmation action")
+        let cancelDelete = app.sheets.firstMatch.buttons["Cancel"]
+        XCTAssertTrue(cancelDelete.waitForExistence(timeout: 2), "Expected cancel action in confirmation")
+        cancelDelete.tap()
+
+        XCTAssertTrue(archivedDeleteButton.waitForExistence(timeout: 2), "Expected archived board to remain after cancel")
+
+        archivedDeleteButton.tap()
+        XCTAssertTrue(deletePermanent.waitForExistence(timeout: 3), "Expected delete confirmation action")
+        deletePermanent.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { !archivedDeleteButton.exists },
+            "Expected archived board delete button to disappear after confirmation"
+        )
+    }
+
+    @MainActor
     func testExportFromSettingsShowsSavePanel() throws {
         // Requirements: UX-012, UX-013
         let app = launchSignedInApp(extraEnvironment: [

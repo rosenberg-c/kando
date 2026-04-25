@@ -354,11 +354,18 @@ private struct LoggedInWorkspaceView: View {
                 board: board.board,
                 columns: board.columns,
                 canMutateBoardActions: board.canMutateBoardActions,
+                canDeleteBoard: board.canDeleteActiveBoard,
                 onRenameBoard: { title in
                     await board.renameActiveBoard(title: title)
                 },
                 onReorderColumns: { orderedColumnIDs in
                     await board.reorderColumns(orderedColumnIDs: orderedColumnIDs)
+                },
+                onArchiveBoard: {
+                    await board.archiveActiveBoard()
+                },
+                onDeleteBoard: {
+                    await board.deleteActiveBoard()
                 }
             )
         }
@@ -380,6 +387,7 @@ private struct LoggedInWorkspaceView: View {
         ) {
             WorkspaceSettingsSheet(
                 canRefresh: board.canMutateBoardActions,
+                archivedBoards: board.archivedBoards,
                 onRefresh: {
                     isSettingsSheetPresented = false
                     Task { await board.reloadBoard() }
@@ -396,6 +404,12 @@ private struct LoggedInWorkspaceView: View {
                     deferredSettingsAction = nil
                     isSettingsSheetPresented = false
                     onSignOut()
+                },
+                onRestoreArchivedBoard: { boardID in
+                    Task { await board.restoreArchivedBoard(boardID: boardID) }
+                },
+                onDeleteArchivedBoard: { boardID in
+                    Task { await board.deleteArchivedBoard(boardID: boardID) }
                 }
             )
         }
@@ -563,12 +577,16 @@ private struct BlockingLoadingOverlay: View {
 
 private struct WorkspaceSettingsSheet: View {
     let canRefresh: Bool
+    let archivedBoards: [KanbanBoard]
     let onRefresh: () -> Void
     let onExport: () -> Void
     let onImport: () -> Void
     let onSignOut: () -> Void
+    let onRestoreArchivedBoard: (String) -> Void
+    let onDeleteArchivedBoard: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var pendingDeleteArchivedBoard: KanbanBoard?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -603,6 +621,40 @@ private struct WorkspaceSettingsSheet: View {
                     .accessibilityIdentifier("board-settings-import-button")
             }
 
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("board.settings.archived.title")
+                    .font(.headline)
+
+                if archivedBoards.isEmpty {
+                    Text("board.settings.archived.empty")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(archivedBoards.enumerated()), id: \.element.id) { index, archivedBoard in
+                        HStack {
+                            Text(archivedBoard.title)
+                                .lineLimit(1)
+                            Spacer()
+                            Button("board.restore") {
+                                onRestoreArchivedBoard(archivedBoard.id)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(!canRefresh)
+                            .accessibilityIdentifier("board-archived-restore-row-\(index)")
+
+                            Button("board.delete", role: .destructive) {
+                                pendingDeleteArchivedBoard = archivedBoard
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(!canRefresh)
+                            .accessibilityIdentifier("board-archived-delete-row-\(index)")
+                        }
+                    }
+                }
+            }
+
             HStack {
                 Spacer()
                 Button("common.close") { dismiss() }
@@ -613,6 +665,31 @@ private struct WorkspaceSettingsSheet: View {
         .padding(20)
         .frame(width: 360)
         .accessibilityIdentifier("board-settings-sheet")
+        .confirmationDialog(
+            Strings.t("board.archived.delete.confirm.title"),
+            isPresented: Binding(
+                get: { pendingDeleteArchivedBoard != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingDeleteArchivedBoard = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(Strings.t("board.archived.delete.confirm.action"), role: .destructive) {
+                guard let board = pendingDeleteArchivedBoard else { return }
+                onDeleteArchivedBoard(board.id)
+                pendingDeleteArchivedBoard = nil
+            }
+            Button(Strings.t("common.cancel"), role: .cancel) {
+                pendingDeleteArchivedBoard = nil
+            }
+        } message: {
+            if let board = pendingDeleteArchivedBoard {
+                Text(Strings.f("board.archived.delete.confirm.message", board.title))
+            }
+        }
     }
 }
 
@@ -800,14 +877,18 @@ private struct BoardEditSheet: View {
     let board: KanbanBoard?
     let columns: [KanbanColumn]
     let canMutateBoardActions: Bool
+    let canDeleteBoard: Bool
     let onRenameBoard: @Sendable (String) async -> Bool
     let onReorderColumns: @Sendable ([String]) async -> Bool
+    let onArchiveBoard: @Sendable () async -> Bool
+    let onDeleteBoard: @Sendable () async -> Bool
 
     @Environment(\.dismiss) private var dismiss
     @State private var editingBoard: EditableBoard?
     @State private var isReorderSheetPresented = false
     @State private var reorderSheetColumns: [KanbanColumn] = []
     @State private var isApplyingReorder = false
+    @State private var isDeleteConfirmationPresented = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -830,6 +911,31 @@ private struct BoardEditSheet: View {
                     .buttonStyle(.bordered)
                     .disabled(!canMutateBoardActions)
                     .accessibilityIdentifier("board-edit-reorder-button")
+
+                Button("board.archive") {
+                    Task {
+                        if await onArchiveBoard() {
+                            dismiss()
+                        }
+                    }
+                }
+                    .buttonStyle(.bordered)
+                    .disabled(!canMutateBoardActions)
+                    .accessibilityIdentifier("board-edit-archive-button")
+
+                Button("board.delete", role: .destructive) {
+                    isDeleteConfirmationPresented = true
+                }
+                    .buttonStyle(.bordered)
+                    .disabled(!canMutateBoardActions || !canDeleteBoard)
+                    .accessibilityIdentifier("board-edit-delete-button")
+
+                if !canDeleteBoard {
+                    Text("board.delete.disabled.has_tasks")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("board-edit-delete-disabled-message")
+                }
             }
 
             HStack {
@@ -849,6 +955,24 @@ private struct BoardEditSheet: View {
                 initialTitle: item.title,
                 onSubmit: onRenameBoard
             )
+        }
+        .confirmationDialog(
+            Strings.t("board.delete.confirm.title"),
+            isPresented: $isDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button(Strings.t("board.delete.confirm.action"), role: .destructive) {
+                Task {
+                    if await onDeleteBoard() {
+                        dismiss()
+                    }
+                }
+            }
+            Button(Strings.t("common.cancel"), role: .cancel) {}
+        } message: {
+            if let board {
+                Text(Strings.f("board.delete.confirm.message", board.title))
+            }
         }
         .sheet(isPresented: $isReorderSheetPresented) {
             ColumnReorderSheet(

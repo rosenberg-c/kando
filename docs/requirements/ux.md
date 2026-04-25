@@ -18,6 +18,9 @@
 - `UX-016`: The UI exposes create-board and rename-board actions with success/failure status feedback.
 - `UX-017`: Rename project/board is initiated from the `Edit board` panel instead of the workspace header.
 - `UX-018`: The `Edit board` panel includes an explicit `Close` action to dismiss edit mode.
+- `UX-019`: The `Edit board` panel includes a `Delete board` action that is available only when the active board has no tasks and surfaces clear blocked/success/failure feedback.
+- `UX-020`: The `Edit board` panel includes an `Archive board` action that removes the board from active workspace selection without destroying tasks/columns.
+- `UX-021`: The app exposes an archived-board management view that supports restore and permanent delete actions with destructive confirmations.
 
 ## Platform Applicability
 
@@ -39,3 +42,6 @@
 - `UX-016`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-017`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-018`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-019`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-020`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-021`: macOS (required), iOS (planned), TUI (N/A).

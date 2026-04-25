@@ -54,12 +54,13 @@ func KanbanAppwriteDatabase() AppwriteDatabase {
 				Columns: []AppwriteColumn{
 					{Kind: "string", Key: "ownerUserId", Required: true, Size: 64},
 					{Kind: "string", Key: "title", Required: true, Size: 120},
+					{Kind: "boolean", Key: "isArchived", Required: true},
 					{Kind: "integer", Key: "boardVersion", Required: true},
 					{Kind: "datetime", Key: "createdAt", Required: true},
 					{Kind: "datetime", Key: "updatedAt", Required: true},
 				},
 				Indexes: []AppwriteIndex{
-					{Key: "boards_owner_updated", Type: "key", Columns: []string{"ownerUserId", "updatedAt"}, Orders: []string{"ASC", "DESC"}},
+					{Key: "boards_owner_archived_updated", Type: "key", Columns: []string{"ownerUserId", "isArchived", "updatedAt"}, Orders: []string{"ASC", "ASC", "DESC"}},
 				},
 			},
 			{

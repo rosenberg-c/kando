@@ -2,13 +2,16 @@ package kanban
 
 import (
 	"context"
-	"fmt"
 	"strings"
 )
 
 // Service centralizes kanban business rules while delegating persistence to a repository implementation.
 type Service struct {
 	repo Repository
+}
+
+type archiveRepo interface {
+	ArchiveCapableRepository
 }
 
 // NewService returns a Repository that applies shared kanban domain rules.
@@ -41,7 +44,47 @@ func (s *Service) UpdateBoardTitle(ctx context.Context, ownerUserID, boardID, ti
 }
 
 func (s *Service) DeleteBoard(ctx context.Context, ownerUserID, boardID string) error {
+	details, err := s.repo.GetBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return err
+	}
+	if len(details.Tasks) > 0 {
+		return NewConflictError(ConflictBoardHasTasks, "board has tasks")
+	}
+
 	return s.repo.DeleteBoard(ctx, ownerUserID, boardID)
+}
+
+func (s *Service) ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error) {
+	ar, ok := s.repo.(archiveRepo)
+	if !ok {
+		return nil, ErrNotImplemented
+	}
+	return ar.ListArchivedBoardsByOwner(ctx, ownerUserID)
+}
+
+func (s *Service) ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (Board, error) {
+	ar, ok := s.repo.(archiveRepo)
+	if !ok {
+		return Board{}, ErrNotImplemented
+	}
+	return ar.ArchiveBoard(ctx, ownerUserID, boardID)
+}
+
+func (s *Service) RestoreBoard(ctx context.Context, ownerUserID, boardID string) (Board, error) {
+	ar, ok := s.repo.(archiveRepo)
+	if !ok {
+		return Board{}, ErrNotImplemented
+	}
+	return ar.RestoreBoard(ctx, ownerUserID, boardID)
+}
+
+func (s *Service) DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error {
+	ar, ok := s.repo.(archiveRepo)
+	if !ok {
+		return ErrNotImplemented
+	}
+	return ar.DeleteArchivedBoard(ctx, ownerUserID, boardID)
 }
 
 func (s *Service) CreateColumn(ctx context.Context, ownerUserID, boardID, title string) (Column, Board, error) {
@@ -74,7 +117,7 @@ func (s *Service) DeleteColumn(ctx context.Context, ownerUserID, boardID, column
 	}
 	for _, task := range details.Tasks {
 		if task.ColumnID == columnID {
-			return Board{}, fmt.Errorf("column has tasks: %w", ErrConflict)
+			return Board{}, NewConflictError(ConflictColumnHasTasks, "column has tasks")
 		}
 	}
 	return s.repo.DeleteColumn(ctx, ownerUserID, boardID, columnID)

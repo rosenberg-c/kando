@@ -10,10 +10,12 @@ type serviceRepoStub struct {
 	details             BoardDetails
 	createBoardResult   Board
 	deleteColumnBoard   Board
+	deleteBoardErr      error
 	reorderTasksBoard   Board
 	reorderColumnsBoard Board
 	createBoardCalls    int
 	getBoardCalls       int
+	deleteBoardCalls    int
 	deleteColumnCalls   int
 	reorderTasksCalls   int
 	reorderColumnsCalls int
@@ -49,7 +51,11 @@ func (s *serviceRepoStub) UpdateBoardTitle(context.Context, string, string, stri
 }
 
 func (s *serviceRepoStub) DeleteBoard(context.Context, string, string) error {
-	panic("unexpected call")
+	s.deleteBoardCalls++
+	if s.deleteBoardErr != nil {
+		return s.deleteBoardErr
+	}
+	return nil
 }
 
 func (s *serviceRepoStub) CreateColumn(context.Context, string, string, string) (Column, Board, error) {
@@ -114,6 +120,46 @@ func TestServiceDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 	}
 	if stub.deleteColumnCalls != 0 {
 		t.Fatalf("delete column calls = %d, want 0", stub.deleteColumnCalls)
+	}
+}
+
+func TestServiceDeleteBoardWithTasksReturnsConflict(t *testing.T) {
+	// Requirement: BOARD-013
+	t.Parallel()
+
+	stub := &serviceRepoStub{
+		details: BoardDetails{Tasks: []Task{{ID: "task-1", ColumnID: "column-1"}}},
+	}
+	svc := NewService(stub)
+
+	err := svc.DeleteBoard(context.Background(), "user-1", "board-1")
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("delete board err = %v, want ErrConflict", err)
+	}
+	if stub.getBoardCalls != 1 {
+		t.Fatalf("get board calls = %d, want 1", stub.getBoardCalls)
+	}
+	if stub.deleteBoardCalls != 0 {
+		t.Fatalf("delete board calls = %d, want 0", stub.deleteBoardCalls)
+	}
+}
+
+func TestServiceDeleteBoardWithoutTasksDelegates(t *testing.T) {
+	// Requirement: BOARD-013
+	t.Parallel()
+
+	stub := &serviceRepoStub{details: BoardDetails{Tasks: nil}}
+	svc := NewService(stub)
+
+	err := svc.DeleteBoard(context.Background(), "user-1", "board-1")
+	if err != nil {
+		t.Fatalf("delete board: %v", err)
+	}
+	if stub.getBoardCalls != 1 {
+		t.Fatalf("get board calls = %d, want 1", stub.getBoardCalls)
+	}
+	if stub.deleteBoardCalls != 1 {
+		t.Fatalf("delete board calls = %d, want 1", stub.deleteBoardCalls)
 	}
 }
 

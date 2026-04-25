@@ -46,7 +46,25 @@ func (r *MemoryRepository) ListBoardsByOwner(_ context.Context, ownerUserID stri
 	out := make([]Board, 0, len(ids))
 	for _, id := range ids {
 		board, ok := r.boards[id]
-		if ok {
+		if ok && !board.IsArchived {
+			out = append(out, board)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].UpdatedAt.After(out[j].UpdatedAt)
+	})
+	return out, nil
+}
+
+func (r *MemoryRepository) ListArchivedBoardsByOwner(_ context.Context, ownerUserID string) ([]Board, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	ids := r.ownerBoards[ownerUserID]
+	out := make([]Board, 0, len(ids))
+	for _, id := range ids {
+		board, ok := r.boards[id]
+		if ok && board.IsArchived {
 			out = append(out, board)
 		}
 	}
@@ -142,6 +160,55 @@ func (r *MemoryRepository) DeleteBoard(_ context.Context, ownerUserID, boardID s
 	delete(r.boards, board.ID)
 	r.ownerBoards[ownerUserID] = sliceutil.RemoveString(r.ownerBoards[ownerUserID], board.ID)
 	return nil
+}
+
+func (r *MemoryRepository) ArchiveBoard(_ context.Context, ownerUserID, boardID string) (Board, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+	if board.IsArchived {
+		return board, nil
+	}
+
+	board.IsArchived = true
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+	return board, nil
+}
+
+func (r *MemoryRepository) RestoreBoard(_ context.Context, ownerUserID, boardID string) (Board, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+	if !board.IsArchived {
+		return board, nil
+	}
+
+	board.IsArchived = false
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+	return board, nil
+}
+
+func (r *MemoryRepository) DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error {
+	r.mu.RLock()
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	r.mu.RUnlock()
+	if err != nil {
+		return err
+	}
+	if !board.IsArchived {
+		return ErrConflict
+	}
+	return r.DeleteBoard(ctx, ownerUserID, boardID)
 }
 
 func (r *MemoryRepository) CreateColumn(_ context.Context, ownerUserID, boardID, title string) (Column, Board, error) {

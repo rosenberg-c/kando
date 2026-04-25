@@ -19,6 +19,11 @@
           "size": 120
         },
         {
+          "kind": "boolean",
+          "key": "isArchived",
+          "required": true
+        },
+        {
           "kind": "integer",
           "key": "boardVersion",
           "required": true
@@ -36,13 +41,15 @@
       ],
       "indexes": [
         {
-          "key": "boards_owner_updated",
+          "key": "boards_owner_archived_updated",
           "type": "key",
           "columns": [
             "ownerUserId",
+            "isArchived",
             "updatedAt"
           ],
           "orders": [
+            "ASC",
             "ASC",
             "DESC"
           ]

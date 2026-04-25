@@ -35,8 +35,13 @@ actor SuspendedOperationGate {
 
 struct MockKanbanAPI: KanbanAPI {
     var listBoardsHandler: @Sendable (String, URL) async throws -> [KanbanBoard]
+    var listArchivedBoardsHandler: @Sendable (String, URL) async throws -> [KanbanBoard]
     var createBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoard
     var updateBoardHandler: @Sendable (String, String, String, URL) async throws -> KanbanBoard
+    var deleteBoardHandler: @Sendable (String, String, URL) async throws -> Void
+    var archiveBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoard
+    var restoreBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoard
+    var deleteArchivedBoardHandler: @Sendable (String, String, URL) async throws -> Void
     var getBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoardDetails
     var createColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
     var updateColumnHandler: @Sendable (String, String, String, String, URL) async throws -> Void
@@ -53,12 +58,23 @@ struct MockKanbanAPI: KanbanAPI {
         listBoardsHandler: @escaping @Sendable (String, URL) async throws -> [KanbanBoard] = { _, _ in
             [KanbanBoard(id: "board-1", title: "Main")]
         },
+        listArchivedBoardsHandler: @escaping @Sendable (String, URL) async throws -> [KanbanBoard] = { _, _ in
+            []
+        },
         createBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoard = { title, _, _ in
             KanbanBoard(id: UUID().uuidString, title: title)
         },
         updateBoardHandler: @escaping @Sendable (String, String, String, URL) async throws -> KanbanBoard = { boardID, title, _, _ in
             KanbanBoard(id: boardID, title: title)
         },
+        deleteBoardHandler: @escaping @Sendable (String, String, URL) async throws -> Void = { _, _, _ in },
+        archiveBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoard = { boardID, _, _ in
+            KanbanBoard(id: boardID, title: "Archived")
+        },
+        restoreBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoard = { boardID, _, _ in
+            KanbanBoard(id: boardID, title: "Restored")
+        },
+        deleteArchivedBoardHandler: @escaping @Sendable (String, String, URL) async throws -> Void = { _, _, _ in },
         getBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoardDetails = { _, _, _ in
             KanbanBoardDetails(board: KanbanBoard(id: "board-1", title: "Main"), columns: [], tasks: [])
         },
@@ -78,8 +94,13 @@ struct MockKanbanAPI: KanbanAPI {
         }
     ) {
         self.listBoardsHandler = listBoardsHandler
+        self.listArchivedBoardsHandler = listArchivedBoardsHandler
         self.createBoardHandler = createBoardHandler
         self.updateBoardHandler = updateBoardHandler
+        self.deleteBoardHandler = deleteBoardHandler
+        self.archiveBoardHandler = archiveBoardHandler
+        self.restoreBoardHandler = restoreBoardHandler
+        self.deleteArchivedBoardHandler = deleteArchivedBoardHandler
         self.getBoardHandler = getBoardHandler
         self.createColumnHandler = createColumnHandler
         self.updateColumnHandler = updateColumnHandler
@@ -97,12 +118,32 @@ struct MockKanbanAPI: KanbanAPI {
         try await listBoardsHandler(accessToken, baseURL)
     }
 
+    func listArchivedBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
+        try await listArchivedBoardsHandler(accessToken, baseURL)
+    }
+
     func createBoard(title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
         try await createBoardHandler(title, accessToken, baseURL)
     }
 
     func updateBoard(boardID: String, title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
         try await updateBoardHandler(boardID, title, accessToken, baseURL)
+    }
+
+    func deleteBoard(boardID: String, accessToken: String, baseURL: URL) async throws {
+        try await deleteBoardHandler(boardID, accessToken, baseURL)
+    }
+
+    func archiveBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        try await archiveBoardHandler(boardID, accessToken, baseURL)
+    }
+
+    func restoreBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        try await restoreBoardHandler(boardID, accessToken, baseURL)
+    }
+
+    func deleteArchivedBoard(boardID: String, accessToken: String, baseURL: URL) async throws {
+        try await deleteArchivedBoardHandler(boardID, accessToken, baseURL)
     }
 
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails {
