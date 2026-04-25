@@ -60,6 +60,12 @@
 "board.settings.transfer.title" = "Export and Import";
 "board.settings.transfer.export" = "Export tasks";
 "board.settings.transfer.import" = "Import tasks";
+"board.settings.shortcuts.title" = "Keyboard shortcuts";
+"board.settings.shortcuts.select" = "Select task: click a task card";
+"board.settings.shortcuts.clear" = "Clear selection: Esc";
+"board.settings.shortcuts.top_bottom" = "Move top/bottom: t / b";
+"board.settings.shortcuts.up_down" = "Move up/down: u / d";
+"board.settings.shortcuts.edit_delete" = "Edit/Delete: e / x";
 "board.settings.archived.title" = "Archived boards";
 "board.settings.archived.empty" = "No archived boards.";
 "board.archived.delete.confirm.title" = "Delete archived board";

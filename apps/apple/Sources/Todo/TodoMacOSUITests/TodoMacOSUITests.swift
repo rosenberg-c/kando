@@ -132,7 +132,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsButtonAnchorsTopRightAndShowsActions() throws {
-        // Requirements: UX-010, UX-011, UX-012
+        // Requirements: UX-010, UX-011, UX-012, UX-022
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
@@ -177,11 +177,25 @@ final class TodoMacOSUITests: XCTestCase {
             fallback: app.buttons["Import tasks"],
             waitTimeout: 5
         )
+        let shortcutsSection = app.otherElements["board-settings-shortcuts-section"]
+        let shortcutsTitle = app.staticTexts["board-settings-shortcuts-title"]
+        let shortcutsSelect = app.staticTexts["board-settings-shortcuts-select"]
+        let shortcutsClear = app.staticTexts["board-settings-shortcuts-clear"]
+        let shortcutsTopBottom = app.staticTexts["board-settings-shortcuts-top-bottom"]
+        let shortcutsUpDown = app.staticTexts["board-settings-shortcuts-up-down"]
+        let shortcutsEditDelete = app.staticTexts["board-settings-shortcuts-edit-delete"]
 
         XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
         XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
         XCTAssertTrue(exportButton.exists, "Expected export action in settings")
         XCTAssertTrue(importButton.exists, "Expected import action in settings")
+        XCTAssertTrue(shortcutsSection.exists, "Expected shortcuts section in settings")
+        XCTAssertTrue(shortcutsTitle.exists, "Expected shortcuts title in settings")
+        XCTAssertTrue(shortcutsSelect.exists, "Expected shortcuts select guidance")
+        XCTAssertTrue(shortcutsClear.exists, "Expected shortcuts clear-selection guidance")
+        XCTAssertTrue(shortcutsTopBottom.exists, "Expected shortcuts top/bottom guidance")
+        XCTAssertTrue(shortcutsUpDown.exists, "Expected shortcuts up/down guidance")
+        XCTAssertTrue(shortcutsEditDelete.exists, "Expected shortcuts edit/delete guidance")
     }
 
     @MainActor
@@ -708,6 +722,142 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(
             waitUntil(timeout: 3) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY },
             "Expected task-3 below task-4 after moving to bottom"
+        )
+    }
+
+    @MainActor
+    func testTaskSelectionEnablesTopBottomKeyboardShortcuts() throws {
+        // Requirements: TASK-012, TASK-013
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
+        let uiTimeout: TimeInterval = 8
+
+        let taskOneTitle = app.staticTexts["task-title-task-1"]
+        let taskThreeTitle = app.staticTexts["task-title-task-3"]
+        let taskFourTitle = app.staticTexts["task-title-task-4"]
+        let taskThreeCard = taskCardElement(in: app, taskID: "task-3", waitTimeout: uiTimeout)
+
+        XCTAssertTrue(taskOneTitle.waitForExistence(timeout: uiTimeout), "Expected task-1 title")
+        XCTAssertTrue(taskThreeTitle.waitForExistence(timeout: uiTimeout), "Expected task-3 title")
+        XCTAssertTrue(taskFourTitle.waitForExistence(timeout: uiTimeout), "Expected task-4 title")
+        XCTAssertTrue(taskThreeCard.waitForExistence(timeout: uiTimeout), "Expected task-3 card")
+
+        taskThreeCard.click()
+        app.typeKey("t", modifierFlags: [])
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY },
+            "Expected task-3 above task-1 after pressing t"
+        )
+
+        taskThreeCard.click()
+        app.typeKey("b", modifierFlags: [])
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY },
+            "Expected task-3 below task-4 after pressing b"
+        )
+    }
+
+    @MainActor
+    func testTaskSelectionEnablesUpDownKeyboardShortcuts() throws {
+        // Requirements: TASK-015, TASK-016
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
+        let uiTimeout: TimeInterval = 8
+
+        let taskTwoTitle = app.staticTexts["task-title-task-2"]
+        let taskThreeTitle = app.staticTexts["task-title-task-3"]
+        let taskThreeCard = taskCardElement(in: app, taskID: "task-3", waitTimeout: uiTimeout)
+
+        XCTAssertTrue(taskTwoTitle.waitForExistence(timeout: uiTimeout), "Expected task-2 title")
+        XCTAssertTrue(taskThreeTitle.waitForExistence(timeout: uiTimeout), "Expected task-3 title")
+        XCTAssertTrue(taskThreeCard.waitForExistence(timeout: uiTimeout), "Expected task-3 card")
+        XCTAssertGreaterThan(taskThreeTitle.frame.minY, taskTwoTitle.frame.minY, "Expected task-3 below task-2 before shortcuts")
+
+        taskThreeCard.click()
+        app.typeKey("u", modifierFlags: [])
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { taskThreeTitle.frame.minY < taskTwoTitle.frame.minY },
+            "Expected task-3 above task-2 after pressing u"
+        )
+
+        taskThreeCard.click()
+        app.typeKey("d", modifierFlags: [])
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { taskThreeTitle.frame.minY > taskTwoTitle.frame.minY },
+            "Expected task-3 below task-2 after pressing d"
+        )
+    }
+
+    @MainActor
+    func testTaskSelectionEnablesEditDeleteKeyboardShortcuts() throws {
+        // Requirements: TASK-017, TASK-018
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
+        let uiTimeout: TimeInterval = 8
+
+        let taskOneCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: uiTimeout)
+        let editSheet = preferredElement(
+            primary: app.otherElements["task-editor-sheet"],
+            fallback: app.staticTexts["Edit task"],
+            waitTimeout: uiTimeout
+        )
+
+        XCTAssertTrue(taskOneCard.waitForExistence(timeout: uiTimeout), "Expected task-1 card")
+
+        taskOneCard.click()
+        app.typeKey("e", modifierFlags: [])
+        XCTAssertTrue(editSheet.waitForExistence(timeout: uiTimeout), "Expected edit task sheet after pressing e")
+
+        let cancelEditButton = preferredElement(
+            primary: app.buttons["task-editor-cancel"],
+            fallback: app.buttons["Cancel"],
+            waitTimeout: uiTimeout
+        )
+        XCTAssertTrue(cancelEditButton.waitForExistence(timeout: uiTimeout), "Expected cancel action in edit sheet")
+        cancelEditButton.tap()
+
+        taskOneCard.click()
+        app.typeKey("x", modifierFlags: [])
+
+        let deleteAction = preferredElement(
+            primary: app.buttons["task-delete-confirm-action"],
+            fallback: app.sheets.firstMatch.buttons["Delete task"],
+            waitTimeout: uiTimeout
+        )
+        XCTAssertTrue(deleteAction.waitForExistence(timeout: uiTimeout), "Expected delete confirmation after pressing x")
+
+        let cancelDeleteButton = preferredElement(
+            primary: app.buttons["task-delete-confirm-cancel"],
+            fallback: app.sheets.firstMatch.buttons["Cancel"],
+            waitTimeout: uiTimeout
+        )
+        XCTAssertTrue(cancelDeleteButton.waitForExistence(timeout: uiTimeout), "Expected cancel action in delete confirmation")
+        cancelDeleteButton.tap()
+    }
+
+    @MainActor
+    func testEscapeClearsTaskSelectionForKeyboardShortcuts() throws {
+        // Requirement: TASK-014
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
+        let uiTimeout: TimeInterval = 8
+
+        let taskOneTitle = app.staticTexts["task-title-task-1"]
+        let taskThreeTitle = app.staticTexts["task-title-task-3"]
+        let taskThreeCard = taskCardElement(in: app, taskID: "task-3", waitTimeout: uiTimeout)
+
+        XCTAssertTrue(taskOneTitle.waitForExistence(timeout: uiTimeout), "Expected task-1 title")
+        XCTAssertTrue(taskThreeTitle.waitForExistence(timeout: uiTimeout), "Expected task-3 title")
+        XCTAssertTrue(taskThreeCard.waitForExistence(timeout: uiTimeout), "Expected task-3 card")
+        XCTAssertGreaterThan(taskThreeTitle.frame.minY, taskOneTitle.frame.minY, "Expected task-3 below task-1 before shortcuts")
+
+        taskThreeCard.click()
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        app.typeKey("t", modifierFlags: [])
+
+        XCTAssertFalse(
+            waitUntil(timeout: 1.5) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY },
+            "Expected task-3 not to move after escape clears selection"
         )
     }
 

@@ -11,6 +11,13 @@
 - `TASK-009`: Each task row exposes explicit `Top` and `Bottom` controls to move a task to the first or last position within its column.
 - `TASK-010`: In each task row, `Top` and `Bottom` controls are shown above the task title, with `Top` left-aligned and `Bottom` right-aligned.
 - `TASK-011`: Creating a task adds it to the selected column and the created task is visible after the board refresh cycle.
+- `TASK-012`: On macOS, users can select a task row by clicking it with the mouse.
+- `TASK-013`: On macOS, pressing `t` moves the selected task to the top of its column and pressing `b` moves the selected task to the bottom.
+- `TASK-014`: On macOS, pressing `Esc` clears the current task-row selection.
+- `TASK-015`: On macOS, pressing `u` moves the selected task one position up within its column.
+- `TASK-016`: On macOS, pressing `d` moves the selected task one position down within its column.
+- `TASK-017`: On macOS, pressing `e` opens edit mode for the selected task.
+- `TASK-018`: On macOS, pressing `x` initiates delete flow for the selected task.
 
 ## Delete Task Confirmation
 
@@ -25,6 +32,13 @@
 - `TASK-009`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-010`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-011`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-012`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-013`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-014`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-015`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-016`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-017`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-018`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).

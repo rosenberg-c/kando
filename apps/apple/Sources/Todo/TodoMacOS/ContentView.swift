@@ -136,6 +136,7 @@ private struct LoggedInWorkspaceView: View {
     @State private var pendingTaskDeletion: EditableTask?
     @State private var isSettingsSheetPresented = false
     @State private var deferredSettingsAction: DeferredSettingsAction?
+    @State private var selectedTaskID: String?
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -246,6 +247,8 @@ private struct LoggedInWorkspaceView: View {
                                     onDeleteTask: { task in
                                         pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
                                     },
+                                    selectedTaskID: selectedTaskID,
+                                    onSelectTask: { taskID in selectedTaskID = taskID },
                                     onMoveTask: { taskID, destinationColumnID, destinationPosition in
                                         Task {
                                             await board.moveTask(
@@ -326,8 +329,22 @@ private struct LoggedInWorkspaceView: View {
         .padding(24)
         .frame(minWidth: 980, minHeight: 620)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            WorkspaceKeyMonitor { event in
+                handleTaskShortcutKey(event: event)
+            }
+        )
         .task {
             await board.loadBoardIfNeeded()
+        }
+        .onChange(of: board.board?.id) { _, _ in
+            selectedTaskID = nil
+        }
+        .onChange(of: board.columns) { _, _ in
+            guard let selectedTaskID else { return }
+            if taskDetails(for: selectedTaskID) == nil {
+                self.selectedTaskID = nil
+            }
         }
         .sheet(item: $editingColumn) { item in
             ColumnEditorSheet(
@@ -477,13 +494,165 @@ private struct LoggedInWorkspaceView: View {
                 Task { await board.deleteTask(taskID: task.id) }
                 pendingTaskDeletion = nil
             }
+            .accessibilityIdentifier("task-delete-confirm-action")
             Button(Strings.t("common.cancel"), role: .cancel) {
                 pendingTaskDeletion = nil
             }
+            .accessibilityIdentifier("task-delete-confirm-cancel")
         } message: {
             if let task = pendingTaskDeletion {
                 Text(Strings.f("board.task.delete.confirm.message", task.title))
             }
+        }
+    }
+
+    private struct SelectedTaskDetails {
+        let taskID: String
+        let columnID: String
+        let task: KanbanTask
+        let index: Int
+        let taskCount: Int
+    }
+
+    private enum TaskShortcutAction {
+        case clearSelection
+        case moveTop
+        case moveBottom
+        case moveUp
+        case moveDown
+        case edit
+        case delete
+
+        init?(event: NSEvent) {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard modifiers.isEmpty else { return nil }
+
+            if event.charactersIgnoringModifiers == "\u{1B}" {
+                self = .clearSelection
+                return
+            }
+
+            guard let key = event.charactersIgnoringModifiers?.lowercased() else { return nil }
+            switch key {
+            case "t": self = .moveTop
+            case "b": self = .moveBottom
+            case "u": self = .moveUp
+            case "d": self = .moveDown
+            case "e": self = .edit
+            case "x": self = .delete
+            default: return nil
+            }
+        }
+    }
+
+    private func taskDetails(for taskID: String) -> SelectedTaskDetails? {
+        for column in board.columns {
+            let tasks = board.tasks(for: column.id)
+            if let index = tasks.firstIndex(where: { $0.id == taskID }) {
+                return SelectedTaskDetails(taskID: taskID, columnID: column.id, task: tasks[index], index: index, taskCount: tasks.count)
+            }
+        }
+        return nil
+    }
+
+    private func withSelectedTaskDetails(_ action: (SelectedTaskDetails) -> Bool) -> Bool {
+        guard board.canMutateBoardActions, let selectedTaskID, let details = taskDetails(for: selectedTaskID) else {
+            return false
+        }
+        return action(details)
+    }
+
+    private func withEditableSelectedTaskDetails(_ action: (SelectedTaskDetails) -> Bool) -> Bool {
+        guard pendingTaskDeletion == nil, editingTask == nil else { return false }
+        return withSelectedTaskDetails(action)
+    }
+
+    private func moveSelectedTaskUp() -> Bool {
+        withSelectedTaskDetails { details in
+            guard details.index > 0 else { return false }
+            Task {
+                await board.moveTask(
+                    taskID: details.taskID,
+                    destinationColumnID: details.columnID,
+                    destinationPosition: details.index - 1
+                )
+            }
+            return true
+        }
+    }
+
+    private func moveSelectedTaskDown() -> Bool {
+        withSelectedTaskDetails { details in
+            guard details.index < (details.taskCount - 1) else { return false }
+            Task {
+                await board.moveTask(
+                    taskID: details.taskID,
+                    destinationColumnID: details.columnID,
+                    destinationPosition: details.index + 1
+                )
+            }
+            return true
+        }
+    }
+
+    private func moveSelectedTaskToTop() -> Bool {
+        withSelectedTaskDetails { details in
+            guard details.index > 0 else { return false }
+            Task {
+                await board.moveTask(taskID: details.taskID, destinationColumnID: details.columnID, destinationPosition: 0)
+            }
+            return true
+        }
+    }
+
+    private func moveSelectedTaskToBottom() -> Bool {
+        withSelectedTaskDetails { details in
+            guard details.index < (details.taskCount - 1) else { return false }
+            Task {
+                await board.moveTask(
+                    taskID: details.taskID,
+                    destinationColumnID: details.columnID,
+                    destinationPosition: details.taskCount
+                )
+            }
+            return true
+        }
+    }
+
+    private func editSelectedTask() -> Bool {
+        withEditableSelectedTaskDetails { details in
+            editingTask = EditableTask(columnID: details.columnID, task: details.task)
+            return true
+        }
+    }
+
+    private func deleteSelectedTask() -> Bool {
+        withEditableSelectedTaskDetails { details in
+            pendingTaskDeletion = EditableTask(columnID: details.columnID, task: details.task)
+            return true
+        }
+    }
+
+    private func handleTaskShortcutKey(event: NSEvent) -> Bool {
+        guard let action = TaskShortcutAction(event: event) else { return false }
+
+        switch action {
+        case .clearSelection:
+            guard selectedTaskID != nil else { return false }
+            selectedTaskID = nil
+            return true
+        case .moveTop:
+            return moveSelectedTaskToTop()
+        case .moveBottom:
+            return moveSelectedTaskToBottom()
+        case .moveUp:
+            return moveSelectedTaskUp()
+        case .moveDown:
+            return moveSelectedTaskDown()
+        case .edit:
+            return editSelectedTask()
+        case .delete:
+            return deleteSelectedTask()
         }
     }
 
@@ -623,6 +792,40 @@ private struct WorkspaceSettingsSheet: View {
 
             Divider()
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text("board.settings.shortcuts.title")
+                    .font(.headline)
+                    .accessibilityIdentifier("board-settings-shortcuts-title")
+
+                Text("board.settings.shortcuts.select")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-select")
+
+                Text("board.settings.shortcuts.clear")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-clear")
+
+                Text("board.settings.shortcuts.top_bottom")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-top-bottom")
+
+                Text("board.settings.shortcuts.up_down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-up-down")
+
+                Text("board.settings.shortcuts.edit_delete")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-edit-delete")
+            }
+            .accessibilityIdentifier("board-settings-shortcuts-section")
+
+            Divider()
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("board.settings.archived.title")
                     .font(.headline)
@@ -693,6 +896,58 @@ private struct WorkspaceSettingsSheet: View {
     }
 }
 
+private struct WorkspaceKeyMonitor: NSViewRepresentable {
+    let onKeyDown: (NSEvent) -> Bool
+
+    func makeNSView(context: Context) -> KeyMonitorNSView {
+        let view = KeyMonitorNSView()
+        view.onKeyDown = onKeyDown
+        return view
+    }
+
+    func updateNSView(_ nsView: KeyMonitorNSView, context: Context) {
+        nsView.onKeyDown = onKeyDown
+    }
+
+    final class KeyMonitorNSView: NSView {
+        var onKeyDown: ((NSEvent) -> Bool)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            removeMonitor()
+            guard window != nil else { return }
+
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self else { return event }
+                guard self.window?.isKeyWindow == true else { return event }
+                guard self.window?.attachedSheet == nil else { return event }
+                if self.isTextInputResponder(self.window?.firstResponder) {
+                    return event
+                }
+                guard self.onKeyDown?(event) == true else { return event }
+                return nil
+            }
+        }
+
+        private func isTextInputResponder(_ responder: NSResponder?) -> Bool {
+            guard let responder else { return false }
+            return responder is NSTextView || responder is NSTextField
+        }
+
+        deinit {
+            removeMonitor()
+        }
+
+        private func removeMonitor() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+    }
+}
+
 private struct ColumnCard: View {
     let column: KanbanColumn
     let tasks: [KanbanTask]
@@ -703,6 +958,8 @@ private struct ColumnCard: View {
     let onAddTask: () -> Void
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let selectedTaskID: String?
+    let onSelectTask: (String) -> Void
     let onMoveTask: (String, String, Int) -> Void
 
     var body: some View {
@@ -740,6 +997,8 @@ private struct ColumnCard: View {
                             isEnabled: isEnabled,
                             onEditTask: onEditTask,
                             onDeleteTask: onDeleteTask,
+                            isSelected: selectedTaskID == task.id,
+                            onSelectTask: onSelectTask,
                             onMoveToPosition: { position in
                                 onMoveTask(task.id, column.id, position)
                             },
@@ -793,6 +1052,8 @@ private struct TaskCardView: View {
     let isEnabled: Bool
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let isSelected: Bool
+    let onSelectTask: (String) -> Void
     let onMoveToPosition: (Int) -> Void
     let onDropTask: (String) -> Void
 
@@ -861,9 +1122,14 @@ private struct TaskCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .background(Color(NSColor.controlBackgroundColor))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-card-\(task.id)")
+        .onTapGesture { onSelectTask(task.id) }
         .draggable(TaskDragItem(taskID: task.id))
         .dropDestination(for: TaskDragItem.self) { items, _ in
             guard let item = items.first else { return false }

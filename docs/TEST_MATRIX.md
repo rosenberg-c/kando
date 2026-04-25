@@ -124,6 +124,13 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `TASK-009` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskTopBottomButtonsMoveTaskToColumnExtremes`) | Covered | - |
 | `TASK-010` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskTopBottomButtonsMoveTaskToColumnExtremes`) | Covered | - |
 | `TASK-011` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateTaskAppearsInSelectedColumn`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateTaskWithHundredExistingTasksKeepsTaskInSelectedColumn`) | Covered | - |
+| `TASK-012` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskSelectionEnablesTopBottomKeyboardShortcuts`) | Covered | - |
+| `TASK-013` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskSelectionEnablesTopBottomKeyboardShortcuts`) | Covered | - |
+| `TASK-014` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testEscapeClearsTaskSelectionForKeyboardShortcuts`) | Covered | - |
+| `TASK-015` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskSelectionEnablesUpDownKeyboardShortcuts`) | Covered | - |
+| `TASK-016` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskSelectionEnablesUpDownKeyboardShortcuts`) | Covered | - |
+| `TASK-017` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskSelectionEnablesEditDeleteKeyboardShortcuts`) | Covered | - |
+| `TASK-018` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testTaskSelectionEnablesEditDeleteKeyboardShortcuts`) | Covered | - |
 | `TASK-DEL-001` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTaskConfirmationCancelAndConfirm`) | Covered | Task delete is gated by explicit confirmation in UI. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
 | `TASK-DEL-002` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTaskConfirmationCancelAndConfirm`) | Covered | Confirmation dialog title text is asserted before action. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
 | `TASK-DEL-003` | XCUITest | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteTaskConfirmationCancelAndConfirm`) | Covered | Cancel path keeps the task unchanged. Platforms: macOS=Covered; iOS=Planned; TUI=N/A. |
@@ -153,6 +160,7 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-019` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteActiveBoardConflictSurfacesStatusDetails`), `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`deleteActiveBoardSwitchesToRemainingBoard`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testDeleteBoardAvailableOnlyWhenBoardHasNoTasks`) | Covered | - |
 | `UX-020` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`archiveActiveBoardMovesBoardToArchivedList`) | Covered | - |
 | `UX-021` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`restoreArchivedBoardReturnsItToActiveList`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testArchivedBoardDeleteRequiresConfirmation`) | Covered | - |
+| `UX-022` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testSettingsButtonAnchorsTopRightAndShowsActions`) | Covered | - |
 
 ## Next Test Additions (Recommended)
 

@@ -21,6 +21,7 @@
 - `UX-019`: The `Edit board` panel includes a `Delete board` action that is available only when the active board has no tasks and surfaces clear blocked/success/failure feedback.
 - `UX-020`: The `Edit board` panel includes an `Archive board` action that removes the board from active workspace selection without destroying tasks/columns.
 - `UX-021`: The app exposes an archived-board management view that supports restore and permanent delete actions with destructive confirmations.
+- `UX-022`: The settings panel includes a keyboard shortcuts section that lists task-selection and task-action shortcuts.
 
 ## Platform Applicability
 
@@ -45,3 +46,4 @@
 - `UX-019`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-020`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-021`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-022`: macOS (required), iOS (planned), TUI (N/A).
