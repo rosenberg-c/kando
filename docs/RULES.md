@@ -475,3 +475,22 @@ Examples:
 * API layer returns `409` with a stable detail like `board has tasks` derived from typed conflict data
 
 ---
+
+## 29. Document shim intent at declaration sites
+
+When adding compatibility shims (for example platform, framework, or concurrency shims), include a short comment at the declaration site that explains why the shim exists.
+
+Rules:
+
+* state the concrete compiler/runtime/tooling issue being worked around
+* state why the shim is used instead of changing generated or external code
+* keep the note concise and colocated with the shim declaration
+* update or remove the note when the shim is removed or no longer needed
+
+Rationale:
+
+* preserves intent for future maintainers
+* reduces accidental removal of required compatibility code
+* makes temporary workarounds easier to audit and retire
+
+---

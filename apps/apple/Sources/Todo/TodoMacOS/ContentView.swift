@@ -175,6 +175,15 @@ private struct LoggedInWorkspaceView: View {
         )
     }
 
+    private func resetTaskControlDefaultsForUITestsIfRequested() {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment[AppEnvironmentKey.resetTaskControlDefaults] == "1" else { return }
+
+        UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons)
+        UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showUpDownTaskButtons)
+        UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showEditDeleteTaskButtons)
+    }
+
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
         self.onSignOut = onSignOut
@@ -373,6 +382,7 @@ private struct LoggedInWorkspaceView: View {
             }
         )
         .task {
+            resetTaskControlDefaultsForUITestsIfRequested()
             await board.loadBoardIfNeeded()
         }
         .onChange(of: board.board?.id, perform: { _ in
@@ -862,6 +872,7 @@ private struct WorkspaceSettingsSheet: View {
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("board-settings-shortcuts-edit-delete")
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("board-settings-shortcuts-section")
 
             Divider()
@@ -883,6 +894,7 @@ private struct WorkspaceSettingsSheet: View {
                     .toggleStyle(.checkbox)
                     .accessibilityIdentifier("board-settings-task-controls-edit-delete")
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("board-settings-task-controls-section")
 
             Divider()
@@ -947,9 +959,11 @@ private struct WorkspaceSettingsSheet: View {
                 onDeleteArchivedBoard(board.id)
                 pendingDeleteArchivedBoard = nil
             }
+            .accessibilityIdentifier("board-archived-delete-confirm-action")
             Button(Strings.t("common.cancel"), role: .cancel) {
                 pendingDeleteArchivedBoard = nil
             }
+            .accessibilityIdentifier("board-archived-delete-confirm-cancel")
         } message: {
             if let board = pendingDeleteArchivedBoard {
                 Text(Strings.f("board.archived.delete.confirm.message", board.title))
@@ -1206,7 +1220,11 @@ private struct TaskCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-card-\(task.id)")
-        .onTapGesture { onSelectTask(task.id) }
+        .accessibilityValue(isSelected ? "selected" : "unselected")
+        .onTapGesture {
+            onSelectTask(task.id)
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
         .draggable(TaskDragItem(taskID: task.id))
         .dropDestination(for: TaskDragItem.self) { items, _ in
             guard let item = items.first else { return false }

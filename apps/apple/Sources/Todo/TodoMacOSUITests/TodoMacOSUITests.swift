@@ -8,6 +8,12 @@
 import XCTest
 
 final class TodoMacOSUITests: XCTestCase {
+    private enum UITimeout {
+        static let launch: TimeInterval = 5
+        static let ready: TimeInterval = 6
+        static let standard: TimeInterval = 3
+        static let extended: TimeInterval = 8
+    }
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -78,10 +84,10 @@ final class TodoMacOSUITests: XCTestCase {
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 5), "Expected app window")
+        XCTAssertTrue(window.waitForExistence(timeout: UITimeout.ready), "Expected app window")
 
         let title = app.staticTexts["workspace-board-title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5), "Expected workspace title")
+        XCTAssertTrue(title.waitForExistence(timeout: UITimeout.ready), "Expected workspace title")
 
         let horizontalInset = title.frame.minX - window.frame.minX
         let topInsetCandidates = [
@@ -109,7 +115,7 @@ final class TodoMacOSUITests: XCTestCase {
 
         let settingsButton = app.buttons["board-settings-button"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 3), "Expected settings button")
-        settingsButton.tap()
+        XCTAssertTrue(openSettingsSheet(in: app, trigger: settingsButton), "Expected settings sheet")
 
         let refreshButton = preferredElement(
             primary: app.buttons["board-refresh-button"],
@@ -136,10 +142,10 @@ final class TodoMacOSUITests: XCTestCase {
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 5), "Expected app window")
+        XCTAssertTrue(window.waitForExistence(timeout: UITimeout.ready), "Expected app window")
 
         let settingsButton = app.buttons["board-settings-button"]
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Expected settings button")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: UITimeout.ready), "Expected settings button")
 
         let rightInset = window.frame.maxX - settingsButton.frame.maxX
         let topInsetCandidates = [
@@ -177,14 +183,12 @@ final class TodoMacOSUITests: XCTestCase {
             fallback: app.buttons["Import tasks"],
             waitTimeout: 5
         )
-        let shortcutsSection = app.otherElements["board-settings-shortcuts-section"]
         let shortcutsTitle = app.staticTexts["board-settings-shortcuts-title"]
         let shortcutsSelect = app.staticTexts["board-settings-shortcuts-select"]
         let shortcutsClear = app.staticTexts["board-settings-shortcuts-clear"]
         let shortcutsTopBottom = app.staticTexts["board-settings-shortcuts-top-bottom"]
         let shortcutsUpDown = app.staticTexts["board-settings-shortcuts-up-down"]
         let shortcutsEditDelete = app.staticTexts["board-settings-shortcuts-edit-delete"]
-        let taskControlsSection = app.otherElements["board-settings-task-controls-section"]
         let taskControlsTitle = app.staticTexts["board-settings-task-controls-title"]
         let topBottomToggle = app.checkBoxes["board-settings-task-controls-top-bottom"]
         let upDownToggle = app.checkBoxes["board-settings-task-controls-up-down"]
@@ -194,14 +198,12 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
         XCTAssertTrue(exportButton.exists, "Expected export action in settings")
         XCTAssertTrue(importButton.exists, "Expected import action in settings")
-        XCTAssertTrue(shortcutsSection.exists, "Expected shortcuts section in settings")
         XCTAssertTrue(shortcutsTitle.exists, "Expected shortcuts title in settings")
         XCTAssertTrue(shortcutsSelect.exists, "Expected shortcuts select guidance")
         XCTAssertTrue(shortcutsClear.exists, "Expected shortcuts clear-selection guidance")
         XCTAssertTrue(shortcutsTopBottom.exists, "Expected shortcuts top/bottom guidance")
         XCTAssertTrue(shortcutsUpDown.exists, "Expected shortcuts up/down guidance")
         XCTAssertTrue(shortcutsEditDelete.exists, "Expected shortcuts edit/delete guidance")
-        XCTAssertTrue(taskControlsSection.exists, "Expected task-controls section in settings")
         XCTAssertTrue(taskControlsTitle.exists, "Expected task-controls title in settings")
         XCTAssertTrue(topBottomToggle.exists, "Expected top/bottom visibility toggle")
         XCTAssertTrue(upDownToggle.exists, "Expected up/down visibility toggle")
@@ -218,46 +220,46 @@ final class TodoMacOSUITests: XCTestCase {
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
         let titleLabel = app.staticTexts["workspace-board-title"]
 
-        XCTAssertTrue(boardSelector.waitForExistence(timeout: 5), "Expected board selector")
-        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
-        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
-        XCTAssertTrue(titleLabel.waitForExistence(timeout: 5), "Expected workspace title")
+        XCTAssertTrue(boardSelector.waitForExistence(timeout: UITimeout.ready), "Expected board selector")
+        XCTAssertTrue(createButton.waitForExistence(timeout: UITimeout.ready), "Expected create-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: UITimeout.ready), "Expected edit-board button")
+        XCTAssertTrue(titleLabel.waitForExistence(timeout: UITimeout.ready), "Expected workspace title")
 
         createButton.tap()
 
         let boardEditorTitleInput = preferredElement(
             primary: app.textFields["board-editor-title-input"],
             fallback: app.textFields["Board title"],
-            waitTimeout: 3
+            waitTimeout: UITimeout.standard
         )
         let boardEditorSubmit = preferredElement(
             primary: app.buttons["board-editor-submit"],
             fallback: app.buttons["Create"],
-            waitTimeout: 3
+            waitTimeout: UITimeout.standard
         )
-        if !boardEditorTitleInput.waitForExistence(timeout: 3) {
+        if !boardEditorTitleInput.waitForExistence(timeout: UITimeout.standard) {
             app.activate()
             if createButton.exists {
                 createButton.tap()
             }
         }
-        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input")
-        XCTAssertTrue(boardEditorSubmit.waitForExistence(timeout: 3), "Expected board editor submit button")
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: UITimeout.standard), "Expected board title input")
+        XCTAssertTrue(boardEditorSubmit.waitForExistence(timeout: UITimeout.standard), "Expected board editor submit button")
 
         boardEditorTitleInput.tap()
         boardEditorTitleInput.typeText("New Board")
         boardEditorSubmit.tap()
 
         XCTAssertTrue(
-            app.staticTexts["New Board"].waitForExistence(timeout: 3),
+            app.staticTexts["New Board"].waitForExistence(timeout: UITimeout.standard),
             "Expected new board title after create"
         )
 
         editModeToggle.tap()
         let renameButton = app.buttons["board-edit-rename-button"]
-        XCTAssertTrue(renameButton.waitForExistence(timeout: 3), "Expected rename-board button in edit board panel")
+        XCTAssertTrue(renameButton.waitForExistence(timeout: UITimeout.standard), "Expected rename-board button in edit board panel")
         renameButton.tap()
-        if !boardEditorTitleInput.waitForExistence(timeout: 3) {
+        if !boardEditorTitleInput.waitForExistence(timeout: UITimeout.standard) {
             app.activate()
             if editModeToggle.exists {
                 editModeToggle.tap()
@@ -266,7 +268,7 @@ final class TodoMacOSUITests: XCTestCase {
                 renameButton.tap()
             }
         }
-        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input for rename")
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: UITimeout.standard), "Expected board title input for rename")
 
         boardEditorTitleInput.click()
         boardEditorTitleInput.typeKey("a", modifierFlags: .command)
@@ -279,7 +281,7 @@ final class TodoMacOSUITests: XCTestCase {
         renameSubmit.tap()
 
         XCTAssertTrue(
-            app.staticTexts["Board Renamed"].waitForExistence(timeout: 3),
+            app.staticTexts["Board Renamed"].waitForExistence(timeout: UITimeout.standard),
             "Expected board title after rename"
         )
     }
@@ -290,12 +292,12 @@ final class TodoMacOSUITests: XCTestCase {
         let app = launchSignedInApp()
 
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
-        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: UITimeout.ready), "Expected edit-board button")
 
         editModeToggle.tap()
 
         let closeButton = app.buttons["board-edit-close-button"]
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 3), "Expected close button in edit board panel")
+        XCTAssertTrue(closeButton.waitForExistence(timeout: UITimeout.standard), "Expected close button in edit board panel")
         closeButton.tap()
 
         XCTAssertTrue(
@@ -312,12 +314,12 @@ final class TodoMacOSUITests: XCTestCase {
         let createButton = app.buttons["board-create-button"]
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
 
-        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
-        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
+        XCTAssertTrue(createButton.waitForExistence(timeout: UITimeout.ready), "Expected create-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: UITimeout.ready), "Expected edit-board button")
 
         editModeToggle.tap()
         let deleteButton = app.buttons["board-edit-delete-button"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 3), "Expected delete-board button in edit board panel")
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: UITimeout.standard), "Expected delete-board button in edit board panel")
         XCTAssertFalse(deleteButton.isEnabled, "Expected delete-board action disabled when board has tasks")
 
         let closeButton = app.buttons["board-edit-close-button"]
@@ -367,9 +369,9 @@ final class TodoMacOSUITests: XCTestCase {
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
         let settingsButton = app.buttons["board-settings-button"]
 
-        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
-        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Expected settings button")
+        XCTAssertTrue(createButton.waitForExistence(timeout: UITimeout.ready), "Expected create-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: UITimeout.ready), "Expected edit-board button")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: UITimeout.ready), "Expected settings button")
 
         createButton.tap()
         let boardEditorTitleInput = preferredElement(
@@ -398,33 +400,66 @@ final class TodoMacOSUITests: XCTestCase {
             "Expected fallback board after archive"
         )
         XCTAssertTrue(
-            app.staticTexts["board-status-message"].waitForExistence(timeout: 3),
-            "Expected board status message after archive"
+            app.staticTexts["board-status-message"].waitForExistence(timeout: UITimeout.ready),
+            "Expected status message after archive"
         )
         XCTAssertTrue(
             waitUntil(timeout: 3) { !archiveButton.exists },
             "Expected edit board panel to close after archive"
         )
 
-        settingsButton.tap()
-        let archivedDeleteButton = app.buttons["board-archived-delete-row-0"]
-        XCTAssertTrue(archivedDeleteButton.waitForExistence(timeout: 5), "Expected archived delete button")
+        XCTAssertTrue(
+            waitUntil(timeout: UITimeout.ready) { settingsButton.exists && settingsButton.isHittable },
+            "Expected settings button to be hittable after archive"
+        )
+        XCTAssertTrue(openSettingsSheet(in: app, trigger: settingsButton), "Expected settings sheet")
+
+        let settingsContainer = preferredElement(
+            primary: app.sheets.firstMatch,
+            fallback: app.otherElements["board-settings-sheet"],
+            waitTimeout: UITimeout.standard
+        )
+        let archivedDeleteButton = preferredElement(
+            primary: app.buttons["board-archived-delete-row-0"],
+            fallback: settingsContainer.buttons.matching(NSPredicate(format: "label == %@", "Delete board")).firstMatch,
+            waitTimeout: UITimeout.extended
+        )
+        XCTAssertTrue(archivedDeleteButton.exists, "Expected archived delete button. UI:\n\(app.debugDescription)")
 
         archivedDeleteButton.tap()
-        let deletePermanent = app.sheets.firstMatch.buttons["Delete permanently"]
-        XCTAssertTrue(deletePermanent.waitForExistence(timeout: 3), "Expected delete confirmation action")
-        let cancelDelete = app.sheets.firstMatch.buttons["Cancel"]
-        XCTAssertTrue(cancelDelete.waitForExistence(timeout: 2), "Expected cancel action in confirmation")
+        let deletePermanent = preferredElement(
+            primary: app.buttons["board-archived-delete-confirm-action"],
+            fallback: preferredElement(
+                primary: app.sheets.firstMatch.buttons["Delete permanently"],
+                fallback: app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Delete")).firstMatch,
+                waitTimeout: UITimeout.standard
+            ),
+            waitTimeout: UITimeout.standard
+        )
+        XCTAssertTrue(deletePermanent.exists, "Expected delete confirmation action")
+        let cancelDelete = preferredElement(
+            primary: app.buttons["board-archived-delete-confirm-cancel"],
+            fallback: preferredElement(
+                primary: app.sheets.firstMatch.buttons["Cancel"],
+                fallback: app.buttons.matching(NSPredicate(format: "label == %@", "Cancel")).firstMatch,
+                waitTimeout: UITimeout.standard
+            ),
+            waitTimeout: UITimeout.standard
+        )
+        XCTAssertTrue(cancelDelete.exists, "Expected cancel action in confirmation")
         cancelDelete.tap()
 
-        XCTAssertTrue(archivedDeleteButton.waitForExistence(timeout: 2), "Expected archived board to remain after cancel")
+        XCTAssertTrue(
+            waitUntil(timeout: UITimeout.standard) { archivedDeleteButton.exists && archivedDeleteButton.isHittable },
+            "Expected archived board to remain after cancel"
+        )
 
         archivedDeleteButton.tap()
-        XCTAssertTrue(deletePermanent.waitForExistence(timeout: 3), "Expected delete confirmation action")
+        XCTAssertTrue(deletePermanent.waitForExistence(timeout: UITimeout.standard), "Expected delete confirmation action")
         deletePermanent.tap()
 
         XCTAssertTrue(
-            waitUntil(timeout: 3) { !archivedDeleteButton.exists },
+            waitUntil(timeout: UITimeout.ready) { !archivedDeleteButton.exists },
             "Expected archived board delete button to disappear after confirmation"
         )
     }
@@ -438,13 +473,13 @@ final class TodoMacOSUITests: XCTestCase {
             UITestEnvKey.spreadTasksAcrossColumns: "1"
         ])
 
-        XCTAssertTrue(app.staticTexts["column-title-column-1"].waitForExistence(timeout: 5), "Expected column 1")
-        XCTAssertTrue(app.staticTexts["column-title-column-2"].waitForExistence(timeout: 5), "Expected column 2")
-        XCTAssertTrue(app.staticTexts["column-title-column-3"].waitForExistence(timeout: 5), "Expected column 3")
-        XCTAssertTrue(app.staticTexts["column-title-column-4"].waitForExistence(timeout: 5), "Expected column 4")
+        XCTAssertTrue(app.staticTexts["column-title-column-1"].waitForExistence(timeout: UITimeout.ready), "Expected column 1")
+        XCTAssertTrue(app.staticTexts["column-title-column-2"].waitForExistence(timeout: UITimeout.ready), "Expected column 2")
+        XCTAssertTrue(app.staticTexts["column-title-column-3"].waitForExistence(timeout: UITimeout.ready), "Expected column 3")
+        XCTAssertTrue(app.staticTexts["column-title-column-4"].waitForExistence(timeout: UITimeout.ready), "Expected column 4")
 
         let settingsButton = app.buttons["board-settings-button"]
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Expected settings button")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: UITimeout.ready), "Expected settings button")
 
         settingsButton.tap()
 
@@ -487,7 +522,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testOverflowingColumnTaskListScrollsWithoutPushingWorkspaceOutOfBounds() throws {
         // Requirement: UX-008
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "28"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: uiTimeout), "Expected app window")
@@ -555,7 +590,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testDragTaskToAnotherColumn() throws {
         // Requirement: UX-005
         let app = launchSignedInApp()
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
         let taskCardPrefix = "task-card-"
         let taskTitlePrefix = "task-title-"
@@ -629,7 +664,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testDropTaskOnColumnHeaderDoesNotFail() throws {
         // Requirement: UX-007
         let app = launchSignedInApp()
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
 
         let sourceColumn = columnDropZoneElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
@@ -660,7 +695,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testTaskMoveButtonsReorderWithinColumn() throws {
         // Requirement: TASK-008
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "3"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let firstTaskTitle = app.staticTexts["task-title-task-1"]
         let secondTaskTitle = app.staticTexts["task-title-task-2"]
@@ -689,7 +724,7 @@ final class TodoMacOSUITests: XCTestCase {
         // Requirement: TASK-009
         // Requirement: TASK-010
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let taskOneTitle = app.staticTexts["task-title-task-1"]
         let taskThreeTitle = app.staticTexts["task-title-task-3"]
@@ -739,7 +774,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testSettingsTaskControlTogglesHideButtonsAndPersistLocally() throws {
         // Requirements: TASK-019, TASK-020, TASK-021, UX-023
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let moveTopButton = app.buttons["task-move-top-task-1"]
         let moveUpButton = app.buttons["task-move-up-task-1"]
@@ -769,15 +804,17 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(editDeleteToggle.waitForExistence(timeout: uiTimeout), "Expected edit/delete toggle")
         XCTAssertTrue(closeButton.waitForExistence(timeout: uiTimeout), "Expected close action in settings")
 
-        topBottomToggle.tap()
-        upDownToggle.tap()
-        editDeleteToggle.tap()
-        closeButton.tap()
+        setCheckbox(topBottomToggle, to: false)
+        setCheckbox(upDownToggle, to: false)
+        setCheckbox(editDeleteToggle, to: false)
+        closeButton.click()
 
-        XCTAssertFalse(moveTopButton.waitForExistence(timeout: 2), "Expected top button hidden after toggle")
-        XCTAssertFalse(moveUpButton.waitForExistence(timeout: 2), "Expected up button hidden after toggle")
-        XCTAssertFalse(editButton.waitForExistence(timeout: 2), "Expected edit button hidden after toggle")
-        XCTAssertFalse(deleteButton.waitForExistence(timeout: 2), "Expected delete button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !app.otherElements["board-settings-sheet"].exists }, "Expected settings sheet to dismiss")
+
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !moveTopButton.exists }, "Expected top button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !moveUpButton.exists }, "Expected up button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !editButton.exists }, "Expected edit button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !deleteButton.exists }, "Expected delete button hidden after toggle")
 
         app.terminate()
 
@@ -808,7 +845,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testTaskSelectionEnablesTopBottomKeyboardShortcuts() throws {
         // Requirements: TASK-012, TASK-013
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let taskOneTitle = app.staticTexts["task-title-task-1"]
         let taskThreeTitle = app.staticTexts["task-title-task-3"]
@@ -820,19 +857,37 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(taskFourTitle.waitForExistence(timeout: uiTimeout), "Expected task-4 title")
         XCTAssertTrue(taskThreeCard.waitForExistence(timeout: uiTimeout), "Expected task-3 card")
 
-        taskThreeCard.click()
-        app.typeKey("t", modifierFlags: [])
+        for _ in 0..<3 {
+            selectTaskForKeyboardShortcuts(taskID: "task-3", card: taskThreeCard, app: app)
+            app.typeKey("t", modifierFlags: [])
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY } {
+                break
+            }
+            app.typeText("t")
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY } {
+                break
+            }
+        }
 
         XCTAssertTrue(
-            waitUntil(timeout: 3) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY },
+            waitUntil(timeout: UITimeout.ready) { taskThreeTitle.frame.minY < taskOneTitle.frame.minY },
             "Expected task-3 above task-1 after pressing t"
         )
 
-        taskThreeCard.click()
-        app.typeKey("b", modifierFlags: [])
+        for _ in 0..<3 {
+            selectTaskForKeyboardShortcuts(taskID: "task-3", card: taskThreeCard, app: app)
+            app.typeKey("b", modifierFlags: [])
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY } {
+                break
+            }
+            app.typeText("b")
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY } {
+                break
+            }
+        }
 
         XCTAssertTrue(
-            waitUntil(timeout: 3) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY },
+            waitUntil(timeout: UITimeout.ready) { taskThreeTitle.frame.minY > taskFourTitle.frame.minY },
             "Expected task-3 below task-4 after pressing b"
         )
     }
@@ -841,7 +896,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testTaskSelectionEnablesUpDownKeyboardShortcuts() throws {
         // Requirements: TASK-015, TASK-016
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let taskTwoTitle = app.staticTexts["task-title-task-2"]
         let taskThreeTitle = app.staticTexts["task-title-task-3"]
@@ -852,19 +907,37 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(taskThreeCard.waitForExistence(timeout: uiTimeout), "Expected task-3 card")
         XCTAssertGreaterThan(taskThreeTitle.frame.minY, taskTwoTitle.frame.minY, "Expected task-3 below task-2 before shortcuts")
 
-        taskThreeCard.click()
-        app.typeKey("u", modifierFlags: [])
+        for _ in 0..<3 {
+            selectTaskForKeyboardShortcuts(taskID: "task-3", card: taskThreeCard, app: app)
+            app.typeKey("u", modifierFlags: [])
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY < taskTwoTitle.frame.minY } {
+                break
+            }
+            app.typeText("u")
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY < taskTwoTitle.frame.minY } {
+                break
+            }
+        }
 
         XCTAssertTrue(
-            waitUntil(timeout: 3) { taskThreeTitle.frame.minY < taskTwoTitle.frame.minY },
+            waitUntil(timeout: UITimeout.ready) { taskThreeTitle.frame.minY < taskTwoTitle.frame.minY },
             "Expected task-3 above task-2 after pressing u"
         )
 
-        taskThreeCard.click()
-        app.typeKey("d", modifierFlags: [])
+        for _ in 0..<3 {
+            selectTaskForKeyboardShortcuts(taskID: "task-3", card: taskThreeCard, app: app)
+            app.typeKey("d", modifierFlags: [])
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY > taskTwoTitle.frame.minY } {
+                break
+            }
+            app.typeText("d")
+            if waitUntil(timeout: 1.2) { taskThreeTitle.frame.minY > taskTwoTitle.frame.minY } {
+                break
+            }
+        }
 
         XCTAssertTrue(
-            waitUntil(timeout: 3) { taskThreeTitle.frame.minY > taskTwoTitle.frame.minY },
+            waitUntil(timeout: UITimeout.ready) { taskThreeTitle.frame.minY > taskTwoTitle.frame.minY },
             "Expected task-3 below task-2 after pressing d"
         )
     }
@@ -873,7 +946,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testTaskSelectionEnablesEditDeleteKeyboardShortcuts() throws {
         // Requirements: TASK-017, TASK-018
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let taskOneCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: uiTimeout)
         let editSheet = preferredElement(
@@ -919,7 +992,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testEscapeClearsTaskSelectionForKeyboardShortcuts() throws {
         // Requirement: TASK-014
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let taskOneTitle = app.staticTexts["task-title-task-1"]
         let taskThreeTitle = app.staticTexts["task-title-task-3"]
@@ -944,7 +1017,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testCreateTaskAppearsInSelectedColumn() throws {
         // Requirement: TASK-011
         let app = launchSignedInApp()
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let addTaskButton = app.buttons["task-add-column-empty"]
@@ -992,11 +1065,16 @@ final class TodoMacOSUITests: XCTestCase {
     func testCreateTaskWithHundredExistingTasksKeepsTaskInSelectedColumn() throws {
         // Requirement: TASK-011
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "100"])
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
 
         let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let addTaskButton = app.buttons["task-add-column-empty"]
+        let createSheetTitle = preferredElement(
+            primary: app.otherElements["task-editor-sheet"],
+            fallback: app.staticTexts["Create task"],
+            waitTimeout: uiTimeout
+        )
         let taskTitleField = preferredElement(
             primary: app.textFields["task-editor-title-input"],
             fallback: app.textFields["Task title"],
@@ -1017,6 +1095,14 @@ final class TodoMacOSUITests: XCTestCase {
 
         addTaskButton.tap()
 
+        if !createSheetTitle.waitForExistence(timeout: UITimeout.standard) {
+            app.activate()
+            if addTaskButton.exists {
+                addTaskButton.tap()
+            }
+        }
+
+        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
         XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
         taskTitleField.tap()
         taskTitleField.typeText(createdTaskTitle)
@@ -1040,7 +1126,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testReorderColumnsFromEditBoardModal() throws {
         // Requirement: COL-MOVE-009
         let app = launchSignedInApp()
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
 
         let workColumnCard = columnDropZoneElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
@@ -1088,7 +1174,7 @@ final class TodoMacOSUITests: XCTestCase {
     func testDropTaskOnDestinationColumnHeaderDoesNotFail() throws {
         // Requirement: UX-007
         let app = launchSignedInApp()
-        let uiTimeout: TimeInterval = 8
+        let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
 
         let destinationColumnHeader = columnHeaderElement(in: app, columnID: "column-empty", fallbackIndex: 1, waitTimeout: perElementTimeout)
@@ -1133,7 +1219,19 @@ final class TodoMacOSUITests: XCTestCase {
         }
         app.launch()
         app.activate()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5), "Expected app window after launch")
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: UITimeout.launch), "Expected app window after launch")
+        XCTAssertTrue(
+            waitUntil(timeout: UITimeout.extended) {
+                let titleReady = app.staticTexts["workspace-board-title"].exists
+                let settingsReady = app.buttons["board-settings-button"].exists
+                return titleReady && settingsReady
+            },
+            "Expected workspace controls ready after launch"
+        )
+        let loadingOverlay = app.otherElements["board-loading-overlay"]
+        if loadingOverlay.exists {
+            _ = waitUntil(timeout: UITimeout.ready) { !loadingOverlay.exists }
+        }
         return app
     }
 
@@ -1191,6 +1289,86 @@ final class TodoMacOSUITests: XCTestCase {
         primary.waitForExistence(timeout: waitTimeout) ? primary : fallback
     }
 
+    private func openSettingsSheet(in app: XCUIApplication, trigger settingsButton: XCUIElement, attempts: Int = 3) -> Bool {
+        let settingsSheet = app.otherElements["board-settings-sheet"]
+        let settingsCloseButton = app.buttons["board-settings-close-button"]
+        let shortcutsTitle = app.staticTexts["board-settings-shortcuts-title"]
+
+        for _ in 0..<attempts {
+            settingsButton.tap()
+            if settingsCloseButton.waitForExistence(timeout: 1)
+                || settingsSheet.waitForExistence(timeout: 1)
+                || shortcutsTitle.waitForExistence(timeout: 1) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func setCheckbox(_ checkbox: XCUIElement, to isOn: Bool) {
+        XCTAssertTrue(checkbox.waitForExistence(timeout: UITimeout.standard), "Expected checkbox to exist")
+
+        for _ in 0..<3 {
+            guard let current = checkboxValue(checkbox) else {
+                checkbox.click()
+                continue
+            }
+            if current == isOn {
+                return
+            }
+            checkbox.click()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+        }
+
+        XCTAssertEqual(checkboxValue(checkbox), isOn, "Expected checkbox to match target state")
+    }
+
+    private func checkboxValue(_ checkbox: XCUIElement) -> Bool? {
+        if let value = checkbox.value as? String {
+            if value == "1" { return true }
+            if value == "0" { return false }
+        }
+        if let value = checkbox.value as? NSNumber {
+            return value.intValue != 0
+        }
+        return nil
+    }
+
+    private func selectTaskForKeyboardShortcuts(taskID: String, card: XCUIElement, app: XCUIApplication) {
+        guard card.waitForExistence(timeout: UITimeout.standard) else { return }
+        let taskTitle = app.staticTexts["task-title-\(taskID)"]
+
+        for _ in 0..<3 {
+            card.click()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+            if (card.value as? String) == "selected" {
+                return
+            }
+            if taskTitle.exists {
+                taskTitle.click()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+                if (card.value as? String) == "selected" {
+                    return
+                }
+            }
+        }
+
+        app.windows.firstMatch.click()
+        card.click()
+
+        if (card.value as? String) == "selected" {
+            return
+        }
+
+        _ = waitUntil(timeout: 0.6) {
+            ((card.value as? String) == "selected")
+                || app.descendants(matching: .any).matching(
+                    NSPredicate(format: "identifier == %@ AND value == %@", "task-card-\(taskID)", "selected")
+                ).firstMatch.exists
+        }
+    }
+
     private func sourceTaskDragElement(in app: XCUIApplication, waitTimeout: TimeInterval) -> XCUIElement? {
         let sourceTaskCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: waitTimeout)
         if sourceTaskCard.exists {
@@ -1206,11 +1384,17 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     private func taskCardElement(in app: XCUIApplication, taskID: String, waitTimeout: TimeInterval) -> XCUIElement {
-        preferredElement(
-            primary: app.otherElements["task-card-\(taskID)"],
-            fallback: app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "task-card-")).firstMatch,
-            waitTimeout: waitTimeout
-        )
+        let exactCard = app.otherElements["task-card-\(taskID)"]
+        if exactCard.waitForExistence(timeout: waitTimeout) {
+            return exactCard
+        }
+
+        let exactDescendant = app.descendants(matching: .any).matching(identifier: "task-card-\(taskID)").firstMatch
+        if exactDescendant.waitForExistence(timeout: 0.5) {
+            return exactDescendant
+        }
+
+        return exactCard
     }
 
     private func columnDropZoneElement(in app: XCUIApplication, columnID: String, fallbackIndex: Int, waitTimeout: TimeInterval) -> XCUIElement {

@@ -11,6 +11,7 @@ enum AppEnvironmentKey {
     static let columnCount = "TODO_UITEST_COLUMN_COUNT"
     static let spreadTasksAcrossColumns = "TODO_UITEST_SPREAD_TASKS"
     static let mockDelayMs = "TODO_UITEST_MOCK_DELAY_MS"
+    static let resetTaskControlDefaults = "TODO_UITEST_RESET_TASK_CONTROL_DEFAULTS"
 }
 
 enum RuntimeFlags {
