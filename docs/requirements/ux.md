@@ -16,6 +16,8 @@
 - `UX-014`: Workspace header includes a board selector dropdown that lists owned boards.
 - `UX-015`: Switching boards shows loading feedback and disables board mutation controls until the destination board is loaded.
 - `UX-016`: The UI exposes create-board and rename-board actions with success/failure status feedback.
+- `UX-017`: Rename project/board is initiated from the `Edit board` panel instead of the workspace header.
+- `UX-018`: The `Edit board` panel includes an explicit `Close` action to dismiss edit mode.
 
 ## Platform Applicability
 
@@ -35,3 +37,5 @@
 - `UX-014`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-015`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-016`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-017`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-018`: macOS (required), iOS (planned), TUI (N/A).

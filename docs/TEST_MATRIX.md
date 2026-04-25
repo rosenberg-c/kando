@@ -25,6 +25,9 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `API-007` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`exportTasksWritesVersionedJSONSnapshot`), `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`importTasksCreatesMissingColumnsAndTasksFromJSON`), `internal/api/server/server_test.go` (`TestKanbanExportTasksReturnsVersionedPayload`), `internal/api/server/server_test.go` (`TestKanbanImportTasksCreatesColumnsAndTasks`) | Covered | - |
 | `API-008` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`importTasksCreatesMissingColumnsAndTasksFromJSON`), `internal/api/server/server_test.go` (`TestKanbanImportTasksCreatesColumnsAndTasks`), `internal/api/server/server_test.go` (`TestKanbanImportTasksRejectsUnsupportedFormatVersion`) | Covered | - |
 | `API-009` | Automated | `internal/api/server/server_test.go` (`TestKanbanImportTasksRollsBackOnFailure`), `internal/api/server/server_test.go` (`TestKanbanImportTasksTransactionalFailureDoesNotFallbackToCompensation`) | Covered | - |
+| `API-010` | Automated | `internal/api/server/server_test.go` (`TestKanbanCreateAndListMultipleBoards`) | Covered | - |
+| `API-011` | Automated | `internal/api/server/server_test.go` (`TestKanbanCreateAndListMultipleBoards`) | Covered | - |
+| `API-012` | Automated | - | Gap | - |
 | `APPWRITE-001` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Covered | Same repository contract suite runs against Appwrite (opt-in). |
 | `APPWRITE-002` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Partial | Pagination code path exercised indirectly; no targeted pagination boundary test. |
 | `APPWRITE-003` | Integration test harness | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Covered | Env-gated and opt-in behavior is explicit. |
@@ -48,6 +51,10 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `BOARD-006` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`importTasksCreatesMissingColumnsAndTasksFromJSON`), `internal/api/server/server_test.go` (`TestKanbanImportTasksCreatesColumnsAndTasks`) | Covered | - |
 | `BOARD-007` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`exportTasksWritesVersionedJSONSnapshot`), `internal/api/server/server_test.go` (`TestKanbanExportTasksReturnsVersionedPayload`) | Covered | - |
 | `BOARD-008` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`exportTasksWritesVersionedJSONSnapshot`), `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`importTasksCreatesMissingColumnsAndTasksFromJSON`), `internal/api/server/server_test.go` (`TestKanbanImportTasksCreatesColumnsAndTasks`) | Covered | - |
+| `BOARD-009` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`createAndRenameBoardUpdatesSelectionAndBoardList`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateAndRenameBoardFromHeaderAndEditBoardPanel`) | Covered | - |
+| `BOARD-010` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`createAndRenameBoardUpdatesSelectionAndBoardList`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateAndRenameBoardFromHeaderAndEditBoardPanel`) | Covered | - |
+| `BOARD-011` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`switchingBoardsLoadsSelectedBoardDetails`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateAndRenameBoardFromHeaderAndEditBoardPanel`) | Covered | - |
+| `BOARD-012` | Automated | - | Gap | - |
 | `CLI-001` | CLI client unit | `internal/cli/api_client_test.go` (`TestNewHTTPAPIClientRejectsInvalidBaseURL`) | Covered | Invalid base URL is rejected. |
 | `CLI-002` | CLI client unit | `internal/cli/api_client_test.go` (`TestHTTPAPIClientLoginUsesTypedResponseParsing`) | Covered | Typed login response parsing is asserted. |
 | `CLI-003` | CLI storage unit | `internal/cli/secure_store_test.go` (`TestSecureTokenStoreKeepsRefreshTokenOutOfStateFile`) | Covered | Refresh token is kept out of plaintext state file. |
@@ -129,6 +136,11 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-011` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testBoardLoadingOverlayAppearsDuringSlowLoad`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testSettingsButtonAnchorsTopRightAndShowsActions`) | Covered | - |
 | `UX-012` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testExportFromSettingsShowsSavePanel`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testSettingsButtonAnchorsTopRightAndShowsActions`) | Covered | - |
 | `UX-013` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`exportTasksWritesVersionedJSONSnapshot`), `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`importTasksCreatesMissingColumnsAndTasksFromJSON`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testExportFromSettingsShowsSavePanel`) | Covered | - |
+| `UX-014` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateAndRenameBoardFromHeaderAndEditBoardPanel`) | Covered | - |
+| `UX-015` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`switchingBoardsLoadsSelectedBoardDetails`) | Covered | - |
+| `UX-016` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`createAndRenameBoardUpdatesSelectionAndBoardList`), `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateAndRenameBoardFromHeaderAndEditBoardPanel`) | Covered | - |
+| `UX-017` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testCreateAndRenameBoardFromHeaderAndEditBoardPanel`) | Covered | - |
+| `UX-018` | Automated | `apps/apple/Sources/Todo/TodoMacOSUITests/TodoMacOSUITests.swift` (`testEditBoardPanelCloseDismissesEditMode`) | Covered | - |
 
 ## Next Test Additions (Recommended)
 

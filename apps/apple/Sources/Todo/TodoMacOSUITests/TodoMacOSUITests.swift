@@ -186,18 +186,18 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
-    func testCreateAndRenameBoardFromWorkspaceHeader() throws {
-        // Requirements: BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016
+    func testCreateAndRenameBoardFromHeaderAndEditBoardPanel() throws {
+        // Requirements: BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016, UX-017
         let app = launchSignedInApp()
 
         let boardSelector = app.popUpButtons["board-selector-picker"]
         let createButton = app.buttons["board-create-button"]
-        let renameButton = app.buttons["board-rename-button"]
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
         let titleLabel = app.staticTexts["workspace-board-title"]
 
         XCTAssertTrue(boardSelector.waitForExistence(timeout: 5), "Expected board selector")
         XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Expected create-board button")
-        XCTAssertTrue(renameButton.waitForExistence(timeout: 5), "Expected rename-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
         XCTAssertTrue(titleLabel.waitForExistence(timeout: 5), "Expected workspace title")
 
         createButton.tap()
@@ -230,9 +230,15 @@ final class TodoMacOSUITests: XCTestCase {
             "Expected new board title after create"
         )
 
+        editModeToggle.tap()
+        let renameButton = app.buttons["board-edit-rename-button"]
+        XCTAssertTrue(renameButton.waitForExistence(timeout: 3), "Expected rename-board button in edit board panel")
         renameButton.tap()
         if !boardEditorTitleInput.waitForExistence(timeout: 3) {
             app.activate()
+            if editModeToggle.exists {
+                editModeToggle.tap()
+            }
             if renameButton.exists {
                 renameButton.tap()
             }
@@ -252,6 +258,26 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(
             app.staticTexts["Project Renamed"].waitForExistence(timeout: 3),
             "Expected board title after rename"
+        )
+    }
+
+    @MainActor
+    func testEditBoardPanelCloseDismissesEditMode() throws {
+        // Requirement: UX-018
+        let app = launchSignedInApp()
+
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: 5), "Expected edit-board button")
+
+        editModeToggle.tap()
+
+        let closeButton = app.buttons["board-edit-close-button"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 3), "Expected close button in edit board panel")
+        closeButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { !closeButton.exists },
+            "Expected edit board panel to dismiss after close"
         )
     }
 
@@ -667,16 +693,23 @@ final class TodoMacOSUITests: XCTestCase {
         let workColumnCard = columnDropZoneElement(in: app, columnID: "column-work", fallbackIndex: 0, waitTimeout: perElementTimeout)
         let emptyColumnCard = columnDropZoneElement(in: app, columnID: "column-empty", fallbackIndex: 1, waitTimeout: perElementTimeout)
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
+        let openReorderButton = app.buttons["board-edit-reorder-button"]
         let reorderSheet = app.sheets.firstMatch
         let reorderContainer = app.otherElements["board-reorder-sheet"]
         let moveLeftButton = app.descendants(matching: .button).matching(identifier: "board-reorder-move-left-column-empty").firstMatch
-        let doneButton = app.buttons["Done"]
+        let doneButton = preferredElement(
+            primary: app.buttons["board-reorder-done"],
+            fallback: app.buttons["Done"],
+            waitTimeout: 2
+        )
 
         XCTAssertTrue(workColumnCard.waitForExistence(timeout: uiTimeout), "Expected work column card")
         XCTAssertTrue(emptyColumnCard.waitForExistence(timeout: uiTimeout), "Expected empty column card")
         XCTAssertTrue(editModeToggle.waitForExistence(timeout: uiTimeout), "Expected board edit mode toggle")
         XCTAssertTrue(waitUntil(timeout: uiTimeout) { editModeToggle.isEnabled }, "Expected board edit mode toggle to be enabled")
         editModeToggle.tap()
+        XCTAssertTrue(openReorderButton.waitForExistence(timeout: uiTimeout), "Expected reorder action in edit board sheet")
+        openReorderButton.tap()
         XCTAssertTrue(
             reorderSheet.waitForExistence(timeout: uiTimeout) || reorderContainer.waitForExistence(timeout: uiTimeout),
             "Expected reorder sheet"
@@ -688,8 +721,8 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(doneButton.waitForExistence(timeout: uiTimeout), "Expected Done button in reorder sheet")
         doneButton.tap()
         XCTAssertTrue(
-            waitUntil(timeout: 3) { !reorderSheet.exists && !reorderContainer.exists },
-            "Expected reorder sheet to dismiss after tapping Done"
+            waitUntil(timeout: 3) { !moveLeftButton.exists && !reorderContainer.exists },
+            "Expected reorder modal to dismiss after tapping Done"
         )
 
         XCTAssertTrue(

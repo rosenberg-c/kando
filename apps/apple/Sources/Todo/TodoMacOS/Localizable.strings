@@ -79,8 +79,10 @@
 "board.column.reorder.title" = "Reorder columns";
 "board.column.reorder.subtitle" = "Arrange the columns, then click Done to apply.";
 "board.column.reorder.done" = "Done";
-"board.column.move_left" = "Move left";
-"board.column.move_right" = "Move right";
+"board.column.move_left" = "<";
+"board.column.move_right" = ">";
+"board.column.move_left.accessibility" = "Move left";
+"board.column.move_right.accessibility" = "Move right";
 "board.column.edit.title" = "Rename column";
 "board.column.edit.submit" = "Save";
 "board.column.task_count" = "%d tasks";

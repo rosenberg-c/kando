@@ -128,17 +128,14 @@ private struct LoggedInWorkspaceView: View {
     @StateObject private var board: BoardViewModel
     @State private var newColumnTitle = ""
     @State private var editingColumn: EditableColumn?
-    @State private var editingBoard: EditableBoard?
     @State private var creatingTaskInColumn: CreateTaskTarget?
+    @State private var isEditBoardSheetPresented = false
     @State private var isCreateBoardSheetPresented = false
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
-    @State private var isReorderSheetPresented = false
     @State private var isSettingsSheetPresented = false
     @State private var deferredSettingsAction: DeferredSettingsAction?
-    @State private var reorderSheetColumns: [KanbanColumn] = []
-    @State private var isApplyingReorder = false
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -195,17 +192,8 @@ private struct LoggedInWorkspaceView: View {
                     .disabled(board.isLoading)
                     .accessibilityIdentifier("board-create-button")
 
-                    Button("board.rename") {
-                        guard let currentBoard = board.board else { return }
-                        editingBoard = EditableBoard(board: currentBoard)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!board.canMutateBoardActions)
-                    .accessibilityIdentifier("board-rename-button")
-
                     Button("board.column.reorder.mode.enter") {
-                        reorderSheetColumns = board.columns
-                        isReorderSheetPresented = true
+                        isEditBoardSheetPresented = true
                     }
                     .buttonStyle(.bordered)
                     .disabled(!board.canMutateBoardActions)
@@ -361,33 +349,16 @@ private struct LoggedInWorkspaceView: View {
                 }
             )
         }
-        .sheet(item: $editingBoard) { item in
-            BoardEditorSheet(
-                title: Strings.t("board.rename.title"),
-                submitLabel: Strings.t("board.rename.submit"),
-                initialTitle: item.title,
-                onSubmit: { title in
+        .sheet(isPresented: $isEditBoardSheetPresented) {
+            BoardEditSheet(
+                board: board.board,
+                columns: board.columns,
+                canMutateBoardActions: board.canMutateBoardActions,
+                onRenameBoard: { title in
                     await board.renameActiveBoard(title: title)
-                }
-            )
-        }
-        .sheet(isPresented: $isReorderSheetPresented) {
-            ColumnReorderSheet(
-                columns: $reorderSheetColumns,
-                isApplying: isApplyingReorder,
-                onCancel: {
-                    guard !isApplyingReorder else { return }
-                    isReorderSheetPresented = false
                 },
-                onDone: {
-                    guard !isApplyingReorder else { return }
-                    isApplyingReorder = true
-                    Task {
-                        defer { isApplyingReorder = false }
-                        if await applyColumnReorder(targetOrderIDs: reorderSheetColumns.map(\.id)) {
-                            isReorderSheetPresented = false
-                        }
-                    }
+                onReorderColumns: { orderedColumnIDs in
+                    await board.reorderColumns(orderedColumnIDs: orderedColumnIDs)
                 }
             )
         }
@@ -520,12 +491,6 @@ private struct LoggedInWorkspaceView: View {
         }
 
         return lines.joined(separator: "\n")
-    }
-
-    private func applyColumnReorder(targetOrderIDs: [String]) async -> Bool {
-        let didReorder = await board.reorderColumns(orderedColumnIDs: targetOrderIDs)
-        reorderSheetColumns = board.columns
-        return didReorder
     }
 
     @MainActor
@@ -831,6 +796,83 @@ private struct TaskCardView: View {
     }
 }
 
+private struct BoardEditSheet: View {
+    let board: KanbanBoard?
+    let columns: [KanbanColumn]
+    let canMutateBoardActions: Bool
+    let onRenameBoard: @Sendable (String) async -> Bool
+    let onReorderColumns: @Sendable ([String]) async -> Bool
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var editingBoard: EditableBoard?
+    @State private var isReorderSheetPresented = false
+    @State private var reorderSheetColumns: [KanbanColumn] = []
+    @State private var isApplyingReorder = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("board.column.reorder.mode.enter")
+                .font(.title3.weight(.semibold))
+
+            VStack(alignment: .leading, spacing: 10) {
+                Button("board.rename") {
+                    guard let board else { return }
+                    editingBoard = EditableBoard(board: board)
+                }
+                    .buttonStyle(.bordered)
+                    .disabled(!canMutateBoardActions)
+                    .accessibilityIdentifier("board-edit-rename-button")
+
+                Button("board.column.reorder.title") {
+                    reorderSheetColumns = columns
+                    isReorderSheetPresented = true
+                }
+                    .buttonStyle(.bordered)
+                    .disabled(!canMutateBoardActions)
+                    .accessibilityIdentifier("board-edit-reorder-button")
+            }
+
+            HStack {
+                Spacer()
+                Button("common.close") { dismiss() }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("board-edit-close-button")
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .accessibilityElement(children: .contain)
+        .sheet(item: $editingBoard) { item in
+            BoardEditorSheet(
+                title: Strings.t("board.rename.title"),
+                submitLabel: Strings.t("board.rename.submit"),
+                initialTitle: item.title,
+                onSubmit: onRenameBoard
+            )
+        }
+        .sheet(isPresented: $isReorderSheetPresented) {
+            ColumnReorderSheet(
+                columns: $reorderSheetColumns,
+                isApplying: isApplyingReorder,
+                onCancel: {
+                    guard !isApplyingReorder else { return }
+                    isReorderSheetPresented = false
+                },
+                onDone: {
+                    guard !isApplyingReorder else { return }
+                    isApplyingReorder = true
+                    Task {
+                        defer { isApplyingReorder = false }
+                        if await onReorderColumns(reorderSheetColumns.map(\.id)) {
+                            isReorderSheetPresented = false
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+
 private struct ColumnReorderSheet: View {
     @Binding var columns: [KanbanColumn]
     let isApplying: Bool
@@ -893,6 +935,7 @@ private struct ColumnReorderSheet: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!canMoveLeft || isApplying)
+                .accessibilityLabel(Text("board.column.move_left.accessibility"))
                 .accessibilityIdentifier("board-reorder-move-left-\(column.id)")
 
                 Button("board.column.move_right") {
@@ -900,11 +943,11 @@ private struct ColumnReorderSheet: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!canMoveRight || isApplying)
+                .accessibilityLabel(Text("board.column.move_right.accessibility"))
                 .accessibilityIdentifier("board-reorder-move-right-\(column.id)")
             }
         }
         .padding(10)
-        .frame(width: 180, alignment: .leading)
         .background(Color(NSColor.controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
