@@ -132,7 +132,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsButtonAnchorsTopRightAndShowsActions() throws {
-        // Requirements: UX-010, UX-011, UX-012, UX-022
+        // Requirements: UX-010, UX-011, UX-012, UX-022, UX-023
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
@@ -184,6 +184,11 @@ final class TodoMacOSUITests: XCTestCase {
         let shortcutsTopBottom = app.staticTexts["board-settings-shortcuts-top-bottom"]
         let shortcutsUpDown = app.staticTexts["board-settings-shortcuts-up-down"]
         let shortcutsEditDelete = app.staticTexts["board-settings-shortcuts-edit-delete"]
+        let taskControlsSection = app.otherElements["board-settings-task-controls-section"]
+        let taskControlsTitle = app.staticTexts["board-settings-task-controls-title"]
+        let topBottomToggle = app.checkBoxes["board-settings-task-controls-top-bottom"]
+        let upDownToggle = app.checkBoxes["board-settings-task-controls-up-down"]
+        let editDeleteToggle = app.checkBoxes["board-settings-task-controls-edit-delete"]
 
         XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
         XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
@@ -196,6 +201,11 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(shortcutsTopBottom.exists, "Expected shortcuts top/bottom guidance")
         XCTAssertTrue(shortcutsUpDown.exists, "Expected shortcuts up/down guidance")
         XCTAssertTrue(shortcutsEditDelete.exists, "Expected shortcuts edit/delete guidance")
+        XCTAssertTrue(taskControlsSection.exists, "Expected task-controls section in settings")
+        XCTAssertTrue(taskControlsTitle.exists, "Expected task-controls title in settings")
+        XCTAssertTrue(topBottomToggle.exists, "Expected top/bottom visibility toggle")
+        XCTAssertTrue(upDownToggle.exists, "Expected up/down visibility toggle")
+        XCTAssertTrue(editDeleteToggle.exists, "Expected edit/delete visibility toggle")
     }
 
     @MainActor
@@ -726,6 +736,75 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsTaskControlTogglesHideButtonsAndPersistLocally() throws {
+        // Requirements: TASK-019, TASK-020, TASK-021, UX-023
+        let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
+        let uiTimeout: TimeInterval = 8
+
+        let moveTopButton = app.buttons["task-move-top-task-1"]
+        let moveUpButton = app.buttons["task-move-up-task-1"]
+        let editButton = app.buttons["task-edit-task-1"]
+        let deleteButton = app.buttons["task-delete-task-1"]
+
+        XCTAssertTrue(moveTopButton.waitForExistence(timeout: uiTimeout), "Expected top button before toggle")
+        XCTAssertTrue(moveUpButton.waitForExistence(timeout: uiTimeout), "Expected up button before toggle")
+        XCTAssertTrue(editButton.waitForExistence(timeout: uiTimeout), "Expected edit button before toggle")
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: uiTimeout), "Expected delete button before toggle")
+
+        let settingsButton = app.buttons["board-settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: uiTimeout), "Expected settings button")
+        settingsButton.tap()
+
+        let topBottomToggle = app.checkBoxes["board-settings-task-controls-top-bottom"]
+        let upDownToggle = app.checkBoxes["board-settings-task-controls-up-down"]
+        let editDeleteToggle = app.checkBoxes["board-settings-task-controls-edit-delete"]
+        let closeButton = preferredElement(
+            primary: app.buttons["board-settings-close-button"],
+            fallback: app.buttons["Close"],
+            waitTimeout: uiTimeout
+        )
+
+        XCTAssertTrue(topBottomToggle.waitForExistence(timeout: uiTimeout), "Expected top/bottom toggle")
+        XCTAssertTrue(upDownToggle.waitForExistence(timeout: uiTimeout), "Expected up/down toggle")
+        XCTAssertTrue(editDeleteToggle.waitForExistence(timeout: uiTimeout), "Expected edit/delete toggle")
+        XCTAssertTrue(closeButton.waitForExistence(timeout: uiTimeout), "Expected close action in settings")
+
+        topBottomToggle.tap()
+        upDownToggle.tap()
+        editDeleteToggle.tap()
+        closeButton.tap()
+
+        XCTAssertFalse(moveTopButton.waitForExistence(timeout: 2), "Expected top button hidden after toggle")
+        XCTAssertFalse(moveUpButton.waitForExistence(timeout: 2), "Expected up button hidden after toggle")
+        XCTAssertFalse(editButton.waitForExistence(timeout: 2), "Expected edit button hidden after toggle")
+        XCTAssertFalse(deleteButton.waitForExistence(timeout: 2), "Expected delete button hidden after toggle")
+
+        app.terminate()
+
+        let relaunchedApp = launchSignedInApp(
+            extraEnvironment: [UITestEnvKey.workTaskCount: "4"],
+            resetTaskControlDefaults: false
+        )
+
+        XCTAssertFalse(
+            relaunchedApp.buttons["task-move-top-task-1"].waitForExistence(timeout: 2),
+            "Expected top button hidden after relaunch"
+        )
+        XCTAssertFalse(
+            relaunchedApp.buttons["task-move-up-task-1"].waitForExistence(timeout: 2),
+            "Expected up button hidden after relaunch"
+        )
+        XCTAssertFalse(
+            relaunchedApp.buttons["task-edit-task-1"].waitForExistence(timeout: 2),
+            "Expected edit button hidden after relaunch"
+        )
+        XCTAssertFalse(
+            relaunchedApp.buttons["task-delete-task-1"].waitForExistence(timeout: 2),
+            "Expected delete button hidden after relaunch"
+        )
+    }
+
+    @MainActor
     func testTaskSelectionEnablesTopBottomKeyboardShortcuts() throws {
         // Requirements: TASK-012, TASK-013
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
@@ -1042,8 +1121,11 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchSignedInApp(extraEnvironment: [String: String] = [:]) -> XCUIApplication {
-        let app = configuredAppForUITests()
+    private func launchSignedInApp(
+        extraEnvironment: [String: String] = [:],
+        resetTaskControlDefaults: Bool = true
+    ) -> XCUIApplication {
+        let app = configuredAppForUITests(resetTaskControlDefaults: resetTaskControlDefaults)
         app.launchEnvironment[UITestEnvKey.signedIn] = "1"
         app.launchEnvironment[UITestEnvKey.email] = "ui-test@example.com"
         for (key, value) in extraEnvironment {

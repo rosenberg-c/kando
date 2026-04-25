@@ -419,7 +419,27 @@ Examples of discuss-first work:
 
 ---
 
-## 26. Block double-tap during UI mutations
+## 26. Prefer grouped UI state for repeated prop drilling
+
+For UI code (especially in `apps/apple`), group tightly related view configuration/state when the same fields are passed through multiple layers.
+
+Rules:
+
+* prefer a small value type when the same 3+ read-only fields travel together
+* prefer grouped bindings only when child views must mutate parent-owned state
+* keep grouped types focused and feature-scoped (avoid "god" config structs)
+* do not add wrapper types for one-off cases where direct parameters are clearer
+* use value semantics by default for immutable UI configuration passed down the tree
+
+Rationale:
+
+* reduces repetitive parameter lists and wiring errors
+* keeps data flow explicit while improving readability
+* makes related state easier to evolve as a unit
+
+---
+
+## 27. Block double-tap during UI mutations
 
 For UI code (especially in `apps/apple`), mutation actions must be single-flight from the user perspective.
 
@@ -437,7 +457,7 @@ Examples:
 
 ---
 
-## 27. Use typed domain errors for stable API conflict mapping
+## 28. Use typed domain errors for stable API conflict mapping
 
 For backend/domain code, model conflict/error categories as typed domain errors instead of relying on wrapped string messages.
 

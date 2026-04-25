@@ -116,6 +116,24 @@ private enum WorkspaceLayout {
     static let reservedVerticalChromeHeight: CGFloat = 80
 }
 
+private enum WorkspaceSettingsDefaultsKey {
+    static let showTopBottomTaskButtons = "board.settings.task_controls.show_top_bottom"
+    static let showUpDownTaskButtons = "board.settings.task_controls.show_up_down"
+    static let showEditDeleteTaskButtons = "board.settings.task_controls.show_edit_delete"
+}
+
+private struct TaskControlVisibility {
+    let showsTopBottom: Bool
+    let showsUpDown: Bool
+    let showsEditDelete: Bool
+}
+
+private struct TaskControlVisibilityBindings {
+    let showsTopBottom: Binding<Bool>
+    let showsUpDown: Binding<Bool>
+    let showsEditDelete: Binding<Bool>
+}
+
 private struct LoggedInWorkspaceView: View {
     private enum DeferredSettingsAction {
         case export
@@ -137,6 +155,25 @@ private struct LoggedInWorkspaceView: View {
     @State private var isSettingsSheetPresented = false
     @State private var deferredSettingsAction: DeferredSettingsAction?
     @State private var selectedTaskID: String?
+    @AppStorage(WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons) private var showsTopBottomTaskButtons = true
+    @AppStorage(WorkspaceSettingsDefaultsKey.showUpDownTaskButtons) private var showsUpDownTaskButtons = true
+    @AppStorage(WorkspaceSettingsDefaultsKey.showEditDeleteTaskButtons) private var showsEditDeleteTaskButtons = true
+
+    private var taskControlVisibility: TaskControlVisibility {
+        TaskControlVisibility(
+            showsTopBottom: showsTopBottomTaskButtons,
+            showsUpDown: showsUpDownTaskButtons,
+            showsEditDelete: showsEditDeleteTaskButtons
+        )
+    }
+
+    private var taskControlVisibilityBindings: TaskControlVisibilityBindings {
+        TaskControlVisibilityBindings(
+            showsTopBottom: $showsTopBottomTaskButtons,
+            showsUpDown: $showsUpDownTaskButtons,
+            showsEditDelete: $showsEditDeleteTaskButtons
+        )
+    }
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
         self.auth = auth
@@ -247,6 +284,7 @@ private struct LoggedInWorkspaceView: View {
                                     onDeleteTask: { task in
                                         pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
                                     },
+                                    taskControlVisibility: taskControlVisibility,
                                     selectedTaskID: selectedTaskID,
                                     onSelectTask: { taskID in selectedTaskID = taskID },
                                     onMoveTask: { taskID, destinationColumnID, destinationPosition in
@@ -337,15 +375,15 @@ private struct LoggedInWorkspaceView: View {
         .task {
             await board.loadBoardIfNeeded()
         }
-        .onChange(of: board.board?.id) { _, _ in
+        .onChange(of: board.board?.id, perform: { _ in
             selectedTaskID = nil
-        }
-        .onChange(of: board.columns) { _, _ in
+        })
+        .onChange(of: board.columns, perform: { _ in
             guard let selectedTaskID else { return }
             if taskDetails(for: selectedTaskID) == nil {
                 self.selectedTaskID = nil
             }
-        }
+        })
         .sheet(item: $editingColumn) { item in
             ColumnEditorSheet(
                 title: Strings.t("board.column.edit.title"),
@@ -427,7 +465,8 @@ private struct LoggedInWorkspaceView: View {
                 },
                 onDeleteArchivedBoard: { boardID in
                     Task { await board.deleteArchivedBoard(boardID: boardID) }
-                }
+                },
+                taskControlVisibility: taskControlVisibilityBindings
             )
         }
         .sheet(item: $creatingTaskInColumn) { target in
@@ -753,6 +792,7 @@ private struct WorkspaceSettingsSheet: View {
     let onSignOut: () -> Void
     let onRestoreArchivedBoard: (String) -> Void
     let onDeleteArchivedBoard: (String) -> Void
+    let taskControlVisibility: TaskControlVisibilityBindings
 
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDeleteArchivedBoard: KanbanBoard?
@@ -827,6 +867,27 @@ private struct WorkspaceSettingsSheet: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 8) {
+                Text("board.settings.task_controls.title")
+                    .font(.headline)
+                    .accessibilityIdentifier("board-settings-task-controls-title")
+
+                Toggle("board.settings.task_controls.top_bottom", isOn: taskControlVisibility.showsTopBottom)
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("board-settings-task-controls-top-bottom")
+
+                Toggle("board.settings.task_controls.up_down", isOn: taskControlVisibility.showsUpDown)
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("board-settings-task-controls-up-down")
+
+                Toggle("board.settings.task_controls.edit_delete", isOn: taskControlVisibility.showsEditDelete)
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("board-settings-task-controls-edit-delete")
+            }
+            .accessibilityIdentifier("board-settings-task-controls-section")
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
                 Text("board.settings.archived.title")
                     .font(.headline)
 
@@ -863,6 +924,7 @@ private struct WorkspaceSettingsSheet: View {
                 Button("common.close") { dismiss() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .accessibilityIdentifier("board-settings-close-button")
             }
         }
         .padding(20)
@@ -913,6 +975,13 @@ private struct WorkspaceKeyMonitor: NSViewRepresentable {
         var onKeyDown: ((NSEvent) -> Bool)?
         private var monitor: Any?
 
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            if newWindow == nil {
+                removeMonitor()
+            }
+            super.viewWillMove(toWindow: newWindow)
+        }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             removeMonitor()
@@ -935,16 +1004,12 @@ private struct WorkspaceKeyMonitor: NSViewRepresentable {
             return responder is NSTextView || responder is NSTextField
         }
 
-        deinit {
-            removeMonitor()
+        private func removeMonitor() {
+            guard let monitor else { return }
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
         }
 
-        private func removeMonitor() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-                self.monitor = nil
-            }
-        }
     }
 }
 
@@ -958,6 +1023,7 @@ private struct ColumnCard: View {
     let onAddTask: () -> Void
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let taskControlVisibility: TaskControlVisibility
     let selectedTaskID: String?
     let onSelectTask: (String) -> Void
     let onMoveTask: (String, String, Int) -> Void
@@ -997,6 +1063,7 @@ private struct ColumnCard: View {
                             isEnabled: isEnabled,
                             onEditTask: onEditTask,
                             onDeleteTask: onDeleteTask,
+                            taskControlVisibility: taskControlVisibility,
                             isSelected: selectedTaskID == task.id,
                             onSelectTask: onSelectTask,
                             onMoveToPosition: { position in
@@ -1052,6 +1119,7 @@ private struct TaskCardView: View {
     let isEnabled: Bool
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let taskControlVisibility: TaskControlVisibility
     let isSelected: Bool
     let onSelectTask: (String) -> Void
     let onMoveToPosition: (Int) -> Void
@@ -1066,22 +1134,24 @@ private struct TaskCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Button("board.task.move_top") {
-                    onMoveToPosition(topPosition)
-                }
-                .buttonStyle(.bordered)
-                .disabled(!isEnabled || isFirstTask)
-                .accessibilityIdentifier("task-move-top-\(task.id)")
+            if taskControlVisibility.showsTopBottom {
+                HStack(spacing: 8) {
+                    Button("board.task.move_top") {
+                        onMoveToPosition(topPosition)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled || isFirstTask)
+                    .accessibilityIdentifier("task-move-top-\(task.id)")
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                Button("board.task.move_bottom") {
-                    onMoveToPosition(bottomPosition)
+                    Button("board.task.move_bottom") {
+                        onMoveToPosition(bottomPosition)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled || isLastTask)
+                    .accessibilityIdentifier("task-move-bottom-\(task.id)")
                 }
-                .buttonStyle(.bordered)
-                .disabled(!isEnabled || isLastTask)
-                .accessibilityIdentifier("task-move-bottom-\(task.id)")
             }
 
             Text(task.title)
@@ -1094,28 +1164,35 @@ private struct TaskCardView: View {
                     .lineLimit(3)
             }
 
-            HStack(spacing: 8) {
-                Button("board.task.move_up") {
-                    onMoveToPosition(upPosition)
-                }
-                .buttonStyle(.bordered)
-                .disabled(!isEnabled || isFirstTask)
-                .accessibilityIdentifier("task-move-up-\(task.id)")
+            if taskControlVisibility.showsUpDown || taskControlVisibility.showsEditDelete {
+                HStack(spacing: 8) {
+                    if taskControlVisibility.showsUpDown {
+                        Button("board.task.move_up") {
+                            onMoveToPosition(upPosition)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!isEnabled || isFirstTask)
+                        .accessibilityIdentifier("task-move-up-\(task.id)")
 
-                Button("board.task.move_down") {
-                    onMoveToPosition(downPosition)
-                }
-                .buttonStyle(.bordered)
-                .disabled(!isEnabled || isLastTask)
-                .accessibilityIdentifier("task-move-down-\(task.id)")
+                        Button("board.task.move_down") {
+                            onMoveToPosition(downPosition)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(!isEnabled || isLastTask)
+                        .accessibilityIdentifier("task-move-down-\(task.id)")
+                    }
 
-                Button("board.task.edit") { onEditTask(task) }
-                    .buttonStyle(.bordered)
-                    .disabled(!isEnabled)
-                Button("board.task.delete") { onDeleteTask(task) }
-                    .buttonStyle(.bordered)
-                    .disabled(!isEnabled)
-                    .accessibilityIdentifier("task-delete-\(task.id)")
+                    if taskControlVisibility.showsEditDelete {
+                        Button("board.task.edit") { onEditTask(task) }
+                            .buttonStyle(.bordered)
+                            .disabled(!isEnabled)
+                            .accessibilityIdentifier("task-edit-\(task.id)")
+                        Button("board.task.delete") { onDeleteTask(task) }
+                            .buttonStyle(.bordered)
+                            .disabled(!isEnabled)
+                            .accessibilityIdentifier("task-delete-\(task.id)")
+                    }
+                }
             }
         }
         .padding(10)

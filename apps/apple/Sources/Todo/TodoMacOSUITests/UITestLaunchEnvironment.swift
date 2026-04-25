@@ -13,13 +13,27 @@ enum UITestEnvKey {
     static let mockDelayMs = "TODO_UITEST_MOCK_DELAY_MS"
 }
 
-func configuredAppForUITests() -> XCUIApplication {
+enum UITestDefaultsKey {
+    static let showTopBottomTaskButtons = "board.settings.task_controls.show_top_bottom"
+    static let showUpDownTaskButtons = "board.settings.task_controls.show_up_down"
+    static let showEditDeleteTaskButtons = "board.settings.task_controls.show_edit_delete"
+}
+
+func configuredAppForUITests(resetTaskControlDefaults: Bool = true) -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments += [
+    var launchArguments = [
         "-ApplePersistenceIgnoreState", "YES",
         "-AppleLanguages", "(en)",
         "-AppleLocale", "en_US"
     ]
+    if resetTaskControlDefaults {
+        launchArguments += [
+            "-\(UITestDefaultsKey.showTopBottomTaskButtons)", "YES",
+            "-\(UITestDefaultsKey.showUpDownTaskButtons)", "YES",
+            "-\(UITestDefaultsKey.showEditDeleteTaskButtons)", "YES"
+        ]
+    }
+    app.launchArguments += launchArguments
     app.launchEnvironment[UITestEnvKey.uiTestMode] = "1"
     app.launchEnvironment[UITestEnvKey.testMode] = "1"
     app.launchEnvironment[UITestEnvKey.disableKeychain] = "1"

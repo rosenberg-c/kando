@@ -66,6 +66,10 @@
 "board.settings.shortcuts.top_bottom" = "Move top/bottom: t / b";
 "board.settings.shortcuts.up_down" = "Move up/down: u / d";
 "board.settings.shortcuts.edit_delete" = "Edit/Delete: e / x";
+"board.settings.task_controls.title" = "Task controls";
+"board.settings.task_controls.top_bottom" = "Show Top / Bottom buttons";
+"board.settings.task_controls.up_down" = "Show Up / Down buttons";
+"board.settings.task_controls.edit_delete" = "Show Edit / Delete buttons";
 "board.settings.archived.title" = "Archived boards";
 "board.settings.archived.empty" = "No archived boards.";
 "board.archived.delete.confirm.title" = "Delete archived board";
