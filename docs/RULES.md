@@ -385,6 +385,7 @@ Rules:
 * keep identifier naming consistent and feature-scoped (for example `board-edit-close-button`)
 * when visible text is symbolic or abbreviated (for example `<`, `>`, arrows, icons), add explicit accessibility labels with clear wording
 * keep display text and accessibility text as separate localized keys when needed
+* if XCTest/macOS automation cannot reliably resolve a custom accessibility identifier for a control, use an identifier-first selector with a text fallback and document the fallback in the test
 
 Suggested string-key pattern:
 

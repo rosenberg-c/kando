@@ -167,9 +167,6 @@ final class TodoMacOSUITests: XCTestCase {
             fallback: app.buttons["Sign out"],
             waitTimeout: 3
         )
-
-        XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
-        XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
         let exportButton = preferredElement(
             primary: app.buttons["board-settings-export-button"],
             fallback: app.buttons["Export tasks"],
@@ -181,6 +178,8 @@ final class TodoMacOSUITests: XCTestCase {
             waitTimeout: 5
         )
 
+        XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
+        XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
         XCTAssertTrue(exportButton.exists, "Expected export action in settings")
         XCTAssertTrue(importButton.exists, "Expected import action in settings")
     }
@@ -204,7 +203,7 @@ final class TodoMacOSUITests: XCTestCase {
 
         let boardEditorTitleInput = preferredElement(
             primary: app.textFields["board-editor-title-input"],
-            fallback: app.textFields["Project title"],
+            fallback: app.textFields["Board title"],
             waitTimeout: 3
         )
         let boardEditorSubmit = preferredElement(
@@ -222,11 +221,11 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(boardEditorSubmit.waitForExistence(timeout: 3), "Expected board editor submit button")
 
         boardEditorTitleInput.tap()
-        boardEditorTitleInput.typeText("New Project")
+        boardEditorTitleInput.typeText("New Board")
         boardEditorSubmit.tap()
 
         XCTAssertTrue(
-            app.staticTexts["New Project"].waitForExistence(timeout: 3),
+            app.staticTexts["New Board"].waitForExistence(timeout: 3),
             "Expected new board title after create"
         )
 
@@ -247,7 +246,7 @@ final class TodoMacOSUITests: XCTestCase {
 
         boardEditorTitleInput.click()
         boardEditorTitleInput.typeKey("a", modifierFlags: .command)
-        boardEditorTitleInput.typeText("Project Renamed")
+        boardEditorTitleInput.typeText("Board Renamed")
         let renameSubmit = preferredElement(
             primary: app.buttons["board-editor-submit"],
             fallback: app.buttons["Save"],
@@ -256,7 +255,7 @@ final class TodoMacOSUITests: XCTestCase {
         renameSubmit.tap()
 
         XCTAssertTrue(
-            app.staticTexts["Project Renamed"].waitForExistence(timeout: 3),
+            app.staticTexts["Board Renamed"].waitForExistence(timeout: 3),
             "Expected board title after rename"
         )
     }
