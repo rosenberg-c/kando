@@ -373,3 +373,47 @@ Rules:
 * do not add parallel single-item action endpoints for the same collection behavior
 
 ---
+
+## 24. Accessibility identifiers and labels are required for UI controls
+
+For UI code (especially in `apps/apple`), treat accessibility hooks as part of the contract.
+
+Rules:
+
+* assign stable accessibility identifiers to interactive controls and key containers
+* prefer identifier-based UI tests over visible text matching
+* keep identifier naming consistent and feature-scoped (for example `board-edit-close-button`)
+* when visible text is symbolic or abbreviated (for example `<`, `>`, arrows, icons), add explicit accessibility labels with clear wording
+* keep display text and accessibility text as separate localized keys when needed
+
+Suggested string-key pattern:
+
+* `feature.action` for display text
+* `feature.action.accessibility` for accessibility label
+
+Example:
+
+* `board.column.move_left` = `<`
+* `board.column.move_left.accessibility` = `Move left`
+
+---
+
+## 25. Maintenance scope while implementing features
+
+Small maintenance in adjacent code is allowed and encouraged when it improves quality without changing scope.
+
+Rules:
+
+* you may include minor adjacent maintenance (for example naming cleanup, small refactors, test selector hardening, dead-code removal, typo fixes)
+* keep adjacent maintenance low risk, reversible, and directly related to touched areas
+* if a discovered issue is medium/large scope or changes behavior beyond the requested feature, stop and discuss before editing
+* when making adjacent maintenance changes that are not the primary feature, commit them separately from the main feature changes
+* in PR/commit notes, clearly distinguish primary feature work from adjacent maintenance
+
+Examples of discuss-first work:
+
+* broad architecture refactors
+* migration or data-shape changes outside request scope
+* cross-cutting behavior changes across multiple modules
+
+---
