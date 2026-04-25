@@ -3,9 +3,7 @@ package appwrite
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -862,10 +860,7 @@ func listRows[T any](ctx context.Context, client *Client, path string) ([]T, err
 }
 
 func withRowListQueries(path string, offset int) string {
-	values := url.Values{}
-	values.Add("limit", strconv.Itoa(kanbanListRowsPageLimit))
-	values.Add("offset", strconv.Itoa(offset))
-	return path + "?" + values.Encode()
+	return withPagedQueries(path, kanbanListRowsPageLimit, offset)
 }
 
 func shouldStopRowPaging(pageCount, accumulatedCount, total int) bool {

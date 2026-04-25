@@ -3,9 +3,7 @@ package appwrite
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 
 	"go_macos_todo/internal/schema"
@@ -216,10 +214,7 @@ func (c *Client) listAllIndexes(ctx context.Context, databaseID, tableID string)
 }
 
 func withListQueries(path string, offset int) string {
-	values := url.Values{}
-	values.Add("limit", strconv.Itoa(pruneListPageLimit))
-	values.Add("offset", strconv.Itoa(offset))
-	return path + "?" + values.Encode()
+	return withPagedQueries(path, pruneListPageLimit, offset)
 }
 
 func shouldStopPaging(pageCount, accumulatedCount, total int) bool {
