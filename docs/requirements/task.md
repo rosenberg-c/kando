@@ -21,6 +21,7 @@
 - `TASK-019`: On macOS, users can toggle whether `Top` and `Bottom` task controls are visible from settings.
 - `TASK-020`: On macOS, users can toggle whether move-up and move-down task controls are visible from settings.
 - `TASK-021`: On macOS, users can toggle whether task edit and delete controls are visible from settings.
+- `TASK-022`: On macOS, in the task editor sheet, pressing `Enter` while focused on the title input submits the same primary action as tapping the sheet submit button.
 
 ## Delete Task Confirmation
 
@@ -45,6 +46,7 @@
 - `TASK-019`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-020`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-021`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-022`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).

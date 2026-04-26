@@ -24,6 +24,7 @@
 - `BOARD-022`: Archiving stores the pre-archive board title separately so restore can choose between original title and archived title.
 - `BOARD-023`: Restoring an archived board supports selecting the restored title mode (`original` or `archived`) per restore action.
 - `BOARD-024`: When restore title mode is `original`, the restore flow warns and blocks submission if that original title conflicts with an existing active board title.
+- `BOARD-025`: On macOS, in the board editor sheet, pressing `Enter` while focused on the board title input submits the same primary action as tapping the sheet submit button.
 
 ## Platform Applicability
 
@@ -51,3 +52,4 @@
 - `BOARD-022`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-023`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-024`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-025`: macOS (required), iOS (planned), TUI (N/A).

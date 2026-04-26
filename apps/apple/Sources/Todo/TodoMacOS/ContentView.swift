@@ -1727,6 +1727,7 @@ private struct TaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var inputTitle: String
     @State private var inputDescription: String
+    @State private var isSubmitting = false
 
     init(title: String, submitLabel: String, initialTitle: String, initialDescription: String, onSubmit: @escaping (String, String) -> Void) {
         self.title = title
@@ -1738,6 +1739,17 @@ private struct TaskEditorSheet: View {
         _inputDescription = State(initialValue: initialDescription)
     }
 
+    private var hasValidTitle: Bool {
+        isNonEmptyTitle(inputTitle)
+    }
+
+    private func submitAndDismiss() {
+        guard hasValidTitle, !isSubmitting else { return }
+        isSubmitting = true
+        onSubmit(inputTitle, inputDescription)
+        dismiss()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
@@ -1747,6 +1759,9 @@ private struct TaskEditorSheet: View {
             TextField("board.task.title.placeholder", text: $inputTitle)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("task-editor-title-input")
+                .onSubmit {
+                    submitAndDismiss()
+                }
 
             TextEditor(text: $inputDescription)
                 .font(.body)
@@ -1760,12 +1775,14 @@ private struct TaskEditorSheet: View {
             HStack {
                 Spacer()
                 Button("common.cancel") { dismiss() }
+                    .disabled(isSubmitting)
                     .accessibilityIdentifier("task-editor-cancel")
                 Button(submitLabel) {
-                    onSubmit(inputTitle, inputDescription)
-                    dismiss()
+                    submitAndDismiss()
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!hasValidTitle || isSubmitting)
                 .accessibilityIdentifier("task-editor-submit")
             }
         }
@@ -1793,6 +1810,25 @@ private struct BoardEditorSheet: View {
         _inputTitle = State(initialValue: initialTitle)
     }
 
+    private var hasValidTitle: Bool {
+        isNonEmptyTitle(inputTitle)
+    }
+
+    private func submitIfValid() {
+        guard hasValidTitle, !isSubmitting else { return }
+
+        isSubmitting = true
+        Task {
+            let succeeded = await onSubmit(inputTitle)
+            await MainActor.run {
+                isSubmitting = false
+                if succeeded {
+                    dismiss()
+                }
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title)
@@ -1800,24 +1836,19 @@ private struct BoardEditorSheet: View {
             TextField("board.input.placeholder", text: $inputTitle)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("board-editor-title-input")
+                .onSubmit {
+                    submitIfValid()
+                }
             HStack {
                 Spacer()
                 Button("common.cancel") { dismiss() }
                     .disabled(isSubmitting)
                 Button(submitLabel) {
-                    isSubmitting = true
-                    Task {
-                        let succeeded = await onSubmit(inputTitle)
-                        await MainActor.run {
-                            isSubmitting = false
-                            if succeeded {
-                                dismiss()
-                            }
-                        }
-                    }
+                    submitIfValid()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(inputTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSubmitting)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!hasValidTitle || isSubmitting)
                 .accessibilityIdentifier("board-editor-submit")
             }
         }
@@ -1825,6 +1856,10 @@ private struct BoardEditorSheet: View {
         .frame(width: 420)
         .accessibilityIdentifier("board-editor-sheet")
     }
+}
+
+private func isNonEmptyTitle(_ title: String) -> Bool {
+    !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
 
 private struct EditableColumn: Identifiable {

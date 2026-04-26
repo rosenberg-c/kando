@@ -287,6 +287,34 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testCreateBoardTitleInputEnterSubmitsCreate() throws {
+        // Requirement: BOARD-025
+        let app = launchSignedInApp()
+        let createButton = app.buttons["board-create-button"]
+
+        XCTAssertTrue(createButton.waitForExistence(timeout: UITimeout.ready), "Expected create-board button")
+
+        createButton.tap()
+
+        let boardEditorTitleInput = preferredElement(
+            primary: app.textFields["board-editor-title-input"],
+            fallback: app.textFields["Board title"],
+            waitTimeout: UITimeout.standard
+        )
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: UITimeout.standard), "Expected board title input")
+
+        let boardTitle = "Board Created Via Enter"
+        boardEditorTitleInput.tap()
+        boardEditorTitleInput.typeText(boardTitle)
+        boardEditorTitleInput.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        XCTAssertTrue(
+            app.staticTexts[boardTitle].waitForExistence(timeout: UITimeout.standard),
+            "Expected new board title after pressing enter in board title input"
+        )
+    }
+
+    @MainActor
     func testEditBoardPanelCloseDismissesEditMode() throws {
         // Requirement: UX-018
         let app = launchSignedInApp()
@@ -1151,6 +1179,49 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(
             app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
             "Expected created task title to be visible"
+        )
+    }
+
+    @MainActor
+    func testCreateTaskTitleInputEnterSubmitsCreate() throws {
+        // Requirement: TASK-022
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
+        let addTaskButton = app.buttons["task-add-column-empty"]
+        let createSheetTitle = preferredElement(
+            primary: app.otherElements["task-editor-sheet"],
+            fallback: app.staticTexts["Create task"],
+            waitTimeout: uiTimeout
+        )
+        let taskTitleField = preferredElement(
+            primary: app.textFields["task-editor-title-input"],
+            fallback: app.textFields["Task title"],
+            waitTimeout: uiTimeout
+        )
+        let createdTaskTitle = "Created via enter"
+
+        XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(addTaskButton.waitForExistence(timeout: uiTimeout), "Expected add-task button for empty column")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column to start with zero tasks")
+
+        addTaskButton.tap()
+
+        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
+        XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+
+        taskTitleField.tap()
+        taskTitleField.typeText(createdTaskTitle)
+        taskTitleField.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        XCTAssertTrue(
+            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 3),
+            "Expected empty column task count to increase after pressing enter in title input"
+        )
+        XCTAssertTrue(
+            app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
+            "Expected task created via enter to be visible"
         )
     }
 
