@@ -29,6 +29,31 @@ struct KanbanTask: Sendable, Equatable, Identifiable {
     let title: String
     let description: String
     let position: Int
+    let isArchived: Bool
+    let archivedAt: String?
+
+    init(
+        id: String,
+        columnID: String,
+        title: String,
+        description: String,
+        position: Int,
+        isArchived: Bool = false,
+        archivedAt: String? = nil
+    ) {
+        self.id = id
+        self.columnID = columnID
+        self.title = title
+        self.description = description
+        self.position = position
+        self.isArchived = isArchived
+        self.archivedAt = archivedAt
+    }
+}
+
+struct ColumnTaskArchiveResult: Sendable, Equatable {
+    let archivedTaskCount: Int
+    let archivedAt: String
 }
 
 struct KanbanTaskColumnOrder: Sendable, Equatable {
@@ -43,7 +68,8 @@ struct KanbanBoardDetails: Sendable, Equatable {
 }
 
 struct TaskExportPayload: Codable, Sendable, Equatable {
-    static let currentFormatVersion = 1
+    static let currentFormatVersion = 2
+    static let legacyFormatVersion = 1
 
     let formatVersion: Int
     let boardTitle: String
@@ -51,12 +77,13 @@ struct TaskExportPayload: Codable, Sendable, Equatable {
     let columns: [TaskExportColumn]
 
     var taskCount: Int {
-        columns.reduce(0) { $0 + $1.tasks.count }
+        columns.reduce(0) { $0 + $1.tasks.count + $1.archivedTasks.count }
     }
 }
 
 struct TaskExportBundle: Codable, Sendable, Equatable {
-    static let currentFormatVersion = 2
+    static let currentFormatVersion = 3
+    static let legacyFormatVersion = 2
 
     let formatVersion: Int
     let exportedAt: String
@@ -78,11 +105,25 @@ struct TaskExportBundleBoard: Codable, Sendable, Equatable, Identifiable {
 struct TaskExportColumn: Codable, Sendable, Equatable {
     let title: String
     let tasks: [TaskExportTask]
+    let archivedTasks: [TaskExportTask]
+
+    init(title: String, tasks: [TaskExportTask], archivedTasks: [TaskExportTask] = []) {
+        self.title = title
+        self.tasks = tasks
+        self.archivedTasks = archivedTasks
+    }
 }
 
 struct TaskExportTask: Codable, Sendable, Equatable {
     let title: String
     let description: String
+    let archivedAt: String?
+
+    init(title: String, description: String, archivedAt: String? = nil) {
+        self.title = title
+        self.description = description
+        self.archivedAt = archivedAt
+    }
 }
 
 struct TaskImportResult: Sendable, Equatable {
@@ -150,6 +191,10 @@ protocol KanbanAPI: Sendable {
     func updateColumn(boardID: String, columnID: String, title: String, accessToken: String, baseURL: URL) async throws
     func reorderColumns(boardID: String, orderedColumnIDs: [String], accessToken: String, baseURL: URL) async throws
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws
+    func archiveColumnTasks(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws -> ColumnTaskArchiveResult
+    func listArchivedTasksByBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> [KanbanTask]
+    func restoreArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws -> KanbanTask
+    func deleteArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws

@@ -25,6 +25,9 @@
 - `BOARD-023`: Restoring an archived board supports selecting the restored title mode (`original` or `archived`) per restore action.
 - `BOARD-024`: When restore title mode is `original`, the restore flow warns and blocks submission if that original title conflicts with an existing active board title.
 - `BOARD-025`: On macOS, in the board editor sheet, pressing `Enter` while focused on the board title input submits the same primary action as tapping the sheet submit button.
+- `BOARD-026`: Board task export includes archived tasks grouped under their original column snapshot.
+- `BOARD-027`: Board task import restores archived tasks and preserves both archived state and original column association.
+- `BOARD-028`: Task export/import format versioning supports archived column-task snapshots while remaining backward compatible with prior export formats.
 
 ## Platform Applicability
 
@@ -53,3 +56,6 @@
 - `BOARD-023`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-024`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-025`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-026`: macOS (required), iOS (planned), TUI (planned).
+- `BOARD-027`: macOS (required), iOS (planned), TUI (planned).
+- `BOARD-028`: macOS (required), iOS (planned), TUI (planned).

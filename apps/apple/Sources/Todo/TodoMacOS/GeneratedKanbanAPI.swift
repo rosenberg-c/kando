@@ -140,6 +140,117 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
+    func archiveColumnTasks(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws -> ColumnTaskArchiveResult {
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent(boardID)
+            .appendingPathComponent("columns")
+            .appendingPathComponent(columnID)
+            .appendingPathComponent("archive-tasks")
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw KanbanAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "archiveColumnTasks", data: data)
+        }
+
+        let decoded = try JSONDecoder().decode(ArchiveColumnTasksDTO.self, from: data)
+        return ColumnTaskArchiveResult(
+            archivedTaskCount: decoded.archivedTaskCount,
+            archivedAt: decoded.archivedAt
+        )
+    }
+
+    func listArchivedTasksByBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> [KanbanTask] {
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent(boardID)
+            .appendingPathComponent("tasks")
+            .appendingPathComponent("archived")
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw KanbanAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "listArchivedTasksByBoard", data: data)
+        }
+
+        let decoded = try JSONDecoder().decode([ArchivedTaskDTO].self, from: data)
+        return decoded.map {
+            KanbanTask(
+                id: $0.id,
+                columnID: $0.columnID,
+                title: $0.title,
+                description: $0.description,
+                position: $0.position,
+                isArchived: true,
+                archivedAt: $0.archivedAt
+            )
+        }
+    }
+
+    func restoreArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws -> KanbanTask {
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent(boardID)
+            .appendingPathComponent("tasks")
+            .appendingPathComponent(taskID)
+            .appendingPathComponent("restore")
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw KanbanAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "restoreArchivedTask", data: data)
+        }
+
+        let task = try JSONDecoder().decode(TaskDTO.self, from: data)
+        return KanbanTask(
+            id: task.id,
+            columnID: task.columnID,
+            title: task.title,
+            description: task.description,
+            position: task.position
+        )
+    }
+
+    func deleteArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent(boardID)
+            .appendingPathComponent("tasks")
+            .appendingPathComponent(taskID)
+            .appendingPathComponent("archived")
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw KanbanAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 204 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "deleteArchivedTask", data: data)
+        }
+    }
+
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
         let payload = Components.Schemas.CreateTaskRequest(columnId: columnID, description: description, title: title)
@@ -180,34 +291,54 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {
-        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let payload = Components.Schemas.TaskExportBundleRequest(boardIds: boardIDs)
-        let output = try await client.exportTasksBundle(body: .json(payload))
-        switch output {
-        case let .ok(ok):
-            return try mapTaskExportBundle(try ok.body.json)
-        case let .default(statusCode, payload):
-            throw mapStatus(statusCode, operation: "exportTasksBundle", model: problem(from: payload.body))
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent("tasks")
+            .appendingPathComponent("export")
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["boardIds": boardIDs])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw KanbanAPIError.invalidResponse
         }
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "exportTasksBundle", data: data)
+        }
+
+        return try JSONDecoder().decode(TaskExportBundle.self, from: data)
     }
 
     func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult {
-        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let payload = Components.Schemas.TaskImportBundleRequest(
-            bundle: try mapTaskExportBundle(bundle),
-            sourceBoardIds: sourceBoardIDs
-        )
-        let output = try await client.importTasksBundle(body: .json(payload))
-        switch output {
-        case let .ok(ok):
-            let body = try ok.body.json
-            return TaskImportBundleResult(
-                totalCreatedColumnCount: Int(body.totalCreatedColumnCount),
-                totalImportedTaskCount: Int(body.totalImportedTaskCount)
-            )
-        case let .default(statusCode, payload):
-            throw mapStatus(statusCode, operation: "importTasksBundle", model: problem(from: payload.body))
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent("tasks")
+            .appendingPathComponent("import")
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let importRequest = TaskImportBundleRequestDTO(sourceBoardIds: sourceBoardIDs, bundle: bundle)
+        request.httpBody = try JSONEncoder().encode(importRequest)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw KanbanAPIError.invalidResponse
         }
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "importTasksBundle", data: data)
+        }
+
+        let decoded = try JSONDecoder().decode(TaskImportBundleResponseDTO.self, from: data)
+        return TaskImportBundleResult(
+            totalCreatedColumnCount: decoded.totalCreatedColumnCount,
+            totalImportedTaskCount: decoded.totalImportedTaskCount
+        )
     }
 
     private func authenticatedClient(baseURL: URL, accessToken: String) -> Client {
@@ -394,6 +525,74 @@ struct GeneratedKanbanAPI: KanbanAPI {
     private func mapTask(_ task: Components.Schemas.Task) -> KanbanTask {
         KanbanTask(id: task.id, columnID: task.columnId, title: task.title, description: task.description, position: Int(task.position))
     }
+}
+
+private struct ArchiveColumnTasksDTO: Decodable {
+    let archivedTaskCount: Int
+    let archivedAt: String
+}
+
+private struct ArchivedTaskDTO: Decodable {
+    let id: String
+    let columnID: String
+    let title: String
+    let description: String
+    let position: Int
+    let archivedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case columnID = "columnId"
+        case title
+        case description
+        case position
+        case archivedAt
+    }
+}
+
+private struct TaskDTO: Decodable {
+    let id: String
+    let columnID: String
+    let title: String
+    let description: String
+    let position: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case columnID = "columnId"
+        case title
+        case description
+        case position
+    }
+}
+
+private struct TaskImportBundleResponseDTO: Decodable {
+    let totalCreatedColumnCount: Int
+    let totalImportedTaskCount: Int
+}
+
+private struct TaskImportBundleRequestDTO: Encodable {
+    let sourceBoardIds: [String]
+    let bundle: TaskExportBundle
+}
+
+private struct ProblemDTO: Decodable {
+    let title: String?
+    let detail: String?
+}
+
+private func mapJSONProblemStatus(_ statusCode: Int, operation: String, data: Data) -> Error {
+    if statusCode == 401 || statusCode == 403 {
+        return KanbanAPIError.unauthorized
+    }
+
+    let problem = try? JSONDecoder().decode(ProblemDTO.self, from: data)
+    return KanbanAPIError.unexpectedStatus(
+        code: statusCode,
+        operation: operation,
+        title: problem?.title,
+        detail: problem?.detail
+    )
 }
 
 private enum ExportDateFormatters {

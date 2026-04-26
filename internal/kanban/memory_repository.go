@@ -347,7 +347,11 @@ func (r *MemoryRepository) DeleteColumn(_ context.Context, ownerUserID, boardID,
 	return board, nil
 }
 
-func (r *MemoryRepository) CreateTask(_ context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
+func (r *MemoryRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
+	return r.CreateTaskWithArchivedAt(ctx, ownerUserID, boardID, columnID, title, description, nil)
+}
+
+func (r *MemoryRepository) CreateTaskWithArchivedAt(_ context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (Task, Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -362,6 +366,12 @@ func (r *MemoryRepository) CreateTask(_ context.Context, ownerUserID, boardID, c
 	}
 
 	position := len(r.columnTasks[columnID])
+	isArchived := archivedAt != nil
+	archivedTimestamp := time.Time{}
+	if archivedAt != nil {
+		archivedTimestamp = archivedAt.UTC().Truncate(time.Millisecond)
+		position = r.nextArchivedPosition(columnID)
+	}
 	now := r.now().UTC()
 	task := Task{
 		ID:          uuid.NewString(),
@@ -370,16 +380,159 @@ func (r *MemoryRepository) CreateTask(_ context.Context, ownerUserID, boardID, c
 		OwnerUserID: ownerUserID,
 		Title:       title,
 		Description: description,
+		IsArchived:  isArchived,
+		ArchivedAt:  archivedTimestamp,
 		Position:    position,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 	r.tasks[task.ID] = task
-	r.columnTasks[columnID] = append(r.columnTasks[columnID], task.ID)
+	if !task.IsArchived {
+		r.columnTasks[columnID] = append(r.columnTasks[columnID], task.ID)
+	}
 
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
 	return task, board, nil
+}
+
+func (r *MemoryRepository) ArchiveTasksInColumn(_ context.Context, ownerUserID, boardID, columnID string) (ColumnTaskArchiveResult, Board, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, err
+	}
+
+	column, ok := r.columns[columnID]
+	if !ok || column.BoardID != boardID {
+		return ColumnTaskArchiveResult{}, Board{}, ErrNotFound
+	}
+	if column.OwnerUserID != ownerUserID {
+		return ColumnTaskArchiveResult{}, Board{}, ErrForbidden
+	}
+
+	archivedAt := r.now().UTC().Truncate(time.Millisecond)
+	archivedCount := 0
+	for _, taskID := range r.columnTasks[columnID] {
+		task, ok := r.tasks[taskID]
+		if !ok || task.IsArchived {
+			continue
+		}
+		task.IsArchived = true
+		task.ArchivedAt = archivedAt
+		task.UpdatedAt = archivedAt
+		r.tasks[taskID] = task
+		archivedCount++
+	}
+	r.columnTasks[columnID] = nil
+
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+
+	return ColumnTaskArchiveResult{
+		ArchivedTaskCount: archivedCount,
+		ArchivedAt:        archivedAt,
+	}, board, nil
+}
+
+func (r *MemoryRepository) ListArchivedTasksByBoard(_ context.Context, ownerUserID, boardID string) ([]Task, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if _, err := r.getOwnedBoard(ownerUserID, boardID); err != nil {
+		return nil, err
+	}
+
+	columnPosition := make(map[string]int, len(r.boardColumns[boardID]))
+	for position, id := range r.boardColumns[boardID] {
+		columnPosition[id] = position
+	}
+
+	archived := make([]Task, 0)
+	for _, task := range r.tasks {
+		if task.BoardID != boardID || !task.IsArchived {
+			continue
+		}
+		archived = append(archived, task)
+	}
+
+	sort.Slice(archived, func(i, j int) bool {
+		leftColumn := columnPosition[archived[i].ColumnID]
+		rightColumn := columnPosition[archived[j].ColumnID]
+		if leftColumn != rightColumn {
+			return leftColumn < rightColumn
+		}
+		if !archived[i].ArchivedAt.Equal(archived[j].ArchivedAt) {
+			return archived[i].ArchivedAt.Before(archived[j].ArchivedAt)
+		}
+		if archived[i].Position != archived[j].Position {
+			return archived[i].Position < archived[j].Position
+		}
+		return archived[i].ID < archived[j].ID
+	})
+
+	return archived, nil
+}
+
+func (r *MemoryRepository) RestoreArchivedTask(_ context.Context, ownerUserID, boardID, taskID string) (Task, Board, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return Task{}, Board{}, err
+	}
+
+	task, ok := r.tasks[taskID]
+	if !ok || task.BoardID != boardID {
+		return Task{}, Board{}, ErrNotFound
+	}
+	if task.OwnerUserID != ownerUserID {
+		return Task{}, Board{}, ErrForbidden
+	}
+	if !task.IsArchived {
+		return Task{}, Board{}, ErrConflict
+	}
+
+	task.IsArchived = false
+	task.ArchivedAt = time.Time{}
+	task.Position = len(r.columnTasks[task.ColumnID])
+	task.UpdatedAt = r.now().UTC()
+	r.tasks[taskID] = task
+	r.columnTasks[task.ColumnID] = append(r.columnTasks[task.ColumnID], taskID)
+
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+	return task, board, nil
+}
+
+func (r *MemoryRepository) DeleteArchivedTask(_ context.Context, ownerUserID, boardID, taskID string) (Board, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	board, err := r.getOwnedBoard(ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+
+	task, ok := r.tasks[taskID]
+	if !ok || task.BoardID != boardID {
+		return Board{}, ErrNotFound
+	}
+	if task.OwnerUserID != ownerUserID {
+		return Board{}, ErrForbidden
+	}
+	if !task.IsArchived {
+		return Board{}, ErrConflict
+	}
+
+	delete(r.tasks, taskID)
+
+	board = bumpBoard(board)
+	r.boards[board.ID] = board
+	return board, nil
 }
 
 func (r *MemoryRepository) UpdateTask(_ context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error) {
@@ -393,6 +546,9 @@ func (r *MemoryRepository) UpdateTask(_ context.Context, ownerUserID, boardID, t
 
 	task, ok := r.tasks[taskID]
 	if !ok || task.BoardID != boardID {
+		return Task{}, Board{}, ErrNotFound
+	}
+	if task.IsArchived {
 		return Task{}, Board{}, ErrNotFound
 	}
 	if task.OwnerUserID != ownerUserID {
@@ -476,6 +632,9 @@ func (r *MemoryRepository) DeleteTask(_ context.Context, ownerUserID, boardID, t
 	if !ok || task.BoardID != boardID {
 		return Board{}, ErrNotFound
 	}
+	if task.IsArchived {
+		return Board{}, ErrNotFound
+	}
 	if task.OwnerUserID != ownerUserID {
 		return Board{}, ErrForbidden
 	}
@@ -524,6 +683,16 @@ func (r *MemoryRepository) reindexTasks(columnID string) {
 		task.UpdatedAt = now
 		r.tasks[id] = task
 	}
+}
+
+func (r *MemoryRepository) nextArchivedPosition(columnID string) int {
+	maxPosition := -1
+	for _, task := range r.tasks {
+		if task.ColumnID == columnID && task.IsArchived && task.Position > maxPosition {
+			maxPosition = task.Position
+		}
+	}
+	return maxPosition + 1
 }
 
 func bumpBoard(board Board) Board {

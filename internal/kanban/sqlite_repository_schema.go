@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 	owner_user_id TEXT NOT NULL,
 	title TEXT NOT NULL,
 	description TEXT NOT NULL,
+	is_archived INTEGER NOT NULL DEFAULT 0,
+	archived_at_ms INTEGER,
 	position INTEGER NOT NULL,
 	created_at_ms INTEGER NOT NULL,
 	updated_at_ms INTEGER NOT NULL,
@@ -65,6 +67,59 @@ func (r *SQLiteRepository) initSchema(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_boards_owner_archived ON boards(owner_user_id, is_archived, updated_at_ms)`,
 	); err != nil {
 		return fmt.Errorf("initialize sqlite schema: create archive index: %w", err)
+	}
+	if err := ensureTaskArchiveColumns(ctx, r.db); err != nil {
+		return fmt.Errorf("initialize sqlite schema: %w", err)
+	}
+	if _, err := r.db.ExecContext(
+		ctx,
+		`CREATE INDEX IF NOT EXISTS idx_tasks_board_archived ON tasks(board_id, is_archived, column_id, position)`,
+	); err != nil {
+		return fmt.Errorf("initialize sqlite schema: create task archive index: %w", err)
+	}
+
+	return nil
+}
+
+func ensureTaskArchiveColumns(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `PRAGMA table_info(tasks)`)
+	if err != nil {
+		return fmt.Errorf("load tasks table info: %w", err)
+	}
+	defer rows.Close()
+
+	hasArchivedFlag := false
+	hasArchivedAt := false
+	for rows.Next() {
+		var cid int
+		var name string
+		var ctype string
+		var notnull int
+		var dfltValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("scan tasks table info: %w", err)
+		}
+		if name == "is_archived" {
+			hasArchivedFlag = true
+		}
+		if name == "archived_at_ms" {
+			hasArchivedAt = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate tasks table info: %w", err)
+	}
+
+	if !hasArchivedFlag {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE tasks ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return fmt.Errorf("add tasks.is_archived column: %w", err)
+		}
+	}
+	if !hasArchivedAt {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE tasks ADD COLUMN archived_at_ms INTEGER`); err != nil {
+			return fmt.Errorf("add tasks.archived_at_ms column: %w", err)
+		}
 	}
 
 	return nil

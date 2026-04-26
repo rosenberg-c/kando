@@ -104,6 +104,10 @@ struct ContentView: View {
         .task {
             if processEnvironment[AppEnvironmentKey.signedIn] == "1" {
                 auth.applyUITestSignedInSession(email: processEnvironment[AppEnvironmentKey.email] ?? "ui-test@example.com")
+            } else if processEnvironment[AppEnvironmentKey.uiTestMode] == "1"
+                || processEnvironment[AppEnvironmentKey.testMode] == "1" {
+                // Keep UI tests isolated from network/session restore side effects.
+                return
             } else {
                 await auth.restoreSessionIfNeeded()
             }
@@ -120,18 +124,21 @@ private enum WorkspaceSettingsDefaultsKey {
     static let showTopBottomTaskButtons = "board.settings.task_controls.show_top_bottom"
     static let showUpDownTaskButtons = "board.settings.task_controls.show_up_down"
     static let showEditDeleteTaskButtons = "board.settings.task_controls.show_edit_delete"
+    static let showArchivedTaskActionButtons = "board.settings.task_controls.show_archived_actions"
 }
 
 private struct TaskControlVisibility {
     let showsTopBottom: Bool
     let showsUpDown: Bool
     let showsEditDelete: Bool
+    let showsArchivedActions: Bool
 }
 
 private struct TaskControlVisibilityBindings {
     let showsTopBottom: Binding<Bool>
     let showsUpDown: Binding<Bool>
     let showsEditDelete: Binding<Bool>
+    let showsArchivedActions: Binding<Bool>
 }
 
 private struct LoggedInWorkspaceView: View {
@@ -147,19 +154,25 @@ private struct LoggedInWorkspaceView: View {
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
+    @State private var viewingArchivedTask: KanbanTask?
+    @State private var pendingArchivedTaskDeletion: KanbanTask?
     @State private var isSettingsSheetPresented = false
     @State private var exportSelectionSheet: BoardExportSelectionSheetState?
     @State private var importSelectionSheet: BoardImportSelectionSheetState?
     @State private var selectedTaskID: String?
+    @State private var selectedArchivedTaskID: String?
+    @State private var showsArchivedTasks = false
     @AppStorage(WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons) private var showsTopBottomTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showUpDownTaskButtons) private var showsUpDownTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showEditDeleteTaskButtons) private var showsEditDeleteTaskButtons = true
+    @AppStorage(WorkspaceSettingsDefaultsKey.showArchivedTaskActionButtons) private var showsArchivedTaskActionButtons = true
 
     private var taskControlVisibility: TaskControlVisibility {
         TaskControlVisibility(
             showsTopBottom: showsTopBottomTaskButtons,
             showsUpDown: showsUpDownTaskButtons,
-            showsEditDelete: showsEditDeleteTaskButtons
+            showsEditDelete: showsEditDeleteTaskButtons,
+            showsArchivedActions: showsArchivedTaskActionButtons
         )
     }
 
@@ -167,7 +180,8 @@ private struct LoggedInWorkspaceView: View {
         TaskControlVisibilityBindings(
             showsTopBottom: $showsTopBottomTaskButtons,
             showsUpDown: $showsUpDownTaskButtons,
-            showsEditDelete: $showsEditDeleteTaskButtons
+            showsEditDelete: $showsEditDeleteTaskButtons,
+            showsArchivedActions: $showsArchivedTaskActionButtons
         )
     }
 
@@ -178,6 +192,7 @@ private struct LoggedInWorkspaceView: View {
         UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons)
         UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showUpDownTaskButtons)
         UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showEditDeleteTaskButtons)
+        UserDefaults.standard.set(true, forKey: WorkspaceSettingsDefaultsKey.showArchivedTaskActionButtons)
     }
 
     init(auth: AuthSessionViewModel, onSignOut: @escaping () -> Void) {
@@ -266,6 +281,33 @@ private struct LoggedInWorkspaceView: View {
                     .disabled(!board.canMutateBoardActions)
                 }
 
+                HStack(spacing: 10) {
+                    Toggle("board.archived_tasks.toggle", isOn: $showsArchivedTasks)
+                        .toggleStyle(.checkbox)
+                        .accessibilityIdentifier("workspace-toggle-show-archived")
+
+                    if board.isArchivedTasksLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityIdentifier("workspace-archived-tasks-loading")
+                    }
+
+                    if board.archivedTasksStatusIsError {
+                        Text(board.archivedTasksStatusMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .lineLimit(2)
+                            .accessibilityIdentifier("workspace-archived-tasks-error")
+
+                        Button("board.archived_tasks.retry") {
+                            Task { await board.reloadArchivedTasks() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("workspace-archived-tasks-retry")
+                    }
+                }
+
                 GeometryReader { geometry in
                     let taskListMaxHeight = max(
                         WorkspaceLayout.taskListMinHeight,
@@ -278,20 +320,44 @@ private struct LoggedInWorkspaceView: View {
                                 ColumnCard(
                                     column: column,
                                     tasks: board.tasks(for: column.id),
+                                    archivedTasks: board.archivedTasks(for: column.id),
+                                    showsArchivedTasks: showsArchivedTasks,
                                     taskListMaxHeight: taskListMaxHeight,
                                     isEnabled: board.canMutateBoardActions,
                                     onRename: { editingColumn = EditableColumn(column: column) },
                                     onDelete: {
                                         pendingColumnDeletion = EditableColumn(column: column)
                                     },
+                                    onArchiveTasks: {
+                                        Task {
+                                            await board.archiveColumnTasks(columnID: column.id)
+                                        }
+                                    },
                                     onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
                                     onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
                                     onDeleteTask: { task in
                                         pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
                                     },
+                                    onViewArchivedTask: { task in
+                                        viewingArchivedTask = task
+                                    },
+                                    onRestoreArchivedTask: { task in
+                                        Task { await board.restoreArchivedTask(taskID: task.id) }
+                                    },
+                                    onDeleteArchivedTask: { task in
+                                        pendingArchivedTaskDeletion = task
+                                    },
                                     taskControlVisibility: taskControlVisibility,
                                     selectedTaskID: selectedTaskID,
-                                    onSelectTask: { taskID in selectedTaskID = taskID },
+                                    selectedArchivedTaskID: selectedArchivedTaskID,
+                                    onSelectTask: { taskID in
+                                        selectedTaskID = taskID
+                                        selectedArchivedTaskID = nil
+                                    },
+                                    onSelectArchivedTask: { taskID in
+                                        selectedArchivedTaskID = taskID
+                                        selectedTaskID = nil
+                                    },
                                     onMoveTask: { taskID, destinationColumnID, destinationPosition in
                                         Task {
                                             await board.moveTask(
@@ -383,11 +449,23 @@ private struct LoggedInWorkspaceView: View {
         }
         .onChange(of: board.board?.id, perform: { _ in
             selectedTaskID = nil
+            selectedArchivedTaskID = nil
         })
         .onChange(of: board.columns, perform: { _ in
             guard let selectedTaskID else { return }
             if taskDetails(for: selectedTaskID) == nil {
                 self.selectedTaskID = nil
+            }
+        })
+        .onChange(of: board.archivedTasksByColumnID, perform: { _ in
+            guard let selectedArchivedTaskID else { return }
+            if archivedTaskDetails(for: selectedArchivedTaskID) == nil {
+                self.selectedArchivedTaskID = nil
+            }
+        })
+        .onChange(of: showsArchivedTasks, perform: { isVisible in
+            if !isVisible {
+                selectedArchivedTaskID = nil
             }
         })
         .sheet(item: $editingColumn) { item in
@@ -514,6 +592,9 @@ private struct LoggedInWorkspaceView: View {
                 }
             )
         }
+        .sheet(item: $viewingArchivedTask) { task in
+            ArchivedTaskDetailsSheet(task: task)
+        }
         .confirmationDialog(
             Strings.t("board.column.delete.confirm.title"),
             isPresented: Binding(
@@ -566,6 +647,33 @@ private struct LoggedInWorkspaceView: View {
                 Text(Strings.f("board.task.delete.confirm.message", task.title))
             }
         }
+        .confirmationDialog(
+            Strings.t("board.archived_task.delete.confirm.title"),
+            isPresented: Binding(
+                get: { pendingArchivedTaskDeletion != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingArchivedTaskDeletion = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(Strings.t("board.archived_task.delete.confirm.action"), role: .destructive) {
+                guard let task = pendingArchivedTaskDeletion else { return }
+                Task { await board.deleteArchivedTask(taskID: task.id) }
+                pendingArchivedTaskDeletion = nil
+            }
+            .accessibilityIdentifier("archived-task-delete-confirm-action")
+            Button(Strings.t("common.cancel"), role: .cancel) {
+                pendingArchivedTaskDeletion = nil
+            }
+            .accessibilityIdentifier("archived-task-delete-confirm-cancel")
+        } message: {
+            if let task = pendingArchivedTaskDeletion {
+                Text(Strings.f("board.archived_task.delete.confirm.message", task.title))
+            }
+        }
     }
 
     private struct SelectedTaskDetails {
@@ -576,6 +684,11 @@ private struct LoggedInWorkspaceView: View {
         let taskCount: Int
     }
 
+    private struct SelectedArchivedTaskDetails {
+        let taskID: String
+        let task: KanbanTask
+    }
+
     private enum TaskShortcutAction {
         case clearSelection
         case moveTop
@@ -583,6 +696,8 @@ private struct LoggedInWorkspaceView: View {
         case moveUp
         case moveDown
         case edit
+        case viewArchived
+        case restoreArchived
         case delete
 
         init?(event: NSEvent) {
@@ -601,6 +716,8 @@ private struct LoggedInWorkspaceView: View {
             case "u": self = .moveUp
             case "d": self = .moveDown
             case "e": self = .edit
+            case "v": self = .viewArchived
+            case "r": self = .restoreArchived
             case "x": self = .delete
             default: return nil
             }
@@ -629,56 +746,76 @@ private struct LoggedInWorkspaceView: View {
         return withSelectedTaskDetails(action)
     }
 
-    private func moveSelectedTaskUp() -> Bool {
+    private func archivedTaskDetails(for taskID: String) -> SelectedArchivedTaskDetails? {
+        for column in board.columns {
+            let archivedTasks = board.archivedTasks(for: column.id)
+            if let task = archivedTasks.first(where: { $0.id == taskID }) {
+                return SelectedArchivedTaskDetails(taskID: taskID, task: task)
+            }
+        }
+        return nil
+    }
+
+    private func withSelectedArchivedTaskDetails(_ action: (SelectedArchivedTaskDetails) -> Bool) -> Bool {
+        guard board.canMutateBoardActions,
+            showsArchivedTasks,
+            let selectedArchivedTaskID,
+            let details = archivedTaskDetails(for: selectedArchivedTaskID)
+        else {
+            return false
+        }
+        return action(details)
+    }
+
+    private func withActionableSelectedArchivedTaskDetails(_ action: (SelectedArchivedTaskDetails) -> Bool) -> Bool {
+        guard pendingArchivedTaskDeletion == nil, viewingArchivedTask == nil else { return false }
+        return withSelectedArchivedTaskDetails(action)
+    }
+
+    private func moveSelectedTask(
+        when predicate: (SelectedTaskDetails) -> Bool,
+        destinationPosition: (SelectedTaskDetails) -> Int
+    ) -> Bool {
         withSelectedTaskDetails { details in
-            guard details.index > 0 else { return false }
+            guard predicate(details) else { return false }
+            let resolvedDestinationPosition = destinationPosition(details)
             Task {
                 await board.moveTask(
                     taskID: details.taskID,
                     destinationColumnID: details.columnID,
-                    destinationPosition: details.index - 1
+                    destinationPosition: resolvedDestinationPosition
                 )
             }
             return true
         }
+    }
+
+    private func moveSelectedTaskUp() -> Bool {
+        moveSelectedTask(
+            when: { details in details.index > 0 },
+            destinationPosition: { details in details.index - 1 }
+        )
     }
 
     private func moveSelectedTaskDown() -> Bool {
-        withSelectedTaskDetails { details in
-            guard details.index < (details.taskCount - 1) else { return false }
-            Task {
-                await board.moveTask(
-                    taskID: details.taskID,
-                    destinationColumnID: details.columnID,
-                    destinationPosition: details.index + 1
-                )
-            }
-            return true
-        }
+        moveSelectedTask(
+            when: { details in details.index < (details.taskCount - 1) },
+            destinationPosition: { details in details.index + 1 }
+        )
     }
 
     private func moveSelectedTaskToTop() -> Bool {
-        withSelectedTaskDetails { details in
-            guard details.index > 0 else { return false }
-            Task {
-                await board.moveTask(taskID: details.taskID, destinationColumnID: details.columnID, destinationPosition: 0)
-            }
-            return true
-        }
+        moveSelectedTask(
+            when: { details in details.index > 0 },
+            destinationPosition: { _ in 0 }
+        )
     }
 
     private func moveSelectedTaskToBottom() -> Bool {
-        withSelectedTaskDetails { details in
-            guard details.index < (details.taskCount - 1) else { return false }
-            Task {
-                await board.moveTask(
-                    taskID: details.taskID,
-                    destinationColumnID: details.columnID,
-                    destinationPosition: details.taskCount
-                )
-            }
-            return true
-        }
+        moveSelectedTask(
+            when: { details in details.index < (details.taskCount - 1) },
+            destinationPosition: { details in details.taskCount }
+        )
     }
 
     private func editSelectedTask() -> Bool {
@@ -695,13 +832,37 @@ private struct LoggedInWorkspaceView: View {
         }
     }
 
+    private func viewSelectedArchivedTask() -> Bool {
+        withActionableSelectedArchivedTaskDetails { details in
+            viewingArchivedTask = details.task
+            return true
+        }
+    }
+
+    private func restoreSelectedArchivedTask() -> Bool {
+        withActionableSelectedArchivedTaskDetails { details in
+            Task {
+                await board.restoreArchivedTask(taskID: details.taskID)
+            }
+            return true
+        }
+    }
+
+    private func deleteSelectedArchivedTask() -> Bool {
+        withActionableSelectedArchivedTaskDetails { details in
+            pendingArchivedTaskDeletion = details.task
+            return true
+        }
+    }
+
     private func handleTaskShortcutKey(event: NSEvent) -> Bool {
         guard let action = TaskShortcutAction(event: event) else { return false }
 
         switch action {
         case .clearSelection:
-            guard selectedTaskID != nil else { return false }
+            guard selectedTaskID != nil || selectedArchivedTaskID != nil else { return false }
             selectedTaskID = nil
+            selectedArchivedTaskID = nil
             return true
         case .moveTop:
             return moveSelectedTaskToTop()
@@ -713,8 +874,15 @@ private struct LoggedInWorkspaceView: View {
             return moveSelectedTaskDown()
         case .edit:
             return editSelectedTask()
+        case .viewArchived:
+            return viewSelectedArchivedTask()
+        case .restoreArchived:
+            return restoreSelectedArchivedTask()
         case .delete:
-            return deleteSelectedTask()
+            if selectedTaskID != nil {
+                return deleteSelectedTask()
+            }
+            return deleteSelectedArchivedTask()
         }
     }
 
@@ -905,6 +1073,11 @@ private struct WorkspaceSettingsSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("board-settings-shortcuts-edit-delete")
+
+                Text("board.settings.shortcuts.archived_actions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-archived-actions")
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("board-settings-shortcuts-section")
@@ -927,6 +1100,10 @@ private struct WorkspaceSettingsSheet: View {
                 Toggle("board.settings.task_controls.edit_delete", isOn: taskControlVisibility.showsEditDelete)
                     .toggleStyle(.checkbox)
                     .accessibilityIdentifier("board-settings-task-controls-edit-delete")
+
+                Toggle("board.settings.task_controls.archived_actions", isOn: taskControlVisibility.showsArchivedActions)
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("board-settings-task-controls-archived-actions")
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("board-settings-task-controls-section")
@@ -1247,16 +1424,24 @@ private struct WorkspaceKeyMonitor: NSViewRepresentable {
 private struct ColumnCard: View {
     let column: KanbanColumn
     let tasks: [KanbanTask]
+    let archivedTasks: [KanbanTask]
+    let showsArchivedTasks: Bool
     let taskListMaxHeight: CGFloat
     let isEnabled: Bool
     let onRename: () -> Void
     let onDelete: () -> Void
+    let onArchiveTasks: () -> Void
     let onAddTask: () -> Void
     let onEditTask: (KanbanTask) -> Void
     let onDeleteTask: (KanbanTask) -> Void
+    let onViewArchivedTask: (KanbanTask) -> Void
+    let onRestoreArchivedTask: (KanbanTask) -> Void
+    let onDeleteArchivedTask: (KanbanTask) -> Void
     let taskControlVisibility: TaskControlVisibility
     let selectedTaskID: String?
+    let selectedArchivedTaskID: String?
     let onSelectTask: (String) -> Void
+    let onSelectArchivedTask: (String) -> Void
     let onMoveTask: (String, String, Int) -> Void
 
     var body: some View {
@@ -1280,6 +1465,10 @@ private struct ColumnCard: View {
                     .buttonStyle(.bordered)
                     .disabled(!isEnabled)
                     .accessibilityIdentifier("column-delete-\(column.id)")
+                Button("board.column.archive_tasks", action: onArchiveTasks)
+                    .buttonStyle(.bordered)
+                    .disabled(!isEnabled || tasks.isEmpty)
+                    .accessibilityIdentifier("column-archive-tasks-\(column.id)")
             }
 
             Divider()
@@ -1304,6 +1493,28 @@ private struct ColumnCard: View {
                                 onMoveTask(draggedTaskID, column.id, task.position)
                             }
                         )
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(Strings.f("board.column.archived_count", archivedTasks.count))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("column-archived-section-\(column.id)")
+
+                        if showsArchivedTasks {
+                            ForEach(archivedTasks, id: \.id) { archivedTask in
+                                ArchivedTaskRow(
+                                    task: archivedTask,
+                                    isEnabled: isEnabled,
+                                    taskControlVisibility: taskControlVisibility,
+                                    isSelected: selectedArchivedTaskID == archivedTask.id,
+                                    onSelect: { onSelectArchivedTask(archivedTask.id) },
+                                    onView: { onViewArchivedTask(archivedTask) },
+                                    onRestore: { onRestoreArchivedTask(archivedTask) },
+                                    onDelete: { onDeleteArchivedTask(archivedTask) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1448,6 +1659,119 @@ private struct TaskCardView: View {
             onDropTask(item.taskID)
             return true
         }
+    }
+}
+
+private struct ArchivedTaskRow: View {
+    let task: KanbanTask
+    let isEnabled: Bool
+    let taskControlVisibility: TaskControlVisibility
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onView: () -> Void
+    let onRestore: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(task.title)
+                .font(.caption.weight(.semibold))
+                .accessibilityIdentifier("archived-task-title-\(task.id)")
+
+            if !task.description.isEmpty {
+                Text(task.description)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Text(Strings.f("board.task.archived_at", task.archivedAt ?? "-"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("archived-task-time-\(task.id)")
+
+            HStack(spacing: 8) {
+                if taskControlVisibility.showsArchivedActions {
+                    Button("board.archived_task.view", action: onView)
+                        .buttonStyle(.bordered)
+                        .disabled(!isEnabled)
+                        .accessibilityIdentifier("archived-task-view-\(task.id)")
+                    Button("board.archived_task.restore", action: onRestore)
+                        .buttonStyle(.bordered)
+                        .disabled(!isEnabled)
+                        .accessibilityIdentifier("archived-task-restore-\(task.id)")
+                    Button("board.archived_task.delete", action: onDelete)
+                        .buttonStyle(.bordered)
+                        .disabled(!isEnabled)
+                        .accessibilityIdentifier("archived-task-delete-\(task.id)")
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .background(Color(NSColor.controlBackgroundColor))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("archived-task-row-\(task.id)")
+        .accessibilityValue(isSelected ? "selected" : "unselected")
+        .onTapGesture {
+            onSelect()
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+    }
+}
+
+private struct ArchivedTaskDetailsSheet: View {
+    let task: KanbanTask
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("board.archived_task.view.title")
+                .font(.title3.weight(.semibold))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("board.task.title.placeholder")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("", text: .constant(task.title))
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(true)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("board.task.description.placeholder")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: .constant(task.description))
+                    .frame(minHeight: 120)
+                    .disabled(true)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+            }
+
+            Text(Strings.f("board.task.archived_at", task.archivedAt ?? "-"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Spacer()
+                Button("common.close") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("archived-task-view-close")
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .accessibilityIdentifier("archived-task-view-sheet")
     }
 }
 

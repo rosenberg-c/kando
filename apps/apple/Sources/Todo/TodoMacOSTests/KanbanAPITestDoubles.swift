@@ -47,6 +47,10 @@ struct MockKanbanAPI: KanbanAPI {
     var updateColumnHandler: @Sendable (String, String, String, String, URL) async throws -> Void
     var reorderColumnsHandler: @Sendable (String, [String], String, URL) async throws -> Void
     var deleteColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
+    var archiveColumnTasksHandler: @Sendable (String, String, String, URL) async throws -> ColumnTaskArchiveResult
+    var listArchivedTasksByBoardHandler: @Sendable (String, String, URL) async throws -> [KanbanTask]
+    var restoreArchivedTaskHandler: @Sendable (String, String, String, URL) async throws -> KanbanTask
+    var deleteArchivedTaskHandler: @Sendable (String, String, String, URL) async throws -> Void
     var createTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var reorderTasksHandler: @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void
@@ -82,6 +86,16 @@ struct MockKanbanAPI: KanbanAPI {
         updateColumnHandler: @escaping @Sendable (String, String, String, String, URL) async throws -> Void = { _, _, _, _, _ in },
         reorderColumnsHandler: @escaping @Sendable (String, [String], String, URL) async throws -> Void = { _, _, _, _ in },
         deleteColumnHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
+        archiveColumnTasksHandler: @escaping @Sendable (String, String, String, URL) async throws -> ColumnTaskArchiveResult = { _, _, _, _ in
+            ColumnTaskArchiveResult(archivedTaskCount: 0, archivedAt: "2026-04-24T00:00:00Z")
+        },
+        listArchivedTasksByBoardHandler: @escaping @Sendable (String, String, URL) async throws -> [KanbanTask] = { _, _, _ in
+            []
+        },
+        restoreArchivedTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> KanbanTask = { _, taskID, _, _ in
+            KanbanTask(id: taskID, columnID: "column-1", title: "Restored", description: "", position: 0)
+        },
+        deleteArchivedTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
         createTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         reorderTasksHandler: @escaping @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void = { _, _, _, _ in },
@@ -120,6 +134,10 @@ struct MockKanbanAPI: KanbanAPI {
         self.updateColumnHandler = updateColumnHandler
         self.reorderColumnsHandler = reorderColumnsHandler
         self.deleteColumnHandler = deleteColumnHandler
+        self.archiveColumnTasksHandler = archiveColumnTasksHandler
+        self.listArchivedTasksByBoardHandler = listArchivedTasksByBoardHandler
+        self.restoreArchivedTaskHandler = restoreArchivedTaskHandler
+        self.deleteArchivedTaskHandler = deleteArchivedTaskHandler
         self.createTaskHandler = createTaskHandler
         self.updateTaskHandler = updateTaskHandler
         self.reorderTasksHandler = reorderTasksHandler
@@ -178,6 +196,22 @@ struct MockKanbanAPI: KanbanAPI {
 
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {
         try await deleteColumnHandler(boardID, columnID, accessToken, baseURL)
+    }
+
+    func archiveColumnTasks(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws -> ColumnTaskArchiveResult {
+        try await archiveColumnTasksHandler(boardID, columnID, accessToken, baseURL)
+    }
+
+    func listArchivedTasksByBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> [KanbanTask] {
+        try await listArchivedTasksByBoardHandler(boardID, accessToken, baseURL)
+    }
+
+    func restoreArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws -> KanbanTask {
+        try await restoreArchivedTaskHandler(boardID, taskID, accessToken, baseURL)
+    }
+
+    func deleteArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
+        try await deleteArchivedTaskHandler(boardID, taskID, accessToken, baseURL)
     }
 
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {

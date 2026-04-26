@@ -23,3 +23,12 @@
 - `API-021`: Backend archive persistence stores the pre-archive board title separately from the display `title` so restore behavior does not depend on string parsing.
 - `API-022`: `POST /boards/{boardId}/restore` accepts an explicit restore title mode (`original` or `archived`) and returns the restored board with the selected title.
 - `API-023`: Restore requests using title mode `original` fail with a stable conflict error when the original title matches an existing active board title for the same owner.
+- `API-024`: Backend API exposes a column-scoped archive endpoint for tasks at `POST /boards/{boardId}/columns/{columnId}/archive-tasks`.
+- `API-025`: Column task archive endpoint returns stable and meaningful error mapping for invalid input, missing resources, and unauthorized access (`400`/`404`/`403`).
+- `API-026`: Task export/import contracts include archived tasks per column snapshot and enforce stable format-version validation for archived-task payloads.
+- `API-027`: Backend API exposes a board-scoped archived-task listing endpoint at `GET /boards/{boardId}/tasks/archived` for workspace presentation flows.
+- `API-028`: Archived-task listing returns tasks with stable column identity and archival metadata (`columnId`, `archivedAt`) suitable for grouping by original column in clients.
+- `API-029`: Archived-task listing order is stable and deterministic (`column position`, then `archivedAt`, then `position`, then `id`) so clients do not need custom tie-breaking logic.
+- `API-030`: Backend API exposes archived-task restore endpoint at `POST /boards/{boardId}/tasks/{taskId}/restore` and restores only archived tasks owned by the caller.
+- `API-031`: Backend API exposes archived-task delete endpoint at `DELETE /boards/{boardId}/tasks/{taskId}/archived` and permanently removes only archived tasks owned by the caller.
+- `API-032`: Archived-task restore/delete endpoints return stable conflict/not-found behavior for invalid task state transitions (for example restoring active tasks or deleting non-archived tasks).

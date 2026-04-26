@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -16,6 +17,14 @@ type archiveCapable interface {
 	ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (kanban.Board, error)
 	RestoreBoard(ctx context.Context, ownerUserID, boardID string, mode kanban.RestoreBoardTitleMode) (kanban.Board, error)
 	ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]kanban.Board, error)
+}
+
+type taskArchiveCapable interface {
+	ArchiveTasksInColumn(ctx context.Context, ownerUserID, boardID, columnID string) (kanban.ColumnTaskArchiveResult, kanban.Board, error)
+	ListArchivedTasksByBoard(ctx context.Context, ownerUserID, boardID string) ([]kanban.Task, error)
+	RestoreArchivedTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Task, kanban.Board, error)
+	DeleteArchivedTask(ctx context.Context, ownerUserID, boardID, taskID string) (kanban.Board, error)
+	CreateTaskWithArchivedAt(ctx context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (kanban.Task, kanban.Board, error)
 }
 
 // RunRepositoryContractTests verifies shared repository behavior for any implementation.
@@ -367,6 +376,175 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 
 		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {
 			t.Fatalf("cleanup board: %v", err)
+		}
+	})
+
+	t.Run("ArchiveColumnTasksUseSharedArchivedTimestamp", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		archiver, ok := repo.(taskArchiveCapable)
+		if !ok {
+			t.Skip("task archive operations not implemented")
+		}
+
+		ownerUserID := "user-" + uuid.NewString()
+		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+		columnA, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "Backlog")
+		if err != nil {
+			t.Fatalf("create column A: %v", err)
+		}
+		columnB, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "Done")
+		if err != nil {
+			t.Fatalf("create column B: %v", err)
+		}
+		if _, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, columnA.ID, "A-1", ""); err != nil {
+			t.Fatalf("create task A-1: %v", err)
+		}
+		if _, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, columnA.ID, "A-2", ""); err != nil {
+			t.Fatalf("create task A-2: %v", err)
+		}
+		if _, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, columnB.ID, "B-1", ""); err != nil {
+			t.Fatalf("create task B-1: %v", err)
+		}
+
+		archiveResult, _, err := archiver.ArchiveTasksInColumn(ctx, ownerUserID, board.ID, columnA.ID)
+		if err != nil {
+			t.Fatalf("archive tasks in column: %v", err)
+		}
+		if archiveResult.ArchivedTaskCount != 2 {
+			t.Fatalf("archived task count = %d, want 2", archiveResult.ArchivedTaskCount)
+		}
+
+		details, err := repo.GetBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("get board: %v", err)
+		}
+		if len(details.Tasks) != 1 || details.Tasks[0].Title != "B-1" {
+			t.Fatalf("active tasks after archive = %+v, want only B-1", details.Tasks)
+		}
+
+		archivedTasks, err := archiver.ListArchivedTasksByBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("list archived tasks: %v", err)
+		}
+		if len(archivedTasks) != 2 {
+			t.Fatalf("archived tasks count = %d, want 2", len(archivedTasks))
+		}
+		for _, task := range archivedTasks {
+			if task.ColumnID != columnA.ID {
+				t.Fatalf("task column = %q, want %q", task.ColumnID, columnA.ID)
+			}
+			if !task.ArchivedAt.Equal(archiveResult.ArchivedAt) {
+				t.Fatalf("task archivedAt = %s, want %s", task.ArchivedAt, archiveResult.ArchivedAt)
+			}
+		}
+	})
+
+	t.Run("ArchivedTaskRestoreAndDelete", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		archiver, ok := repo.(taskArchiveCapable)
+		if !ok {
+			t.Skip("task archive operations not implemented")
+		}
+
+		ownerUserID := "user-" + uuid.NewString()
+		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+		column, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "Backlog")
+		if err != nil {
+			t.Fatalf("create column: %v", err)
+		}
+		task, _, err := repo.CreateTask(ctx, ownerUserID, board.ID, column.ID, "Old", "")
+		if err != nil {
+			t.Fatalf("create task: %v", err)
+		}
+		if _, _, err := archiver.ArchiveTasksInColumn(ctx, ownerUserID, board.ID, column.ID); err != nil {
+			t.Fatalf("archive tasks in column: %v", err)
+		}
+
+		restored, _, err := archiver.RestoreArchivedTask(ctx, ownerUserID, board.ID, task.ID)
+		if err != nil {
+			t.Fatalf("restore archived task: %v", err)
+		}
+		if restored.IsArchived {
+			t.Fatalf("restored task isArchived = true, want false")
+		}
+
+		if _, _, err := archiver.ArchiveTasksInColumn(ctx, ownerUserID, board.ID, column.ID); err != nil {
+			t.Fatalf("archive tasks in column again: %v", err)
+		}
+		if _, err := archiver.DeleteArchivedTask(ctx, ownerUserID, board.ID, task.ID); err != nil {
+			t.Fatalf("delete archived task: %v", err)
+		}
+		archivedTasks, err := archiver.ListArchivedTasksByBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("list archived tasks: %v", err)
+		}
+		if len(archivedTasks) != 0 {
+			t.Fatalf("archived tasks count = %d, want 0", len(archivedTasks))
+		}
+	})
+
+	t.Run("CreateArchivedTaskAppendsPositionAfterArchivedDelete", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		archiver, ok := repo.(taskArchiveCapable)
+		if !ok {
+			t.Skip("task archive operations not implemented")
+		}
+
+		ownerUserID := "user-" + uuid.NewString()
+		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+		column, _, err := repo.CreateColumn(ctx, ownerUserID, board.ID, "Backlog")
+		if err != nil {
+			t.Fatalf("create column: %v", err)
+		}
+
+		timestampA := time.Date(2026, 4, 20, 10, 0, 0, 0, time.UTC)
+		timestampB := timestampA.Add(time.Minute)
+		timestampC := timestampB.Add(time.Minute)
+
+		archivedA, _, err := archiver.CreateTaskWithArchivedAt(ctx, ownerUserID, board.ID, column.ID, "A", "", &timestampA)
+		if err != nil {
+			t.Fatalf("create archived task A: %v", err)
+		}
+		archivedB, _, err := archiver.CreateTaskWithArchivedAt(ctx, ownerUserID, board.ID, column.ID, "B", "", &timestampB)
+		if err != nil {
+			t.Fatalf("create archived task B: %v", err)
+		}
+
+		if _, err := archiver.DeleteArchivedTask(ctx, ownerUserID, board.ID, archivedA.ID); err != nil {
+			t.Fatalf("delete archived task A: %v", err)
+		}
+
+		archivedC, _, err := archiver.CreateTaskWithArchivedAt(ctx, ownerUserID, board.ID, column.ID, "C", "", &timestampC)
+		if err != nil {
+			t.Fatalf("create archived task C: %v", err)
+		}
+
+		archivedTasks, err := archiver.ListArchivedTasksByBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("list archived tasks: %v", err)
+		}
+
+		positionsByID := map[string]int{}
+		for _, task := range archivedTasks {
+			positionsByID[task.ID] = task.Position
+		}
+		if got := positionsByID[archivedB.ID]; got != 1 {
+			t.Fatalf("archived task B position = %d, want 1", got)
+		}
+		if got := positionsByID[archivedC.ID]; got != 2 {
+			t.Fatalf("archived task C position = %d, want 2", got)
 		}
 	})
 

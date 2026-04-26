@@ -28,6 +28,27 @@ const (
 	Original RestoreBoardRequestTitleMode = "original"
 )
 
+// ArchiveColumnTasksResponse defines model for ArchiveColumnTasksResponse.
+type ArchiveColumnTasksResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema            *string   `json:"$schema,omitempty"`
+	ArchivedAt        time.Time `json:"archivedAt"`
+	ArchivedTaskCount int64     `json:"archivedTaskCount"`
+}
+
+// ArchivedTask defines model for ArchivedTask.
+type ArchivedTask struct {
+	ArchivedAt  time.Time          `json:"archivedAt"`
+	BoardId     openapi_types.UUID `json:"boardId"`
+	ColumnId    openapi_types.UUID `json:"columnId"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	Description string             `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+	Position    int64              `json:"position"`
+	Title       string             `json:"title"`
+	UpdatedAt   time.Time          `json:"updatedAt"`
+}
+
 // AuthLoginRequest defines model for AuthLoginRequest.
 type AuthLoginRequest struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -222,8 +243,9 @@ type TaskExportBundleRequest struct {
 
 // TaskExportColumn defines model for TaskExportColumn.
 type TaskExportColumn struct {
-	Tasks []TaskExportTask `json:"tasks"`
-	Title string           `json:"title"`
+	ArchivedTasks *[]TaskExportTask `json:"archivedTasks,omitempty"`
+	Tasks         []TaskExportTask  `json:"tasks"`
+	Title         string            `json:"title"`
 }
 
 // TaskExportPayload defines model for TaskExportPayload.
@@ -236,8 +258,9 @@ type TaskExportPayload struct {
 
 // TaskExportTask defines model for TaskExportTask.
 type TaskExportTask struct {
-	Description string `json:"description"`
-	Title       string `json:"title"`
+	ArchivedAt  *time.Time `json:"archivedAt,omitempty"`
+	Description string     `json:"description"`
+	Title       string     `json:"title"`
 }
 
 // TaskImportBundleBoardResult defines model for TaskImportBundleBoardResult.
@@ -357,6 +380,11 @@ type UpdateColumnParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
+// ArchiveColumnTasksParams defines parameters for ArchiveColumnTasks.
+type ArchiveColumnTasksParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // RestoreBoardParams defines parameters for RestoreBoard.
 type RestoreBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -364,6 +392,11 @@ type RestoreBoardParams struct {
 
 // CreateTaskParams defines parameters for CreateTask.
 type CreateTaskParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// ListArchivedTasksByBoardParams defines parameters for ListArchivedTasksByBoard.
+type ListArchivedTasksByBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -379,6 +412,16 @@ type DeleteTaskParams struct {
 
 // UpdateTaskParams defines parameters for UpdateTask.
 type UpdateTaskParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// DeleteArchivedTaskParams defines parameters for DeleteArchivedTask.
+type DeleteArchivedTaskParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// RestoreArchivedTaskParams defines parameters for RestoreArchivedTask.
+type RestoreArchivedTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -573,6 +616,9 @@ type ClientInterface interface {
 
 	UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ArchiveColumnTasks request
+	ArchiveColumnTasks(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RestoreBoardWithBody request with any body
 	RestoreBoardWithBody(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -582,6 +628,9 @@ type ClientInterface interface {
 	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListArchivedTasksByBoard request
+	ListArchivedTasksByBoard(ctx context.Context, boardId string, params *ListArchivedTasksByBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReorderTasksWithBody request with any body
 	ReorderTasksWithBody(ctx context.Context, boardId string, params *ReorderTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -595,6 +644,12 @@ type ClientInterface interface {
 	UpdateTaskWithBody(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateTask(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteArchivedTask request
+	DeleteArchivedTask(ctx context.Context, boardId string, taskId string, params *DeleteArchivedTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestoreArchivedTask request
+	RestoreArchivedTask(ctx context.Context, boardId string, taskId string, params *RestoreArchivedTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetHello request
 	GetHello(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -927,6 +982,18 @@ func (c *Client) UpdateColumn(ctx context.Context, boardId string, columnId stri
 	return c.Client.Do(req)
 }
 
+func (c *Client) ArchiveColumnTasks(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewArchiveColumnTasksRequest(c.Server, boardId, columnId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) RestoreBoardWithBody(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestoreBoardRequestWithBody(c.Server, boardId, params, contentType, body)
 	if err != nil {
@@ -965,6 +1032,18 @@ func (c *Client) CreateTaskWithBody(ctx context.Context, boardId string, params 
 
 func (c *Client) CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateTaskRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListArchivedTasksByBoard(ctx context.Context, boardId string, params *ListArchivedTasksByBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListArchivedTasksByBoardRequest(c.Server, boardId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1025,6 +1104,30 @@ func (c *Client) UpdateTaskWithBody(ctx context.Context, boardId string, taskId 
 
 func (c *Client) UpdateTask(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateTaskRequest(c.Server, boardId, taskId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteArchivedTask(ctx context.Context, boardId string, taskId string, params *DeleteArchivedTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteArchivedTaskRequest(c.Server, boardId, taskId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RestoreArchivedTask(ctx context.Context, boardId string, taskId string, params *RestoreArchivedTaskParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreArchivedTaskRequest(c.Server, boardId, taskId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1935,6 +2038,62 @@ func NewUpdateColumnRequestWithBody(server string, boardId string, columnId stri
 	return req, nil
 }
 
+// NewArchiveColumnTasksRequest generates requests for ArchiveColumnTasks
+func NewArchiveColumnTasksRequest(server string, boardId string, columnId string, params *ArchiveColumnTasksParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "columnId", runtime.ParamLocationPath, columnId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/columns/%s/archive-tasks", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRestoreBoardRequest calls the generic RestoreBoard builder with application/json body
 func NewRestoreBoardRequest(server string, boardId string, params *RestoreBoardParams, body RestoreBoardJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -2040,6 +2199,55 @@ func NewCreateTaskRequestWithBody(server string, boardId string, params *CreateT
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListArchivedTasksByBoardRequest generates requests for ListArchivedTasksByBoard
+func NewListArchivedTasksByBoardRequest(server string, boardId string, params *ListArchivedTasksByBoardParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/archived", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if params != nil {
 
@@ -2246,6 +2454,118 @@ func NewUpdateTaskRequestWithBody(server string, boardId string, taskId string, 
 	return req, nil
 }
 
+// NewDeleteArchivedTaskRequest generates requests for DeleteArchivedTask
+func NewDeleteArchivedTaskRequest(server string, boardId string, taskId string, params *DeleteArchivedTaskParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "taskId", runtime.ParamLocationPath, taskId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/%s/archived", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRestoreArchivedTaskRequest generates requests for RestoreArchivedTask
+func NewRestoreArchivedTaskRequest(server string, boardId string, taskId string, params *RestoreArchivedTaskParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "taskId", runtime.ParamLocationPath, taskId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/%s/restore", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetHelloRequest generates requests for GetHello
 func NewGetHelloRequest(server string) (*http.Request, error) {
 	var err error
@@ -2429,6 +2749,9 @@ type ClientWithResponsesInterface interface {
 
 	UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
 
+	// ArchiveColumnTasksWithResponse request
+	ArchiveColumnTasksWithResponse(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*ArchiveColumnTasksResponse, error)
+
 	// RestoreBoardWithBodyWithResponse request with any body
 	RestoreBoardWithBodyWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error)
 
@@ -2438,6 +2761,9 @@ type ClientWithResponsesInterface interface {
 	CreateTaskWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
 	CreateTaskWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
+
+	// ListArchivedTasksByBoardWithResponse request
+	ListArchivedTasksByBoardWithResponse(ctx context.Context, boardId string, params *ListArchivedTasksByBoardParams, reqEditors ...RequestEditorFn) (*ListArchivedTasksByBoardResponse, error)
 
 	// ReorderTasksWithBodyWithResponse request with any body
 	ReorderTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ReorderTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReorderTasksResponse, error)
@@ -2451,6 +2777,12 @@ type ClientWithResponsesInterface interface {
 	UpdateTaskWithBodyWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error)
 
 	UpdateTaskWithResponse(ctx context.Context, boardId string, taskId string, params *UpdateTaskParams, body UpdateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTaskResponse, error)
+
+	// DeleteArchivedTaskWithResponse request
+	DeleteArchivedTaskWithResponse(ctx context.Context, boardId string, taskId string, params *DeleteArchivedTaskParams, reqEditors ...RequestEditorFn) (*DeleteArchivedTaskResponse, error)
+
+	// RestoreArchivedTaskWithResponse request
+	RestoreArchivedTaskWithResponse(ctx context.Context, boardId string, taskId string, params *RestoreArchivedTaskParams, reqEditors ...RequestEditorFn) (*RestoreArchivedTaskResponse, error)
 
 	// GetHelloWithResponse request
 	GetHelloWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHelloResponse, error)
@@ -2846,6 +3178,29 @@ func (r UpdateColumnResponse) StatusCode() int {
 	return 0
 }
 
+type ArchiveColumnTasksResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *ArchiveColumnTasksResponse
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ArchiveColumnTasksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ArchiveColumnTasksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type RestoreBoardResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -2886,6 +3241,29 @@ func (r CreateTaskResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateTaskResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListArchivedTasksByBoardResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]ArchivedTask
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ListArchivedTasksByBoardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListArchivedTasksByBoardResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2954,6 +3332,51 @@ func (r UpdateTaskResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateTaskResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteArchivedTaskResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteArchivedTaskResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteArchivedTaskResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RestoreArchivedTaskResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *Task
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r RestoreArchivedTaskResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestoreArchivedTaskResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3238,6 +3661,15 @@ func (c *ClientWithResponses) UpdateColumnWithResponse(ctx context.Context, boar
 	return ParseUpdateColumnResponse(rsp)
 }
 
+// ArchiveColumnTasksWithResponse request returning *ArchiveColumnTasksResponse
+func (c *ClientWithResponses) ArchiveColumnTasksWithResponse(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*ArchiveColumnTasksResponse, error) {
+	rsp, err := c.ArchiveColumnTasks(ctx, boardId, columnId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseArchiveColumnTasksResponse(rsp)
+}
+
 // RestoreBoardWithBodyWithResponse request with arbitrary body returning *RestoreBoardResponse
 func (c *ClientWithResponses) RestoreBoardWithBodyWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error) {
 	rsp, err := c.RestoreBoardWithBody(ctx, boardId, params, contentType, body, reqEditors...)
@@ -3270,6 +3702,15 @@ func (c *ClientWithResponses) CreateTaskWithResponse(ctx context.Context, boardI
 		return nil, err
 	}
 	return ParseCreateTaskResponse(rsp)
+}
+
+// ListArchivedTasksByBoardWithResponse request returning *ListArchivedTasksByBoardResponse
+func (c *ClientWithResponses) ListArchivedTasksByBoardWithResponse(ctx context.Context, boardId string, params *ListArchivedTasksByBoardParams, reqEditors ...RequestEditorFn) (*ListArchivedTasksByBoardResponse, error) {
+	rsp, err := c.ListArchivedTasksByBoard(ctx, boardId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListArchivedTasksByBoardResponse(rsp)
 }
 
 // ReorderTasksWithBodyWithResponse request with arbitrary body returning *ReorderTasksResponse
@@ -3313,6 +3754,24 @@ func (c *ClientWithResponses) UpdateTaskWithResponse(ctx context.Context, boardI
 		return nil, err
 	}
 	return ParseUpdateTaskResponse(rsp)
+}
+
+// DeleteArchivedTaskWithResponse request returning *DeleteArchivedTaskResponse
+func (c *ClientWithResponses) DeleteArchivedTaskWithResponse(ctx context.Context, boardId string, taskId string, params *DeleteArchivedTaskParams, reqEditors ...RequestEditorFn) (*DeleteArchivedTaskResponse, error) {
+	rsp, err := c.DeleteArchivedTask(ctx, boardId, taskId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteArchivedTaskResponse(rsp)
+}
+
+// RestoreArchivedTaskWithResponse request returning *RestoreArchivedTaskResponse
+func (c *ClientWithResponses) RestoreArchivedTaskWithResponse(ctx context.Context, boardId string, taskId string, params *RestoreArchivedTaskParams, reqEditors ...RequestEditorFn) (*RestoreArchivedTaskResponse, error) {
+	rsp, err := c.RestoreArchivedTask(ctx, boardId, taskId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreArchivedTaskResponse(rsp)
 }
 
 // GetHelloWithResponse request returning *GetHelloResponse
@@ -3866,6 +4325,39 @@ func ParseUpdateColumnResponse(rsp *http.Response) (*UpdateColumnResponse, error
 	return response, nil
 }
 
+// ParseArchiveColumnTasksResponse parses an HTTP response from a ArchiveColumnTasksWithResponse call
+func ParseArchiveColumnTasksResponse(rsp *http.Response) (*ArchiveColumnTasksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ArchiveColumnTasksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ArchiveColumnTasksResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRestoreBoardResponse parses an HTTP response from a RestoreBoardWithResponse call
 func ParseRestoreBoardResponse(rsp *http.Response) (*RestoreBoardResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -3915,6 +4407,39 @@ func ParseCreateTaskResponse(rsp *http.Response) (*CreateTaskResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Task
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListArchivedTasksByBoardResponse parses an HTTP response from a ListArchivedTasksByBoardWithResponse call
+func ParseListArchivedTasksByBoardResponse(rsp *http.Response) (*ListArchivedTasksByBoardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListArchivedTasksByBoardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ArchivedTask
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -4000,6 +4525,65 @@ func ParseUpdateTaskResponse(rsp *http.Response) (*UpdateTaskResponse, error) {
 	}
 
 	response := &UpdateTaskResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Task
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteArchivedTaskResponse parses an HTTP response from a DeleteArchivedTaskWithResponse call
+func ParseDeleteArchivedTaskResponse(rsp *http.Response) (*DeleteArchivedTaskResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteArchivedTaskResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRestoreArchivedTaskResponse parses an HTTP response from a RestoreArchivedTaskWithResponse call
+func ParseRestoreArchivedTaskResponse(rsp *http.Response) (*RestoreArchivedTaskResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestoreArchivedTaskResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

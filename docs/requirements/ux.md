@@ -28,6 +28,15 @@
 - `UX-026`: Export/import primary actions stay disabled until at least one board is checked.
 - `UX-027`: Restoring an archived board prompts for restore title mode so the user can choose `original` or `archived` title before restore is submitted.
 - `UX-028`: If restore title mode `original` would collide with an existing active board title, the UI shows a clear warning and disables the restore submit action.
+- `UX-029`: Each column includes an archived-task section in the board workspace so archived content remains discoverable without leaving the board.
+- `UX-030`: Workspace includes a `Show archived tasks` toggle that expands/collapses archived-task sections across all columns.
+- `UX-031`: Archived-task sections show loading and failure feedback states independent from active-task rendering so archived fetch failures are visible and recoverable.
+- `UX-032`: Archived-task controls follow accessibility-id conventions for deterministic UI automation (`column-archived-section-*`, `workspace-toggle-show-archived`).
+- `UX-033`: Archived-task rows expose explicit `View`, `Restore`, and `Delete` actions with stable accessibility identifiers.
+- `UX-034`: Restoring or deleting archived tasks surfaces success/failure status feedback without blocking active-task rendering.
+- `UX-035`: Archived-task delete uses destructive confirmation before permanent removal.
+- `UX-036`: The keyboard shortcuts section lists archived-task row shortcuts (`v` view, `r` restore, `x` delete) and their selection dependency.
+- `UX-037`: Settings includes an archived-task action visibility checkbox and persists its state locally across app launches.
 
 ## Platform Applicability
 
@@ -59,3 +68,12 @@
 - `UX-026`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-027`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-028`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-029`: macOS (required), iOS (planned), TUI (planned).
+- `UX-030`: macOS (required), iOS (planned), TUI (planned).
+- `UX-031`: macOS (required), iOS (planned), TUI (planned).
+- `UX-032`: macOS (required), iOS (planned), TUI (planned).
+- `UX-033`: macOS (required), iOS (planned), TUI (planned).
+- `UX-034`: macOS (required), iOS (planned), TUI (planned).
+- `UX-035`: macOS (required), iOS (planned), TUI (planned).
+- `UX-036`: macOS (required), iOS (planned), TUI (planned).
+- `UX-037`: macOS (required), iOS (planned), TUI (planned).

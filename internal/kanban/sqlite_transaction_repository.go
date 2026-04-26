@@ -126,6 +126,10 @@ func (r *sqliteTxRepository) DeleteColumn(context.Context, string, string, strin
 }
 
 func (r *sqliteTxRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
+	return r.CreateTaskWithArchivedAt(ctx, ownerUserID, boardID, columnID, title, description, nil)
+}
+
+func (r *sqliteTxRepository) CreateTaskWithArchivedAt(ctx context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (Task, Board, error) {
 	board, err := getOwnedBoard(ctx, r.tx, ownerUserID, boardID)
 	if err != nil {
 		return Task{}, Board{}, err
@@ -135,7 +139,18 @@ func (r *sqliteTxRepository) CreateTask(ctx context.Context, ownerUserID, boardI
 		return Task{}, Board{}, err
 	}
 
-	position, err := nextPosition(ctx, r.tx, `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ?`, columnID)
+	archivedFlag := 0
+	archivedAtMS := any(nil)
+	positionQuery := `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ? AND is_archived = 0`
+	if archivedAt != nil {
+		normalizedArchivedAt := fromUnixMillis(toUnixMillis(archivedAt.UTC()))
+		archivedFlag = 1
+		archivedAtMS = toUnixMillis(normalizedArchivedAt)
+		positionQuery = `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ? AND is_archived = 1`
+		archivedAt = &normalizedArchivedAt
+	}
+
+	position, err := nextPosition(ctx, r.tx, positionQuery, columnID)
 	if err != nil {
 		return Task{}, Board{}, err
 	}
@@ -148,21 +163,27 @@ func (r *sqliteTxRepository) CreateTask(ctx context.Context, ownerUserID, boardI
 		OwnerUserID: ownerUserID,
 		Title:       title,
 		Description: description,
+		IsArchived:  archivedFlag == 1,
 		Position:    position,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+	if archivedAt != nil {
+		task.ArchivedAt = archivedAt.UTC()
+	}
 
 	if _, err := r.tx.ExecContext(
 		ctx,
-		`INSERT INTO tasks (id, board_id, column_id, owner_user_id, title, description, position, created_at_ms, updated_at_ms)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO tasks (id, board_id, column_id, owner_user_id, title, description, is_archived, archived_at_ms, position, created_at_ms, updated_at_ms)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		task.ID,
 		task.BoardID,
 		task.ColumnID,
 		task.OwnerUserID,
 		task.Title,
 		task.Description,
+		task.IsArchived,
+		archivedAtMS,
 		task.Position,
 		toUnixMillis(task.CreatedAt),
 		toUnixMillis(task.UpdatedAt),

@@ -52,6 +52,18 @@ type Task struct {
 	UpdatedAt   time.Time `json:"updatedAt" format:"date-time"`
 }
 
+type ArchivedTask struct {
+	ID          string    `json:"id" format:"uuid"`
+	BoardID     string    `json:"boardId" format:"uuid"`
+	ColumnID    string    `json:"columnId" format:"uuid"`
+	Title       string    `json:"title" minLength:"1" maxLength:"200"`
+	Description string    `json:"description" maxLength:"4000"`
+	Position    int       `json:"position" minimum:"0"`
+	ArchivedAt  time.Time `json:"archivedAt" format:"date-time"`
+	CreatedAt   time.Time `json:"createdAt" format:"date-time"`
+	UpdatedAt   time.Time `json:"updatedAt" format:"date-time"`
+}
+
 type CreateBoardRequest struct {
 	Title string `json:"title" minLength:"1" maxLength:"120"`
 }
@@ -76,6 +88,11 @@ type CreateColumnRequest struct {
 
 type UpdateColumnRequest struct {
 	Title string `json:"title" minLength:"1" maxLength:"120"`
+}
+
+type ArchiveColumnTasksResponse struct {
+	ArchivedTaskCount int       `json:"archivedTaskCount" minimum:"0"`
+	ArchivedAt        time.Time `json:"archivedAt" format:"date-time"`
 }
 
 type ReorderColumnsRequest struct {
@@ -110,13 +127,15 @@ type TaskExportPayload struct {
 }
 
 type TaskExportColumn struct {
-	Title string           `json:"title" minLength:"1" maxLength:"120"`
-	Tasks []TaskExportTask `json:"tasks" nullable:"false"`
+	Title         string           `json:"title" minLength:"1" maxLength:"120"`
+	Tasks         []TaskExportTask `json:"tasks" nullable:"false"`
+	ArchivedTasks []TaskExportTask `json:"archivedTasks,omitempty" nullable:"false"`
 }
 
 type TaskExportTask struct {
-	Title       string `json:"title" minLength:"1" maxLength:"200"`
-	Description string `json:"description" maxLength:"4000"`
+	Title       string  `json:"title" minLength:"1" maxLength:"200"`
+	Description string  `json:"description" maxLength:"4000"`
+	ArchivedAt  *string `json:"archivedAt,omitempty" format:"date-time"`
 }
 
 type TaskImportResponse struct {

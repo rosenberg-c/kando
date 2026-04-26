@@ -65,6 +65,10 @@ type columnOutput struct {
 	Body contracts.Column
 }
 
+type archiveColumnTasksOutput struct {
+	Body contracts.ArchiveColumnTasksResponse
+}
+
 type updateColumnInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
@@ -139,14 +143,25 @@ type tasksOutput struct {
 	Body []contracts.Task
 }
 
+type archivedTasksOutput struct {
+	Body []contracts.ArchivedTask
+}
+
 const (
-	taskExportFormatVersion       = 1
-	taskExportBundleFormatVersion = 2
+	taskExportFormatVersionV1       = 1
+	taskExportFormatVersionV2       = 2
+	taskExportBundleFormatVersionV2 = 2
+	taskExportBundleFormatVersionV3 = 3
 )
 
 type archiveRepository interface {
 	kanban.Repository
 	kanban.ArchiveCapableRepository
+}
+
+type taskArchiveRepository interface {
+	kanban.Repository
+	kanban.TaskArchiveCapableRepository
 }
 
 func registerKanban(api huma.API, deps Dependencies) {
@@ -447,6 +462,34 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
+		OperationID: "archiveColumnTasks",
+		Method:      http.MethodPost,
+		Path:        "/boards/{boardId}/columns/{columnId}/archive-tasks",
+		Summary:     "Archive all active tasks in a column",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *columnPathInput) (*archiveColumnTasksOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		taskArchiveRepo, ok := repo.(taskArchiveRepository)
+		if !ok {
+			return nil, mapKanbanError(kanban.ErrNotImplemented)
+		}
+
+		result, _, err := taskArchiveRepo.ArchiveTasksInColumn(ctx, identity.UserID, input.BoardID, input.ColumnID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return &archiveColumnTasksOutput{Body: contracts.ArchiveColumnTasksResponse{
+			ArchivedTaskCount: result.ArchivedTaskCount,
+			ArchivedAt:        result.ArchivedAt,
+		}}, nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID: "createTask",
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/tasks",
@@ -464,6 +507,86 @@ func registerKanban(api huma.API, deps Dependencies) {
 		}
 
 		return &taskOutput{Body: toContractTask(task)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "listArchivedTasksByBoard",
+		Method:      http.MethodGet,
+		Path:        "/boards/{boardId}/tasks/archived",
+		Summary:     "List archived tasks for a board",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *boardPathInput) (*archivedTasksOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		taskArchiveRepo, ok := repo.(taskArchiveRepository)
+		if !ok {
+			return nil, mapKanbanError(kanban.ErrNotImplemented)
+		}
+
+		archivedTasks, err := taskArchiveRepo.ListArchivedTasksByBoard(ctx, identity.UserID, input.BoardID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		out := make([]contracts.ArchivedTask, 0, len(archivedTasks))
+		for _, task := range archivedTasks {
+			out = append(out, toContractArchivedTask(task))
+		}
+
+		return &archivedTasksOutput{Body: out}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "restoreArchivedTask",
+		Method:      http.MethodPost,
+		Path:        "/boards/{boardId}/tasks/{taskId}/restore",
+		Summary:     "Restore an archived task",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *taskPathInput) (*taskOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		taskArchiveRepo, ok := repo.(taskArchiveRepository)
+		if !ok {
+			return nil, mapKanbanError(kanban.ErrNotImplemented)
+		}
+
+		task, _, err := taskArchiveRepo.RestoreArchivedTask(ctx, identity.UserID, input.BoardID, input.TaskID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return &taskOutput{Body: toContractTask(task)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "deleteArchivedTask",
+		Method:        http.MethodDelete,
+		Path:          "/boards/{boardId}/tasks/{taskId}/archived",
+		Summary:       "Permanently delete an archived task",
+		DefaultStatus: http.StatusNoContent,
+		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *taskPathInput) (*struct{}, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		taskArchiveRepo, ok := repo.(taskArchiveRepository)
+		if !ok {
+			return nil, mapKanbanError(kanban.ErrNotImplemented)
+		}
+
+		if _, err := taskArchiveRepo.DeleteArchivedTask(ctx, identity.UserID, input.BoardID, input.TaskID); err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		return nil, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -675,40 +798,80 @@ func toContractTask(task kanban.Task) contracts.Task {
 	}
 }
 
+func toContractArchivedTask(task kanban.Task) contracts.ArchivedTask {
+	return contracts.ArchivedTask{
+		ID:          task.ID,
+		BoardID:     task.BoardID,
+		ColumnID:    task.ColumnID,
+		Title:       task.Title,
+		Description: task.Description,
+		Position:    task.Position,
+		ArchivedAt:  task.ArchivedAt,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+	}
+}
+
 func buildTaskExportPayload(details kanban.BoardDetails, exportedAt time.Time) contracts.TaskExportPayload {
 	columns := append([]kanban.Column(nil), details.Columns...)
 	sort.Slice(columns, func(i, j int) bool {
 		return columns[i].Position < columns[j].Position
 	})
 
-	tasksByColumnID := make(map[string][]kanban.Task)
+	activeTasksByColumnID := make(map[string][]kanban.Task)
+	archivedTasksByColumnID := make(map[string][]kanban.Task)
 	for _, task := range details.Tasks {
-		tasksByColumnID[task.ColumnID] = append(tasksByColumnID[task.ColumnID], task)
+		if task.IsArchived {
+			archivedTasksByColumnID[task.ColumnID] = append(archivedTasksByColumnID[task.ColumnID], task)
+			continue
+		}
+		activeTasksByColumnID[task.ColumnID] = append(activeTasksByColumnID[task.ColumnID], task)
 	}
 
 	exportColumns := make([]contracts.TaskExportColumn, 0, len(columns))
 	for _, column := range columns {
-		tasks := tasksByColumnID[column.ID]
-		sort.Slice(tasks, func(i, j int) bool {
-			return tasks[i].Position < tasks[j].Position
+		activeTasks := activeTasksByColumnID[column.ID]
+		sort.Slice(activeTasks, func(i, j int) bool {
+			return activeTasks[i].Position < activeTasks[j].Position
 		})
 
-		exportTasks := make([]contracts.TaskExportTask, 0, len(tasks))
-		for _, task := range tasks {
+		exportTasks := make([]contracts.TaskExportTask, 0, len(activeTasks))
+		for _, task := range activeTasks {
 			exportTasks = append(exportTasks, contracts.TaskExportTask{
 				Title:       task.Title,
 				Description: task.Description,
 			})
 		}
 
+		archivedTasks := archivedTasksByColumnID[column.ID]
+		sort.Slice(archivedTasks, func(i, j int) bool {
+			if !archivedTasks[i].ArchivedAt.Equal(archivedTasks[j].ArchivedAt) {
+				return archivedTasks[i].ArchivedAt.Before(archivedTasks[j].ArchivedAt)
+			}
+			if archivedTasks[i].Position != archivedTasks[j].Position {
+				return archivedTasks[i].Position < archivedTasks[j].Position
+			}
+			return archivedTasks[i].ID < archivedTasks[j].ID
+		})
+		exportArchivedTasks := make([]contracts.TaskExportTask, 0, len(archivedTasks))
+		for _, task := range archivedTasks {
+			archivedAt := task.ArchivedAt.Format(time.RFC3339Nano)
+			exportArchivedTasks = append(exportArchivedTasks, contracts.TaskExportTask{
+				Title:       task.Title,
+				Description: task.Description,
+				ArchivedAt:  &archivedAt,
+			})
+		}
+
 		exportColumns = append(exportColumns, contracts.TaskExportColumn{
-			Title: column.Title,
-			Tasks: exportTasks,
+			Title:         column.Title,
+			Tasks:         exportTasks,
+			ArchivedTasks: exportArchivedTasks,
 		})
 	}
 
 	return contracts.TaskExportPayload{
-		FormatVersion: taskExportFormatVersion,
+		FormatVersion: taskExportFormatVersionV2,
 		BoardTitle:    details.Board.Title,
 		ExportedAt:    exportedAt.Format(time.RFC3339),
 		Columns:       exportColumns,
@@ -728,6 +891,16 @@ func exportTasksBundle(ctx context.Context, repo kanban.Repository, ownerUserID 
 			return contracts.TaskExportBundle{}, err
 		}
 
+		if archiveRepo, ok := repo.(interface {
+			ListArchivedTasksByBoard(ctx context.Context, ownerUserID, boardID string) ([]kanban.Task, error)
+		}); ok {
+			archivedTasks, err := archiveRepo.ListArchivedTasksByBoard(ctx, ownerUserID, boardID)
+			if err != nil {
+				return contracts.TaskExportBundle{}, err
+			}
+			details.Tasks = append(details.Tasks, archivedTasks...)
+		}
+
 		snapshots = append(snapshots, contracts.TaskExportBundleBoard{
 			SourceBoardID:    details.Board.ID,
 			SourceBoardTitle: details.Board.Title,
@@ -736,14 +909,14 @@ func exportTasksBundle(ctx context.Context, repo kanban.Repository, ownerUserID 
 	}
 
 	return contracts.TaskExportBundle{
-		FormatVersion: taskExportBundleFormatVersion,
+		FormatVersion: taskExportBundleFormatVersionV3,
 		ExportedAt:    exportedAt.Format(time.RFC3339),
 		Boards:        snapshots,
 	}, nil
 }
 
 func importTasksBundle(ctx context.Context, repo kanban.Repository, ownerUserID string, request contracts.TaskImportBundleRequest) (contracts.TaskImportBundleResponse, error) {
-	if request.Bundle.FormatVersion != taskExportBundleFormatVersion {
+	if !isSupportedBundleFormatVersion(request.Bundle.FormatVersion) {
 		return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
 	}
 	if len(request.Bundle.Boards) == 0 {
@@ -768,7 +941,7 @@ func importTasksBundle(ctx context.Context, repo kanban.Repository, ownerUserID 
 		if sourceTitle == "" {
 			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
 		}
-		if snapshot.Payload.FormatVersion != taskExportFormatVersion {
+		if !isSupportedPayloadFormatVersion(snapshot.Payload.FormatVersion) {
 			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
 		}
 		if _, exists := bundleBySourceID[sourceID]; exists {
@@ -1043,6 +1216,11 @@ func importTasksForResolvedColumns(
 	columnsByTitle map[string]string,
 	onCreate ...func(taskID string),
 ) (int, error) {
+	fallbackArchivedAt := time.Now().UTC()
+	if parsedExportedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(payload.ExportedAt)); err == nil {
+		fallbackArchivedAt = parsedExportedAt.UTC()
+	}
+
 	importedTaskCount := 0
 	for _, column := range payload.Columns {
 		title := strings.TrimSpace(column.Title)
@@ -1054,13 +1232,38 @@ func importTasksForResolvedColumns(
 			continue
 		}
 
+		for _, task := range column.ArchivedTasks {
+			taskTitle := strings.TrimSpace(task.Title)
+			if taskTitle == "" {
+				continue
+			}
+
+			archivedAt := fallbackArchivedAt
+			if task.ArchivedAt != nil {
+				parsedArchivedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(*task.ArchivedAt))
+				if err != nil {
+					return 0, kanban.ErrInvalidInput
+				}
+				archivedAt = parsedArchivedAt.UTC()
+			}
+
+			createdTask, _, err := createImportedTask(ctx, repo, ownerUserID, boardID, columnID, taskTitle, task.Description, &archivedAt)
+			if err != nil {
+				return 0, err
+			}
+			if len(onCreate) > 0 && onCreate[0] != nil {
+				onCreate[0](createdTask.ID)
+			}
+			importedTaskCount++
+		}
+
 		for _, task := range column.Tasks {
 			taskTitle := strings.TrimSpace(task.Title)
 			if taskTitle == "" {
 				continue
 			}
 
-			createdTask, _, err := repo.CreateTask(ctx, ownerUserID, boardID, columnID, taskTitle, task.Description)
+			createdTask, _, err := createImportedTask(ctx, repo, ownerUserID, boardID, columnID, taskTitle, task.Description, nil)
 			if err != nil {
 				return 0, err
 			}
@@ -1072,4 +1275,33 @@ func importTasksForResolvedColumns(
 	}
 
 	return importedTaskCount, nil
+}
+
+func createImportedTask(
+	ctx context.Context,
+	repo kanban.Repository,
+	ownerUserID, boardID, columnID, title, description string,
+	archivedAt *time.Time,
+) (kanban.Task, kanban.Board, error) {
+	if archivedAt == nil {
+		return repo.CreateTask(ctx, ownerUserID, boardID, columnID, title, description)
+	}
+
+	archiveRepo, ok := repo.(interface {
+		CreateTaskWithArchivedAt(ctx context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (kanban.Task, kanban.Board, error)
+	})
+	if !ok {
+		return kanban.Task{}, kanban.Board{}, kanban.ErrNotImplemented
+	}
+
+	archivedAtUTC := archivedAt.UTC()
+	return archiveRepo.CreateTaskWithArchivedAt(ctx, ownerUserID, boardID, columnID, title, description, &archivedAtUTC)
+}
+
+func isSupportedBundleFormatVersion(version int) bool {
+	return version == taskExportBundleFormatVersionV2 || version == taskExportBundleFormatVersionV3
+}
+
+func isSupportedPayloadFormatVersion(version int) bool {
+	return version == taskExportFormatVersionV1 || version == taskExportFormatVersionV2
 }

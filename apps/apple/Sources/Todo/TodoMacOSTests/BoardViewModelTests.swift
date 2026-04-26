@@ -380,6 +380,226 @@ struct BoardViewModelTests {
         #expect(viewModel.debugMessage.contains("detail=column has tasks"))
     }
 
+    @Test func archiveColumnTasksArchivesOnlySelectedColumnAndReloads() async {
+        // Requirements: COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let before = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-a", title: "Backlog", position: 0),
+                KanbanColumn(id: "column-b", title: "Done", position: 1),
+            ],
+            tasks: [
+                KanbanTask(id: "task-a1", columnID: "column-a", title: "A1", description: "", position: 0),
+                KanbanTask(id: "task-a2", columnID: "column-a", title: "A2", description: "", position: 1),
+                KanbanTask(id: "task-b1", columnID: "column-b", title: "B1", description: "", position: 0),
+            ]
+        )
+        let after = KanbanBoardDetails(
+            board: board,
+            columns: before.columns,
+            tasks: [
+                KanbanTask(id: "task-b1", columnID: "column-b", title: "B1", description: "", position: 0),
+            ]
+        )
+        let getBoardCount = AsyncCounter()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in
+                let count = await getBoardCount.incrementAndGet()
+                return count == 1 ? before : after
+            },
+            archiveColumnTasksHandler: { boardID, columnID, _, _ in
+                #expect(boardID == board.id)
+                #expect(columnID == "column-a")
+                return ColumnTaskArchiveResult(archivedTaskCount: 2, archivedAt: "2026-04-26T10:00:00Z")
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.tasks(for: "column-a").count == 2)
+
+        let didArchive = await viewModel.archiveColumnTasks(columnID: "column-a")
+
+        #expect(didArchive)
+        #expect(viewModel.tasks(for: "column-a").isEmpty)
+        #expect(viewModel.tasks(for: "column-b").map(\.title) == ["B1"])
+        #expect(viewModel.statusIsError == false)
+        #expect(viewModel.statusMessage.contains("2"))
+    }
+
+    @Test func reloadBoardGroupsArchivedTasksByOriginalColumn() async {
+        // Requirements: TASK-023, TASK-024, TASK-026, UX-029
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-a", title: "Backlog", position: 0),
+                KanbanColumn(id: "column-b", title: "Done", position: 1)
+            ],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-a", title: "Active", description: "", position: 0)
+            ]
+        )
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            listArchivedTasksByBoardHandler: { _, _, _ in
+                [
+                    KanbanTask(id: "arch-1", columnID: "column-a", title: "Old A", description: "", position: 0, isArchived: true, archivedAt: "2026-04-26T10:00:00Z"),
+                    KanbanTask(id: "arch-2", columnID: "column-b", title: "Old B", description: "", position: 0, isArchived: true, archivedAt: "2026-04-26T11:00:00Z")
+                ]
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        #expect(viewModel.tasks(for: "column-a").map(\.title) == ["Active"])
+        #expect(viewModel.archivedTasks(for: "column-a").map(\.title) == ["Old A"])
+        #expect(viewModel.archivedTasks(for: "column-b").map(\.title) == ["Old B"])
+        #expect(viewModel.archivedTasksStatusIsError == false)
+    }
+
+    @Test func archivedTaskLoadFailureDoesNotBlockActiveBoardRender() async {
+        // Requirement: UX-031
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-a", title: "Backlog", position: 0)],
+            tasks: [KanbanTask(id: "task-1", columnID: "column-a", title: "Active", description: "", position: 0)]
+        )
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            listArchivedTasksByBoardHandler: { _, _, _ in
+                throw KanbanAPIError.unexpectedStatus(
+                    code: 500,
+                    operation: "listArchivedTasksByBoard",
+                    title: "Internal",
+                    detail: "archived fetch failed"
+                )
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        #expect(viewModel.board?.id == board.id)
+        #expect(viewModel.tasks(for: "column-a").map(\.title) == ["Active"])
+        #expect(viewModel.archivedTasks(for: "column-a").isEmpty)
+        #expect(viewModel.archivedTasksStatusIsError)
+        #expect(viewModel.archivedTasksStatusMessage.contains("archived fetch failed"))
+        #expect(viewModel.statusIsError == false)
+    }
+
+    @Test func restoreArchivedTaskMovesTaskBackToActiveColumn() async {
+        // Requirements: TASK-027, TASK-029, UX-034
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let getBoardCount = AsyncCounter()
+
+        let before = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-a", title: "Backlog", position: 0)],
+            tasks: []
+        )
+        let after = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-a", title: "Backlog", position: 0)],
+            tasks: [KanbanTask(id: "task-archived", columnID: "column-a", title: "Old", description: "", position: 0)]
+        )
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in
+                let count = await getBoardCount.incrementAndGet()
+                return count == 1 ? before : after
+            },
+            listArchivedTasksByBoardHandler: { _, _, _ in
+                [KanbanTask(id: "task-archived", columnID: "column-a", title: "Old", description: "", position: 0, isArchived: true, archivedAt: "2026-04-26T10:00:00Z")]
+            },
+            restoreArchivedTaskHandler: { _, taskID, _, _ in
+                KanbanTask(id: taskID, columnID: "column-a", title: "Old", description: "", position: 0)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.archivedTasks(for: "column-a").count == 1)
+        let didRestore = await viewModel.restoreArchivedTask(taskID: "task-archived")
+
+        #expect(didRestore)
+        #expect(viewModel.tasks(for: "column-a").map(\.title) == ["Old"])
+        #expect(viewModel.statusIsError == false)
+    }
+
+    @Test func deleteArchivedTaskRemovesArchivedEntry() async {
+        // Requirements: TASK-028, UX-034
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let getBoardCount = AsyncCounter()
+
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-a", title: "Backlog", position: 0)],
+            tasks: []
+        )
+
+        let archivedState = ArchivedTaskState(initial: [
+            KanbanTask(id: "task-archived", columnID: "column-a", title: "Old", description: "", position: 0, isArchived: true, archivedAt: "2026-04-26T10:00:00Z")
+        ])
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in
+                _ = await getBoardCount.incrementAndGet()
+                return details
+            },
+            listArchivedTasksByBoardHandler: { _, _, _ in await archivedState.current() },
+            deleteArchivedTaskHandler: { _, taskID, _, _ in
+                await archivedState.remove(taskID: taskID)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        #expect(viewModel.archivedTasks(for: "column-a").count == 1)
+
+        let didDelete = await viewModel.deleteArchivedTask(taskID: "task-archived")
+
+        #expect(didDelete)
+        #expect(viewModel.archivedTasks(for: "column-a").isEmpty)
+        #expect(viewModel.statusIsError == false)
+    }
+
     @Test func reorderTasksConflictSurfacesStatusDetails() async {
         // Requirements: UX-006, API-005
         let board = KanbanBoard(id: "board-1", title: "Main")
@@ -863,6 +1083,22 @@ private actor MutableBoardList {
 
     func remove(boardID: String) {
         boards.removeAll { $0.id == boardID }
+    }
+}
+
+private actor ArchivedTaskState {
+    private var tasks: [KanbanTask]
+
+    init(initial: [KanbanTask]) {
+        tasks = initial
+    }
+
+    func current() -> [KanbanTask] {
+        tasks
+    }
+
+    func remove(taskID: String) {
+        tasks.removeAll { $0.id == taskID }
     }
 }
 

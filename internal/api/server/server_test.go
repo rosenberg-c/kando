@@ -416,6 +416,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/columns", http.MethodPost)
 	assertPathMethod("/boards/{boardId}/columns/{columnId}", http.MethodPatch)
 	assertPathMethod("/boards/{boardId}/columns/{columnId}", http.MethodDelete)
+	assertPathMethod("/boards/{boardId}/columns/{columnId}/archive-tasks", http.MethodPost)
 	assertPathMethod("/boards/{boardId}/columns/order", http.MethodPut)
 	assertPathMethod("/boards/{boardId}/tasks", http.MethodPost)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodPatch)
@@ -488,6 +489,19 @@ func TestOpenAPIDefinesReorderTasksContract(t *testing.T) {
 	}
 	if _, ok := response.Content["application/json"]; !ok {
 		t.Fatal("missing application/json response schema for reorder tasks operation")
+	}
+}
+
+func TestOpenAPIDefinesArchiveColumnTasksContract(t *testing.T) {
+	// Requirement: API-024
+	t.Parallel()
+
+	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/{boardId}/columns/{columnId}/archive-tasks")
+	if requestRef != "" {
+		t.Fatalf("request schema ref = %q, want empty", requestRef)
+	}
+	if responseRef != "#/components/schemas/ArchiveColumnTasksResponse" {
+		t.Fatalf("response schema ref = %q, want %q", responseRef, "#/components/schemas/ArchiveColumnTasksResponse")
 	}
 }
 
@@ -568,12 +582,13 @@ func requireOpenAPIPostJSONSchemaRefs(t *testing.T, pathKey string) (string, str
 	}
 
 	requestBody := path.Post.RequestBody
-	if requestBody == nil {
-		t.Fatalf("missing request body for POST %s", pathKey)
-	}
-	requestMediaType, ok := requestBody.Content["application/json"]
-	if !ok || requestMediaType == nil || requestMediaType.Schema == nil {
-		t.Fatalf("missing application/json request schema for POST %s", pathKey)
+	requestRef := ""
+	if requestBody != nil {
+		requestMediaType, ok := requestBody.Content["application/json"]
+		if !ok || requestMediaType == nil || requestMediaType.Schema == nil {
+			t.Fatalf("missing application/json request schema for POST %s", pathKey)
+		}
+		requestRef = requestMediaType.Schema.Ref
 	}
 
 	response := path.Post.Responses["200"]
@@ -585,7 +600,7 @@ func requireOpenAPIPostJSONSchemaRefs(t *testing.T, pathKey string) (string, str
 		t.Fatalf("missing application/json response schema for POST %s", pathKey)
 	}
 
-	return requestMediaType.Schema.Ref, responseMediaType.Schema.Ref
+	return requestRef, responseMediaType.Schema.Ref
 }
 
 func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
@@ -1281,6 +1296,287 @@ func TestKanbanReorderTasksReturnsForbiddenForOtherOwner(t *testing.T) {
 	}
 }
 
+func TestKanbanArchiveColumnTasksArchivesOnlySelectedColumnWithSharedArchivedAt(t *testing.T) {
+	// Requirements: API-024, COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	columnAID := createColumnWithTitle(t, mux, boardID, "Backlog")
+	columnBID := createColumnWithTitle(t, mux, boardID, "Done")
+	_ = createTaskWithTitle(t, mux, boardID, columnAID, "Plan", "")
+	_ = createTaskWithTitle(t, mux, boardID, columnAID, "Build", "")
+	_ = createTaskWithTitle(t, mux, boardID, columnBID, "Ship", "")
+
+	archiveReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnAID+"/archive-tasks", nil)
+	archiveReq.Header.Set("Authorization", "Bearer token")
+	archiveRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRecorder, archiveReq)
+
+	if archiveRecorder.Code != http.StatusOK {
+		t.Fatalf("archive status = %d, want %d body=%s", archiveRecorder.Code, http.StatusOK, archiveRecorder.Body.String())
+	}
+
+	var archiveResponse struct {
+		ArchivedTaskCount int    `json:"archivedTaskCount"`
+		ArchivedAt        string `json:"archivedAt"`
+	}
+	if err := json.Unmarshal(archiveRecorder.Body.Bytes(), &archiveResponse); err != nil {
+		t.Fatalf("decode archive response: %v", err)
+	}
+	if archiveResponse.ArchivedTaskCount != 2 {
+		t.Fatalf("archivedTaskCount = %d, want 2", archiveResponse.ArchivedTaskCount)
+	}
+	if strings.TrimSpace(archiveResponse.ArchivedAt) == "" {
+		t.Fatal("expected archivedAt")
+	}
+
+	board := getBoardDetails(t, mux, boardID)
+	if boardHasTaskTitle(board, "Plan") || boardHasTaskTitle(board, "Build") {
+		t.Fatalf("board active tasks = %+v, expected archived tasks hidden", board.Tasks)
+	}
+	if !boardHasTaskTitle(board, "Ship") {
+		t.Fatalf("board active tasks = %+v, expected Ship", board.Tasks)
+	}
+
+	exportBody, _ := json.Marshal(map[string]any{"boardIds": []string{boardID}})
+	exportReq := httptest.NewRequest(http.MethodPost, "/boards/tasks/export", bytes.NewReader(exportBody))
+	exportReq.Header.Set("Content-Type", "application/json")
+	exportReq.Header.Set("Authorization", "Bearer token")
+	exportRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(exportRecorder, exportReq)
+
+	if exportRecorder.Code != http.StatusOK {
+		t.Fatalf("export status = %d, want %d body=%s", exportRecorder.Code, http.StatusOK, exportRecorder.Body.String())
+	}
+
+	var exportPayload struct {
+		Boards []struct {
+			Payload struct {
+				Columns []struct {
+					Title         string `json:"title"`
+					ArchivedTasks []struct {
+						Title      string `json:"title"`
+						ArchivedAt string `json:"archivedAt"`
+					} `json:"archivedTasks"`
+				} `json:"columns"`
+			} `json:"payload"`
+		} `json:"boards"`
+	}
+	if err := json.Unmarshal(exportRecorder.Body.Bytes(), &exportPayload); err != nil {
+		t.Fatalf("decode export response: %v", err)
+	}
+	if len(exportPayload.Boards) != 1 {
+		t.Fatalf("boards count = %d, want 1", len(exportPayload.Boards))
+	}
+
+	backlogFound := false
+	for _, column := range exportPayload.Boards[0].Payload.Columns {
+		if column.Title != "Backlog" {
+			continue
+		}
+		backlogFound = true
+		if len(column.ArchivedTasks) != 2 {
+			t.Fatalf("backlog archived task count = %d, want 2", len(column.ArchivedTasks))
+		}
+		for _, archivedTask := range column.ArchivedTasks {
+			if archivedTask.ArchivedAt != archiveResponse.ArchivedAt {
+				t.Fatalf("archivedAt = %q, want %q", archivedTask.ArchivedAt, archiveResponse.ArchivedAt)
+			}
+		}
+	}
+	if !backlogFound {
+		t.Fatalf("export columns missing Backlog: %+v", exportPayload.Boards[0].Payload.Columns)
+	}
+}
+
+func TestKanbanArchiveColumnTasksReturnsForbiddenForOtherOwner(t *testing.T) {
+	// Requirement: API-025
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	muxOwner := newKanbanMuxForUser(repo, "owner")
+	boardID := createBoard(t, muxOwner)
+	columnID := createColumn(t, muxOwner, boardID)
+
+	muxIntruder := newKanbanMuxForUser(repo, "intruder")
+	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnID+"/archive-tasks", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	muxIntruder.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+}
+
+func TestKanbanDeleteColumnReturnsConflictWhenArchivedTasksExist(t *testing.T) {
+	// Requirements: COL-RULE-004, COL-RULE-005
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	columnID := createColumnWithTitle(t, mux, boardID, "Backlog")
+	_ = createTaskWithTitle(t, mux, boardID, columnID, "Plan", "")
+
+	archiveReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnID+"/archive-tasks", nil)
+	archiveReq.Header.Set("Authorization", "Bearer token")
+	archiveRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRecorder, archiveReq)
+	if archiveRecorder.Code != http.StatusOK {
+		t.Fatalf("archive status = %d, want %d body=%s", archiveRecorder.Code, http.StatusOK, archiveRecorder.Body.String())
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/boards/"+boardID+"/columns/"+columnID, nil)
+	deleteReq.Header.Set("Authorization", "Bearer token")
+	deleteRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(deleteRecorder, deleteReq)
+
+	if deleteRecorder.Code != http.StatusConflict {
+		t.Fatalf("delete status = %d, want %d body=%s", deleteRecorder.Code, http.StatusConflict, deleteRecorder.Body.String())
+	}
+	if !strings.Contains(deleteRecorder.Body.String(), "column has archived tasks") {
+		t.Fatalf("delete response = %s, want archived-task conflict detail", deleteRecorder.Body.String())
+	}
+}
+
+func TestKanbanRestoreAndDeleteArchivedTaskLifecycle(t *testing.T) {
+	// Requirements: API-030, API-031, API-032, TASK-027, TASK-028, TASK-029
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	columnID := createColumnWithTitle(t, mux, boardID, "Backlog")
+	archivedTaskID := createTaskWithTitle(t, mux, boardID, columnID, "Old", "desc")
+
+	archiveReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnID+"/archive-tasks", nil)
+	archiveReq.Header.Set("Authorization", "Bearer token")
+	archiveRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRecorder, archiveReq)
+	if archiveRecorder.Code != http.StatusOK {
+		t.Fatalf("archive status = %d, want %d body=%s", archiveRecorder.Code, http.StatusOK, archiveRecorder.Body.String())
+	}
+
+	restoreReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/"+archivedTaskID+"/restore", nil)
+	restoreReq.Header.Set("Authorization", "Bearer token")
+	restoreRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(restoreRecorder, restoreReq)
+	if restoreRecorder.Code != http.StatusOK {
+		t.Fatalf("restore status = %d, want %d body=%s", restoreRecorder.Code, http.StatusOK, restoreRecorder.Body.String())
+	}
+
+	activeBoard := getBoardDetails(t, mux, boardID)
+	if !boardHasTaskTitle(activeBoard, "Old") {
+		t.Fatalf("active tasks after restore = %+v, expected restored task", activeBoard.Tasks)
+	}
+
+	restoreAgainReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/"+archivedTaskID+"/restore", nil)
+	restoreAgainReq.Header.Set("Authorization", "Bearer token")
+	restoreAgainRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(restoreAgainRecorder, restoreAgainReq)
+	if restoreAgainRecorder.Code != http.StatusConflict {
+		t.Fatalf("restore active status = %d, want %d body=%s", restoreAgainRecorder.Code, http.StatusConflict, restoreAgainRecorder.Body.String())
+	}
+
+	archiveAgainReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnID+"/archive-tasks", nil)
+	archiveAgainReq.Header.Set("Authorization", "Bearer token")
+	archiveAgainRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(archiveAgainRecorder, archiveAgainReq)
+	if archiveAgainRecorder.Code != http.StatusOK {
+		t.Fatalf("archive again status = %d, want %d body=%s", archiveAgainRecorder.Code, http.StatusOK, archiveAgainRecorder.Body.String())
+	}
+
+	deleteArchivedReq := httptest.NewRequest(http.MethodDelete, "/boards/"+boardID+"/tasks/"+archivedTaskID+"/archived", nil)
+	deleteArchivedReq.Header.Set("Authorization", "Bearer token")
+	deleteArchivedRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(deleteArchivedRecorder, deleteArchivedReq)
+	if deleteArchivedRecorder.Code != http.StatusNoContent {
+		t.Fatalf("delete archived status = %d, want %d body=%s", deleteArchivedRecorder.Code, http.StatusNoContent, deleteArchivedRecorder.Body.String())
+	}
+
+	archivedListReq := httptest.NewRequest(http.MethodGet, "/boards/"+boardID+"/tasks/archived", nil)
+	archivedListReq.Header.Set("Authorization", "Bearer token")
+	archivedListRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(archivedListRecorder, archivedListReq)
+	if archivedListRecorder.Code != http.StatusOK {
+		t.Fatalf("list archived status = %d, want %d body=%s", archivedListRecorder.Code, http.StatusOK, archivedListRecorder.Body.String())
+	}
+	var archivedTasks []map[string]any
+	if err := json.Unmarshal(archivedListRecorder.Body.Bytes(), &archivedTasks); err != nil {
+		t.Fatalf("decode archived list: %v", err)
+	}
+	if len(archivedTasks) != 0 {
+		t.Fatalf("archived tasks = %+v, want empty after delete", archivedTasks)
+	}
+}
+
+func TestKanbanListArchivedTasksByBoardReturnsColumnScopedArchivedTasks(t *testing.T) {
+	// Requirements: API-027, API-028, API-029, TASK-023, TASK-026
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	columnAID := createColumnWithTitle(t, mux, boardID, "Backlog")
+	columnBID := createColumnWithTitle(t, mux, boardID, "Done")
+	_ = createTaskWithTitle(t, mux, boardID, columnAID, "A1", "desc-a1")
+	_ = createTaskWithTitle(t, mux, boardID, columnAID, "A2", "desc-a2")
+	_ = createTaskWithTitle(t, mux, boardID, columnBID, "B1", "desc-b1")
+
+	archiveReqA := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnAID+"/archive-tasks", nil)
+	archiveReqA.Header.Set("Authorization", "Bearer token")
+	archiveRecorderA := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRecorderA, archiveReqA)
+	if archiveRecorderA.Code != http.StatusOK {
+		t.Fatalf("archive backlog status = %d, want %d body=%s", archiveRecorderA.Code, http.StatusOK, archiveRecorderA.Body.String())
+	}
+
+	archiveReqB := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/columns/"+columnBID+"/archive-tasks", nil)
+	archiveReqB.Header.Set("Authorization", "Bearer token")
+	archiveRecorderB := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRecorderB, archiveReqB)
+	if archiveRecorderB.Code != http.StatusOK {
+		t.Fatalf("archive done status = %d, want %d body=%s", archiveRecorderB.Code, http.StatusOK, archiveRecorderB.Body.String())
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/boards/"+boardID+"/tasks/archived", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var archivedTasks []struct {
+		ID          string `json:"id"`
+		ColumnID    string `json:"columnId"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		ArchivedAt  string `json:"archivedAt"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &archivedTasks); err != nil {
+		t.Fatalf("decode archived tasks response: %v", err)
+	}
+	if len(archivedTasks) != 3 {
+		t.Fatalf("archived tasks count = %d, want 3", len(archivedTasks))
+	}
+
+	if archivedTasks[0].ColumnID != columnAID || archivedTasks[1].ColumnID != columnAID || archivedTasks[2].ColumnID != columnBID {
+		t.Fatalf("unexpected archived task column order: %+v", archivedTasks)
+	}
+	if strings.TrimSpace(archivedTasks[0].ArchivedAt) == "" || strings.TrimSpace(archivedTasks[1].ArchivedAt) == "" || strings.TrimSpace(archivedTasks[2].ArchivedAt) == "" {
+		t.Fatalf("expected archivedAt values: %+v", archivedTasks)
+	}
+}
+
 func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
 	// Requirements: API-007, BOARD-005, BOARD-007
 	t.Parallel()
@@ -1332,15 +1628,15 @@ func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
 		t.Fatalf("decode export response: %v", err)
 	}
 
-	if bundle.FormatVersion != 2 {
-		t.Fatalf("bundle formatVersion = %d, want 2", bundle.FormatVersion)
+	if bundle.FormatVersion != 3 {
+		t.Fatalf("bundle formatVersion = %d, want 3", bundle.FormatVersion)
 	}
 	if len(bundle.Boards) != 1 {
 		t.Fatalf("bundle boards count = %d, want 1", len(bundle.Boards))
 	}
 	payload := bundle.Boards[0].Payload
-	if payload.FormatVersion != 1 {
-		t.Fatalf("formatVersion = %d, want 1", payload.FormatVersion)
+	if payload.FormatVersion != 2 {
+		t.Fatalf("formatVersion = %d, want 2", payload.FormatVersion)
 	}
 	if payload.BoardTitle != "Main Board" {
 		t.Fatalf("boardTitle = %q, want %q", payload.BoardTitle, "Main Board")
@@ -1409,8 +1705,8 @@ func TestKanbanExportTasksBundleReturnsSelectedBoardSnapshots(t *testing.T) {
 		t.Fatalf("decode bundle export response: %v", err)
 	}
 
-	if payload.FormatVersion != 2 {
-		t.Fatalf("formatVersion = %d, want 2", payload.FormatVersion)
+	if payload.FormatVersion != 3 {
+		t.Fatalf("formatVersion = %d, want 3", payload.FormatVersion)
 	}
 	if strings.TrimSpace(payload.ExportedAt) == "" {
 		t.Fatal("expected exportedAt")
@@ -1424,8 +1720,8 @@ func TestKanbanExportTasksBundleReturnsSelectedBoardSnapshots(t *testing.T) {
 	if payload.Boards[1].SourceBoardID != boardBID || payload.Boards[1].SourceBoardTitle != "Project B" {
 		t.Fatalf("second snapshot = %+v", payload.Boards[1])
 	}
-	if payload.Boards[0].Payload.FormatVersion != 1 || payload.Boards[1].Payload.FormatVersion != 1 {
-		t.Fatalf("nested format versions = %d,%d, want 1,1", payload.Boards[0].Payload.FormatVersion, payload.Boards[1].Payload.FormatVersion)
+	if payload.Boards[0].Payload.FormatVersion != 2 || payload.Boards[1].Payload.FormatVersion != 2 {
+		t.Fatalf("nested format versions = %d,%d, want 2,2", payload.Boards[0].Payload.FormatVersion, payload.Boards[1].Payload.FormatVersion)
 	}
 }
 
@@ -1447,6 +1743,117 @@ func TestKanbanExportTasksBundleRejectsInvalidBoardID(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+}
+
+func TestKanbanImportTasksRestoresArchivedTasksForColumn(t *testing.T) {
+	// Requirements: API-026, BOARD-026, BOARD-027, BOARD-028
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoardWithTitle(t, mux, "Project A")
+
+	requestBody, _ := json.Marshal(map[string]any{
+		"sourceBoardIds": []string{boardID},
+		"bundle": map[string]any{
+			"formatVersion": 3,
+			"exportedAt":    "2026-04-24T00:00:00Z",
+			"boards": []map[string]any{
+				{
+					"sourceBoardId":    boardID,
+					"sourceBoardTitle": "Project A",
+					"payload": map[string]any{
+						"formatVersion": 2,
+						"boardTitle":    "Project A",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns": []map[string]any{{
+							"title":         "Backlog",
+							"tasks":         []map[string]any{{"title": "Plan", "description": ""}},
+							"archivedTasks": []map[string]any{{"title": "Old Task", "description": "", "archivedAt": "2026-04-23T10:00:00Z"}},
+						}},
+					},
+				},
+			},
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	board := getBoardDetails(t, mux, boardID)
+	if !boardHasTaskTitle(board, "Plan") {
+		t.Fatalf("active tasks = %+v, want Plan", board.Tasks)
+	}
+	if boardHasTaskTitle(board, "Old Task") {
+		t.Fatalf("active tasks = %+v, did not expect archived task", board.Tasks)
+	}
+
+	exportBody, _ := json.Marshal(map[string]any{"boardIds": []string{boardID}})
+	exportRequest := httptest.NewRequest(http.MethodPost, "/boards/tasks/export", bytes.NewReader(exportBody))
+	exportRequest.Header.Set("Content-Type", "application/json")
+	exportRequest.Header.Set("Authorization", "Bearer token")
+	exportRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(exportRecorder, exportRequest)
+
+	if exportRecorder.Code != http.StatusOK {
+		t.Fatalf("export status = %d, want %d body=%s", exportRecorder.Code, http.StatusOK, exportRecorder.Body.String())
+	}
+
+	var payload struct {
+		FormatVersion int `json:"formatVersion"`
+		Boards        []struct {
+			Payload struct {
+				FormatVersion int `json:"formatVersion"`
+				Columns       []struct {
+					Title string `json:"title"`
+					Tasks []struct {
+						Title string `json:"title"`
+					} `json:"tasks"`
+					ArchivedTasks []struct {
+						Title      string `json:"title"`
+						ArchivedAt string `json:"archivedAt"`
+					} `json:"archivedTasks"`
+				} `json:"columns"`
+			} `json:"payload"`
+		} `json:"boards"`
+	}
+	if err := json.Unmarshal(exportRecorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode export response: %v", err)
+	}
+	if payload.FormatVersion != 3 {
+		t.Fatalf("bundle formatVersion = %d, want 3", payload.FormatVersion)
+	}
+	if payload.Boards[0].Payload.FormatVersion != 2 {
+		t.Fatalf("payload formatVersion = %d, want 2", payload.Boards[0].Payload.FormatVersion)
+	}
+
+	backlogFound := false
+	for _, column := range payload.Boards[0].Payload.Columns {
+		if column.Title != "Backlog" {
+			continue
+		}
+		backlogFound = true
+		if len(column.Tasks) != 1 || column.Tasks[0].Title != "Plan" {
+			t.Fatalf("active tasks = %+v, want [Plan]", column.Tasks)
+		}
+		if len(column.ArchivedTasks) != 1 || column.ArchivedTasks[0].Title != "Old Task" {
+			t.Fatalf("archived tasks = %+v, want [Old Task]", column.ArchivedTasks)
+		}
+		if column.ArchivedTasks[0].ArchivedAt != "2026-04-23T10:00:00Z" {
+			t.Fatalf("archivedAt = %q, want %q", column.ArchivedTasks[0].ArchivedAt, "2026-04-23T10:00:00Z")
+		}
+	}
+	if !backlogFound {
+		t.Fatalf("missing Backlog column in export: %+v", payload.Boards[0].Payload.Columns)
 	}
 }
 

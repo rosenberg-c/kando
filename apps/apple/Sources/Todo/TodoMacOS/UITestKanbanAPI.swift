@@ -173,7 +173,7 @@ actor UITestKanbanAPI: KanbanAPI {
         return KanbanBoardDetails(
             board: board,
             columns: columnsByBoardID[boardID] ?? [],
-            tasks: tasksByBoardID[boardID] ?? []
+            tasks: (tasksByBoardID[boardID] ?? []).filter { !$0.isArchived }
         )
     }
 
@@ -204,7 +204,7 @@ actor UITestKanbanAPI: KanbanAPI {
 
     func deleteColumn(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws {
         await maybeDelay()
-        if (tasksByBoardID[boardID] ?? []).contains(where: { $0.columnID == columnID }) {
+        if (tasksByBoardID[boardID] ?? []).contains(where: { $0.columnID == columnID && !$0.isArchived }) {
             throw KanbanAPIError.unexpectedStatus(
                 code: 409,
                 operation: "deleteColumn",
@@ -221,10 +221,105 @@ actor UITestKanbanAPI: KanbanAPI {
         columnsByBoardID[boardID] = columns
     }
 
+    func archiveColumnTasks(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws -> ColumnTaskArchiveResult {
+        await maybeDelay()
+        guard tasksByBoardID[boardID] != nil else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "archiveColumnTasks", title: "Not Found", detail: "board not found")
+        }
+
+        let archivedAt = ISO8601DateFormatter().string(from: Date())
+        var tasks = tasksByBoardID[boardID] ?? []
+        var archivedCount = 0
+        for index in tasks.indices {
+            guard tasks[index].columnID == columnID, !tasks[index].isArchived else { continue }
+            tasks[index] = KanbanTask(
+                id: tasks[index].id,
+                columnID: tasks[index].columnID,
+                title: tasks[index].title,
+                description: tasks[index].description,
+                position: tasks[index].position,
+                isArchived: true,
+                archivedAt: archivedAt
+            )
+            archivedCount += 1
+        }
+        tasksByBoardID[boardID] = tasks
+
+        return ColumnTaskArchiveResult(archivedTaskCount: archivedCount, archivedAt: archivedAt)
+    }
+
+    func listArchivedTasksByBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> [KanbanTask] {
+        await maybeDelay()
+        let columns = (columnsByBoardID[boardID] ?? []).sorted { $0.position < $1.position }
+        let columnOrder: [String: Int] = Dictionary(uniqueKeysWithValues: columns.enumerated().map { ($1.id, $0) })
+
+        return (tasksByBoardID[boardID] ?? [])
+            .filter { $0.isArchived }
+            .sorted {
+                let leftColumn = columnOrder[$0.columnID, default: Int.max]
+                let rightColumn = columnOrder[$1.columnID, default: Int.max]
+                if leftColumn != rightColumn {
+                    return leftColumn < rightColumn
+                }
+                if $0.archivedAt != $1.archivedAt {
+                    return ($0.archivedAt ?? "") < ($1.archivedAt ?? "")
+                }
+                if $0.position != $1.position {
+                    return $0.position < $1.position
+                }
+                return $0.id < $1.id
+            }
+    }
+
+    func restoreArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws -> KanbanTask {
+        await maybeDelay()
+        guard var tasks = tasksByBoardID[boardID] else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "restoreArchivedTask", title: "Not Found", detail: "board not found")
+        }
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "restoreArchivedTask", title: "Not Found", detail: "task not found")
+        }
+
+        let task = tasks[index]
+        guard task.isArchived else {
+            throw KanbanAPIError.unexpectedStatus(code: 409, operation: "restoreArchivedTask", title: "Conflict", detail: "task is not archived")
+        }
+
+        let nextPosition = (tasks.filter { $0.columnID == task.columnID && !$0.isArchived }.map(\.position).max() ?? -1) + 1
+        let restored = KanbanTask(
+            id: task.id,
+            columnID: task.columnID,
+            title: task.title,
+            description: task.description,
+            position: nextPosition,
+            isArchived: false,
+            archivedAt: nil
+        )
+        tasks[index] = restored
+        tasksByBoardID[boardID] = tasks
+        return restored
+    }
+
+    func deleteArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
+        guard var tasks = tasksByBoardID[boardID] else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "deleteArchivedTask", title: "Not Found", detail: "board not found")
+        }
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else {
+            throw KanbanAPIError.unexpectedStatus(code: 404, operation: "deleteArchivedTask", title: "Not Found", detail: "task not found")
+        }
+        guard tasks[index].isArchived else {
+            throw KanbanAPIError.unexpectedStatus(code: 409, operation: "deleteArchivedTask", title: "Conflict", detail: "task is not archived")
+        }
+
+        tasks.remove(at: index)
+        tasksByBoardID[boardID] = tasks
+    }
+
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws {
         await maybeDelay()
         var tasks = tasksByBoardID[boardID] ?? []
-        let nextPosition = (tasks.filter { $0.columnID == columnID }.map(\.position).max() ?? -1) + 1
+        let nextPosition = (tasks.filter { $0.columnID == columnID && !$0.isArchived }.map(\.position).max() ?? -1) + 1
         tasks.append(KanbanTask(id: UUID().uuidString, columnID: columnID, title: title, description: description, position: nextPosition))
         tasksByBoardID[boardID] = tasks
     }
@@ -305,9 +400,13 @@ actor UITestKanbanAPI: KanbanAPI {
                     TaskExportColumn(
                         title: column.title,
                         tasks: tasks
-                            .filter { $0.columnID == column.id }
+                            .filter { $0.columnID == column.id && !$0.isArchived }
                             .sorted { $0.position < $1.position }
-                            .map { TaskExportTask(title: $0.title, description: $0.description) }
+                            .map { TaskExportTask(title: $0.title, description: $0.description) },
+                        archivedTasks: tasks
+                            .filter { $0.columnID == column.id && $0.isArchived }
+                            .sorted { $0.position < $1.position }
+                            .map { TaskExportTask(title: $0.title, description: $0.description, archivedAt: $0.archivedAt) }
                     )
                 }
 
@@ -460,6 +559,26 @@ actor UITestKanbanAPI: KanbanAPI {
                         title: trimmedTaskTitle,
                         description: task.description,
                         position: position
+                    )
+                )
+                importedTaskCount += 1
+            }
+
+            for task in column.archivedTasks {
+                let trimmedTaskTitle = task.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmedTaskTitle.isEmpty else { continue }
+
+                let position = nextPositionByColumnID[columnID, default: 0]
+                nextPositionByColumnID[columnID] = position + 1
+                tasks.append(
+                    KanbanTask(
+                        id: UUID().uuidString,
+                        columnID: columnID,
+                        title: trimmedTaskTitle,
+                        description: task.description,
+                        position: position,
+                        isArchived: true,
+                        archivedAt: task.archivedAt
                     )
                 )
                 importedTaskCount += 1

@@ -22,6 +22,17 @@
 - `TASK-020`: On macOS, users can toggle whether move-up and move-down task controls are visible from settings.
 - `TASK-021`: On macOS, users can toggle whether task edit and delete controls are visible from settings.
 - `TASK-022`: On macOS, in the task editor sheet, pressing `Enter` while focused on the title input submits the same primary action as tapping the sheet submit button.
+- `TASK-023`: Archived tasks are presented grouped under their original column rather than in a global mixed list.
+- `TASK-024`: Column archived-task sections are collapsed by default and display a count so users can scan archive volume without expanding each section.
+- `TASK-025`: Archived task rows are read-only for task-content editing and reordering in workspace presentation; archived lifecycle actions are provided separately.
+- `TASK-026`: Archived task rows display archival time metadata in addition to task title.
+- `TASK-027`: Users can restore a selected archived task back to active state in its original column.
+- `TASK-028`: Users can permanently delete a selected archived task.
+- `TASK-029`: Restoring an archived task reintroduces it into active-task ordering for its column without affecting other archived tasks.
+- `TASK-030`: Users can open a read-only task details view for an archived task that mirrors task editor context but disallows edits.
+- `TASK-031`: On macOS, users can select an archived task row by clicking it.
+- `TASK-032`: On macOS, when an archived task row is selected, pressing `v` opens read-only view, `r` restores the archived task, and `x` initiates archived-task delete confirmation.
+- `TASK-033`: On macOS, users can toggle whether archived-task action buttons (`View`, `Restore`, `Delete`) are visible from settings.
 
 ## Delete Task Confirmation
 
@@ -47,6 +58,17 @@
 - `TASK-020`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-021`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-022`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-023`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-024`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-025`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-026`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-027`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-028`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-029`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-030`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-031`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-032`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-033`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).

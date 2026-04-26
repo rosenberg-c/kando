@@ -8,6 +8,10 @@ final class BoardViewModel: ObservableObject {
     @Published private(set) var selectedBoardID: String?
     @Published private(set) var columns: [KanbanColumn] = []
     @Published private(set) var tasksByColumnID: [String: [KanbanTask]] = [:]
+    @Published private(set) var archivedTasksByColumnID: [String: [KanbanTask]] = [:]
+    @Published private(set) var isArchivedTasksLoading = false
+    @Published private(set) var archivedTasksStatusMessage = ""
+    @Published private(set) var archivedTasksStatusIsError = false
     @Published var statusMessage = ""
     @Published var statusIsError = false
     @Published var isLoading = false
@@ -224,6 +228,22 @@ final class BoardViewModel: ObservableObject {
             try await self.api.deleteColumn(boardID: boardID, columnID: columnID, accessToken: context.accessToken, baseURL: context.baseURL)
             try await self.reloadWithContext(context)
             self.setSuccess(Strings.t("board.column.status.deleted"))
+        }
+    }
+
+    @discardableResult
+    func archiveColumnTasks(columnID: String) async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            let result = try await self.api.archiveColumnTasks(
+                boardID: boardID,
+                columnID: columnID,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.f("board.column.status.archived_tasks", result.archivedTaskCount))
         }
     }
 
@@ -475,7 +495,8 @@ final class BoardViewModel: ObservableObject {
 
         let decoder = JSONDecoder()
         let bundle = try decoder.decode(TaskExportBundle.self, from: data)
-        guard bundle.formatVersion == TaskExportBundle.currentFormatVersion else {
+        let supportedBundleVersions = [TaskExportBundle.currentFormatVersion, TaskExportBundle.legacyFormatVersion]
+        guard supportedBundleVersions.contains(bundle.formatVersion) else {
             throw KanbanAPIError.unexpectedStatus(
                 code: 400,
                 operation: "importTasks",
@@ -485,7 +506,8 @@ final class BoardViewModel: ObservableObject {
         }
 
         for snapshot in bundle.boards {
-            guard snapshot.payload.formatVersion == TaskExportPayload.currentFormatVersion else {
+            let supportedPayloadVersions = [TaskExportPayload.currentFormatVersion, TaskExportPayload.legacyFormatVersion]
+            guard supportedPayloadVersions.contains(snapshot.payload.formatVersion) else {
                 throw KanbanAPIError.unexpectedStatus(
                     code: 400,
                     operation: "importTasks",
@@ -500,6 +522,55 @@ final class BoardViewModel: ObservableObject {
 
     func tasks(for columnID: String) -> [KanbanTask] {
         (tasksByColumnID[columnID] ?? []).sorted { $0.position < $1.position }
+    }
+
+    func archivedTasks(for columnID: String) -> [KanbanTask] {
+        (archivedTasksByColumnID[columnID] ?? []).sorted {
+            if $0.position != $1.position {
+                return $0.position < $1.position
+            }
+            return $0.id < $1.id
+        }
+    }
+
+    func reloadArchivedTasks() async {
+        guard let boardID = selectedBoardID else {
+            return
+        }
+        guard let context = try? await resolveContext(requireBoard: true) else { return }
+        await refreshArchivedTasks(boardID: boardID, context: context)
+    }
+
+    @discardableResult
+    func restoreArchivedTask(taskID: String) async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            _ = try await self.api.restoreArchivedTask(
+                boardID: boardID,
+                taskID: taskID,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.t("board.archived_tasks.status.restored"))
+        }
+    }
+
+    @discardableResult
+    func deleteArchivedTask(taskID: String) async -> Bool {
+        await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            try await self.api.deleteArchivedTask(
+                boardID: boardID,
+                taskID: taskID,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.t("board.archived_tasks.status.deleted"))
+        }
     }
 
     private func runMutation(_ operation: @escaping @MainActor () async throws -> Void) async -> Bool {
@@ -582,6 +653,29 @@ final class BoardViewModel: ObservableObject {
         tasksByColumnID = grouped
     }
 
+    private func applyArchivedTasks(_ archivedTasks: [KanbanTask]) {
+        var grouped: [String: [KanbanTask]] = [:]
+        for task in archivedTasks {
+            grouped[task.columnID, default: []].append(task)
+        }
+        for key in grouped.keys {
+            grouped[key]?.sort {
+                if $0.position != $1.position {
+                    return $0.position < $1.position
+                }
+                return $0.id < $1.id
+            }
+        }
+        archivedTasksByColumnID = grouped
+        archivedTasksStatusIsError = false
+        archivedTasksStatusMessage = ""
+    }
+
+    private func setArchivedTasksError(_ message: String) {
+        archivedTasksStatusIsError = true
+        archivedTasksStatusMessage = message
+    }
+
     private func setError(_ message: String) {
         statusIsError = true
         statusMessage = message
@@ -638,7 +732,25 @@ final class BoardViewModel: ObservableObject {
     private func loadAndApplyBoard(boardID: String, availableBoards: [KanbanBoard], context: BoardContext) async throws -> KanbanBoardDetails {
         let details = try await self.api.getBoard(boardID: boardID, accessToken: context.accessToken, baseURL: context.baseURL)
         self.apply(details: details, availableBoards: availableBoards, baseURL: context.baseURL)
+        await refreshArchivedTasks(boardID: boardID, context: context)
         return details
+    }
+
+    private func refreshArchivedTasks(boardID: String, context: BoardContext) async {
+        isArchivedTasksLoading = true
+        defer { isArchivedTasksLoading = false }
+
+        do {
+            let archivedTasks = try await api.listArchivedTasksByBoard(
+                boardID: boardID,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            applyArchivedTasks(archivedTasks)
+        } catch {
+            archivedTasksByColumnID = [:]
+            setArchivedTasksError(Strings.f("board.archived_tasks.status.failed", error.localizedDescription))
+        }
     }
 
     private func listBoardsOrCreateDefault(context: BoardContext) async throws -> [KanbanBoard] {

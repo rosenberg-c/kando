@@ -533,6 +533,10 @@ func (r *SQLiteRepository) DeleteColumn(ctx context.Context, ownerUserID, boardI
 }
 
 func (r *SQLiteRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (Task, Board, error) {
+	return r.CreateTaskWithArchivedAt(ctx, ownerUserID, boardID, columnID, title, description, nil)
+}
+
+func (r *SQLiteRepository) CreateTaskWithArchivedAt(ctx context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (Task, Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Task{}, Board{}, fmt.Errorf("begin tx: %w", err)
@@ -548,7 +552,18 @@ func (r *SQLiteRepository) CreateTask(ctx context.Context, ownerUserID, boardID,
 		return Task{}, Board{}, err
 	}
 
-	position, err := nextPosition(ctx, tx, `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ?`, columnID)
+	archivedFlag := 0
+	archivedAtMS := any(nil)
+	positionQuery := `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ? AND is_archived = 0`
+	if archivedAt != nil {
+		normalizedArchivedAt := fromUnixMillis(toUnixMillis(archivedAt.UTC()))
+		archivedFlag = 1
+		archivedAtMS = toUnixMillis(normalizedArchivedAt)
+		positionQuery = `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ? AND is_archived = 1`
+		archivedAt = &normalizedArchivedAt
+	}
+
+	position, err := nextPosition(ctx, tx, positionQuery, columnID)
 	if err != nil {
 		return Task{}, Board{}, err
 	}
@@ -561,21 +576,27 @@ func (r *SQLiteRepository) CreateTask(ctx context.Context, ownerUserID, boardID,
 		OwnerUserID: ownerUserID,
 		Title:       title,
 		Description: description,
+		IsArchived:  archivedFlag == 1,
 		Position:    position,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+	if archivedAt != nil {
+		task.ArchivedAt = archivedAt.UTC()
+	}
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO tasks (id, board_id, column_id, owner_user_id, title, description, position, created_at_ms, updated_at_ms)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO tasks (id, board_id, column_id, owner_user_id, title, description, is_archived, archived_at_ms, position, created_at_ms, updated_at_ms)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		task.ID,
 		task.BoardID,
 		task.ColumnID,
 		task.OwnerUserID,
 		task.Title,
 		task.Description,
+		task.IsArchived,
+		archivedAtMS,
 		task.Position,
 		toUnixMillis(task.CreatedAt),
 		toUnixMillis(task.UpdatedAt),
@@ -593,6 +614,178 @@ func (r *SQLiteRepository) CreateTask(ctx context.Context, ownerUserID, boardID,
 	}
 
 	return task, board, nil
+}
+
+func (r *SQLiteRepository) ArchiveTasksInColumn(ctx context.Context, ownerUserID, boardID, columnID string) (ColumnTaskArchiveResult, Board, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, err
+	}
+	if _, err := getOwnedColumn(ctx, tx, ownerUserID, boardID, columnID); err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, err
+	}
+
+	archivedAt := fromUnixMillis(toUnixMillis(r.now().UTC()))
+	result, err := tx.ExecContext(
+		ctx,
+		`UPDATE tasks
+		 SET is_archived = 1, archived_at_ms = ?, updated_at_ms = ?
+		 WHERE board_id = ? AND column_id = ? AND owner_user_id = ? AND is_archived = 0`,
+		toUnixMillis(archivedAt),
+		toUnixMillis(archivedAt),
+		boardID,
+		columnID,
+		ownerUserID,
+	)
+	if err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, fmt.Errorf("archive tasks in column: %w", err)
+	}
+
+	if err := reindexTasksTx(ctx, tx, columnID, archivedAt); err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, err
+	}
+
+	board, err = bumpBoardTx(ctx, tx, board, archivedAt)
+	if err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	archivedCount, err := result.RowsAffected()
+	if err != nil {
+		return ColumnTaskArchiveResult{}, Board{}, fmt.Errorf("archive tasks in column: rows affected: %w", err)
+	}
+
+	return ColumnTaskArchiveResult{
+		ArchivedTaskCount: int(archivedCount),
+		ArchivedAt:        archivedAt,
+	}, board, nil
+}
+
+func (r *SQLiteRepository) ListArchivedTasksByBoard(ctx context.Context, ownerUserID, boardID string) ([]Task, error) {
+	if _, err := getOwnedBoard(ctx, r.db, ownerUserID, boardID); err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT t.id, t.board_id, t.column_id, t.owner_user_id, t.title, t.description, t.is_archived, t.archived_at_ms, t.position, t.created_at_ms, t.updated_at_ms
+		 FROM tasks t
+		 INNER JOIN columns c ON c.id = t.column_id
+		 WHERE t.board_id = ? AND t.owner_user_id = ? AND t.is_archived = 1
+		 ORDER BY c.position, t.archived_at_ms, t.position, t.id`,
+		boardID,
+		ownerUserID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list archived tasks: %w", err)
+	}
+	defer rows.Close()
+
+	tasks := make([]Task, 0)
+	for rows.Next() {
+		task, scanErr := scanTask(rows.Scan)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		tasks = append(tasks, task)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate archived tasks: %w", err)
+	}
+
+	return tasks, nil
+}
+
+func (r *SQLiteRepository) RestoreArchivedTask(ctx context.Context, ownerUserID, boardID, taskID string) (Task, Board, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Task{}, Board{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return Task{}, Board{}, err
+	}
+
+	task, err := getOwnedArchivedTask(ctx, tx, ownerUserID, boardID, taskID)
+	if err != nil {
+		return Task{}, Board{}, err
+	}
+
+	position, err := nextPosition(ctx, tx, `SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE column_id = ? AND is_archived = 0`, task.ColumnID)
+	if err != nil {
+		return Task{}, Board{}, err
+	}
+
+	now := r.now().UTC()
+	task.IsArchived = false
+	task.ArchivedAt = time.Time{}
+	task.Position = position
+	task.UpdatedAt = now
+
+	if _, err := tx.ExecContext(
+		ctx,
+		`UPDATE tasks SET is_archived = 0, archived_at_ms = NULL, position = ?, updated_at_ms = ? WHERE id = ?`,
+		task.Position,
+		toUnixMillis(task.UpdatedAt),
+		task.ID,
+	); err != nil {
+		return Task{}, Board{}, fmt.Errorf("restore archived task: %w", err)
+	}
+
+	board, err = bumpBoardTx(ctx, tx, board, now)
+	if err != nil {
+		return Task{}, Board{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Task{}, Board{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return task, board, nil
+}
+
+func (r *SQLiteRepository) DeleteArchivedTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Board{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer rollback(tx)
+
+	board, err := getOwnedBoard(ctx, tx, ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+
+	if _, err := getOwnedArchivedTask(ctx, tx, ownerUserID, boardID, taskID); err != nil {
+		return Board{}, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tasks WHERE id = ?`, taskID); err != nil {
+		return Board{}, fmt.Errorf("delete archived task: %w", err)
+	}
+
+	board, err = bumpBoardTx(ctx, tx, board, r.now().UTC())
+	if err != nil {
+		return Board{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Board{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return board, nil
 }
 
 func (r *SQLiteRepository) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (Task, Board, error) {

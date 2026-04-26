@@ -3,6 +3,7 @@ package kanban
 import (
 	"context"
 	"strings"
+	"time"
 )
 
 // Service centralizes kanban business rules while delegating persistence to a repository implementation.
@@ -12,6 +13,10 @@ type Service struct {
 
 type archiveRepo interface {
 	ArchiveCapableRepository
+}
+
+type taskArchiveRepo interface {
+	TaskArchiveCapableRepository
 }
 
 // NewService returns a Repository that applies shared kanban domain rules.
@@ -120,6 +125,18 @@ func (s *Service) DeleteColumn(ctx context.Context, ownerUserID, boardID, column
 			return Board{}, NewConflictError(ConflictColumnHasTasks, "column has tasks")
 		}
 	}
+
+	if ar, ok := s.repo.(taskArchiveRepo); ok {
+		archivedTasks, err := ar.ListArchivedTasksByBoard(ctx, ownerUserID, boardID)
+		if err != nil {
+			return Board{}, err
+		}
+		for _, task := range archivedTasks {
+			if task.ColumnID == columnID {
+				return Board{}, NewConflictError(ConflictColumnHasArchivedTasks, "column has archived tasks")
+			}
+		}
+	}
 	return s.repo.DeleteColumn(ctx, ownerUserID, boardID, columnID)
 }
 
@@ -148,6 +165,56 @@ func (s *Service) ReorderTasks(ctx context.Context, ownerUserID, boardID string,
 
 func (s *Service) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	return s.repo.DeleteTask(ctx, ownerUserID, boardID, taskID)
+}
+
+// ArchiveTasksInColumn archives all active tasks in the provided column.
+func (s *Service) ArchiveTasksInColumn(ctx context.Context, ownerUserID, boardID, columnID string) (ColumnTaskArchiveResult, Board, error) {
+	ar, ok := s.repo.(taskArchiveRepo)
+	if !ok {
+		return ColumnTaskArchiveResult{}, Board{}, ErrNotImplemented
+	}
+	return ar.ArchiveTasksInColumn(ctx, ownerUserID, boardID, columnID)
+}
+
+// ListArchivedTasksByBoard lists archived tasks for the specified board.
+func (s *Service) ListArchivedTasksByBoard(ctx context.Context, ownerUserID, boardID string) ([]Task, error) {
+	ar, ok := s.repo.(taskArchiveRepo)
+	if !ok {
+		return nil, ErrNotImplemented
+	}
+	return ar.ListArchivedTasksByBoard(ctx, ownerUserID, boardID)
+}
+
+// RestoreArchivedTask restores a single archived task back to active state.
+func (s *Service) RestoreArchivedTask(ctx context.Context, ownerUserID, boardID, taskID string) (Task, Board, error) {
+	ar, ok := s.repo.(taskArchiveRepo)
+	if !ok {
+		return Task{}, Board{}, ErrNotImplemented
+	}
+	return ar.RestoreArchivedTask(ctx, ownerUserID, boardID, taskID)
+}
+
+// DeleteArchivedTask permanently deletes a single archived task.
+func (s *Service) DeleteArchivedTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
+	ar, ok := s.repo.(taskArchiveRepo)
+	if !ok {
+		return Board{}, ErrNotImplemented
+	}
+	return ar.DeleteArchivedTask(ctx, ownerUserID, boardID, taskID)
+}
+
+// CreateTaskWithArchivedAt creates a task and optionally marks it archived at
+// the provided timestamp when archivedAt is non-nil.
+func (s *Service) CreateTaskWithArchivedAt(ctx context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (Task, Board, error) {
+	trimmedTitle := strings.TrimSpace(title)
+	if trimmedTitle == "" {
+		return Task{}, Board{}, ErrInvalidInput
+	}
+	ar, ok := s.repo.(taskArchiveRepo)
+	if !ok {
+		return Task{}, Board{}, ErrNotImplemented
+	}
+	return ar.CreateTaskWithArchivedAt(ctx, ownerUserID, boardID, columnID, trimmedTitle, strings.TrimSpace(description), archivedAt)
 }
 
 func (s *Service) RunInTransaction(ctx context.Context, fn func(repo Repository) error) error {

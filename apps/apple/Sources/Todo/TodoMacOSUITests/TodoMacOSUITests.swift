@@ -189,10 +189,12 @@ final class TodoMacOSUITests: XCTestCase {
         let shortcutsTopBottom = app.staticTexts["board-settings-shortcuts-top-bottom"]
         let shortcutsUpDown = app.staticTexts["board-settings-shortcuts-up-down"]
         let shortcutsEditDelete = app.staticTexts["board-settings-shortcuts-edit-delete"]
+        let shortcutsArchivedActions = app.staticTexts["board-settings-shortcuts-archived-actions"]
         let taskControlsTitle = app.staticTexts["board-settings-task-controls-title"]
         let topBottomToggle = app.checkBoxes["board-settings-task-controls-top-bottom"]
         let upDownToggle = app.checkBoxes["board-settings-task-controls-up-down"]
         let editDeleteToggle = app.checkBoxes["board-settings-task-controls-edit-delete"]
+        let archivedActionsToggle = app.checkBoxes["board-settings-task-controls-archived-actions"]
 
         XCTAssertTrue(refreshButton.exists, "Expected refresh action in settings")
         XCTAssertTrue(signOutButton.exists, "Expected sign-out action in settings")
@@ -204,10 +206,12 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(shortcutsTopBottom.exists, "Expected shortcuts top/bottom guidance")
         XCTAssertTrue(shortcutsUpDown.exists, "Expected shortcuts up/down guidance")
         XCTAssertTrue(shortcutsEditDelete.exists, "Expected shortcuts edit/delete guidance")
+        XCTAssertTrue(shortcutsArchivedActions.exists, "Expected shortcuts archived actions guidance")
         XCTAssertTrue(taskControlsTitle.exists, "Expected task-controls title in settings")
         XCTAssertTrue(topBottomToggle.exists, "Expected top/bottom visibility toggle")
         XCTAssertTrue(upDownToggle.exists, "Expected up/down visibility toggle")
         XCTAssertTrue(editDeleteToggle.exists, "Expected edit/delete visibility toggle")
+        XCTAssertTrue(archivedActionsToggle.exists, "Expected archived-action visibility toggle")
     }
 
     @MainActor
@@ -893,7 +897,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsTaskControlTogglesHideButtonsAndPersistLocally() throws {
-        // Requirements: TASK-019, TASK-020, TASK-021, UX-023
+        // Requirements: TASK-019, TASK-020, TASK-021, TASK-033, UX-023, UX-037
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -901,11 +905,25 @@ final class TodoMacOSUITests: XCTestCase {
         let moveUpButton = app.buttons["task-move-up-task-1"]
         let editButton = app.buttons["task-edit-task-1"]
         let deleteButton = app.buttons["task-delete-task-1"]
+        let archiveWorkTasksButton = app.buttons["column-archive-tasks-column-work"]
+        let showArchivedToggle = app.checkBoxes["workspace-toggle-show-archived"]
+        let archivedViewButton = app.buttons["archived-task-view-task-1"]
+        let archivedRestoreButton = app.buttons["archived-task-restore-task-1"]
+        let archivedDeleteButton = app.buttons["archived-task-delete-task-1"]
 
         XCTAssertTrue(moveTopButton.waitForExistence(timeout: uiTimeout), "Expected top button before toggle")
         XCTAssertTrue(moveUpButton.waitForExistence(timeout: uiTimeout), "Expected up button before toggle")
         XCTAssertTrue(editButton.waitForExistence(timeout: uiTimeout), "Expected edit button before toggle")
         XCTAssertTrue(deleteButton.waitForExistence(timeout: uiTimeout), "Expected delete button before toggle")
+        XCTAssertTrue(archiveWorkTasksButton.waitForExistence(timeout: uiTimeout), "Expected archive tasks button")
+        XCTAssertTrue(showArchivedToggle.waitForExistence(timeout: uiTimeout), "Expected show archived toggle")
+
+        archiveWorkTasksButton.tap()
+        showArchivedToggle.tap()
+
+        XCTAssertTrue(archivedViewButton.waitForExistence(timeout: uiTimeout), "Expected archived view button before toggle")
+        XCTAssertTrue(archivedRestoreButton.waitForExistence(timeout: uiTimeout), "Expected archived restore button before toggle")
+        XCTAssertTrue(archivedDeleteButton.waitForExistence(timeout: uiTimeout), "Expected archived delete button before toggle")
 
         let settingsButton = app.buttons["board-settings-button"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: uiTimeout), "Expected settings button")
@@ -914,6 +932,7 @@ final class TodoMacOSUITests: XCTestCase {
         let topBottomToggle = app.checkBoxes["board-settings-task-controls-top-bottom"]
         let upDownToggle = app.checkBoxes["board-settings-task-controls-up-down"]
         let editDeleteToggle = app.checkBoxes["board-settings-task-controls-edit-delete"]
+        let archivedActionsToggle = app.checkBoxes["board-settings-task-controls-archived-actions"]
         let closeButton = preferredElement(
             primary: app.buttons["board-settings-close-button"],
             fallback: app.buttons["Close"],
@@ -923,11 +942,13 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(topBottomToggle.waitForExistence(timeout: uiTimeout), "Expected top/bottom toggle")
         XCTAssertTrue(upDownToggle.waitForExistence(timeout: uiTimeout), "Expected up/down toggle")
         XCTAssertTrue(editDeleteToggle.waitForExistence(timeout: uiTimeout), "Expected edit/delete toggle")
+        XCTAssertTrue(archivedActionsToggle.waitForExistence(timeout: uiTimeout), "Expected archived actions toggle")
         XCTAssertTrue(closeButton.waitForExistence(timeout: uiTimeout), "Expected close action in settings")
 
         setCheckbox(topBottomToggle, to: false)
         setCheckbox(upDownToggle, to: false)
         setCheckbox(editDeleteToggle, to: false)
+        setCheckbox(archivedActionsToggle, to: false)
         closeButton.click()
 
         XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !app.otherElements["board-settings-sheet"].exists }, "Expected settings sheet to dismiss")
@@ -936,6 +957,9 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !moveUpButton.exists }, "Expected up button hidden after toggle")
         XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !editButton.exists }, "Expected edit button hidden after toggle")
         XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !deleteButton.exists }, "Expected delete button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !archivedViewButton.exists }, "Expected archived view button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !archivedRestoreButton.exists }, "Expected archived restore button hidden after toggle")
+        XCTAssertTrue(waitUntil(timeout: UITimeout.ready) { !archivedDeleteButton.exists }, "Expected archived delete button hidden after toggle")
 
         app.terminate()
 
@@ -959,6 +983,26 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertFalse(
             relaunchedApp.buttons["task-delete-task-1"].waitForExistence(timeout: 2),
             "Expected delete button hidden after relaunch"
+        )
+
+        let relaunchedArchiveTasksButton = relaunchedApp.buttons["column-archive-tasks-column-work"]
+        let relaunchedShowArchivedToggle = relaunchedApp.checkBoxes["workspace-toggle-show-archived"]
+        XCTAssertTrue(relaunchedArchiveTasksButton.waitForExistence(timeout: uiTimeout), "Expected archive tasks button after relaunch")
+        XCTAssertTrue(relaunchedShowArchivedToggle.waitForExistence(timeout: uiTimeout), "Expected show archived toggle after relaunch")
+        relaunchedArchiveTasksButton.tap()
+        relaunchedShowArchivedToggle.tap()
+
+        XCTAssertFalse(
+            relaunchedApp.buttons["archived-task-view-task-1"].waitForExistence(timeout: 2),
+            "Expected archived view button hidden after relaunch"
+        )
+        XCTAssertFalse(
+            relaunchedApp.buttons["archived-task-restore-task-1"].waitForExistence(timeout: 2),
+            "Expected archived restore button hidden after relaunch"
+        )
+        XCTAssertFalse(
+            relaunchedApp.buttons["archived-task-delete-task-1"].waitForExistence(timeout: 2),
+            "Expected archived delete button hidden after relaunch"
         )
     }
 
@@ -1314,6 +1358,133 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testArchivedTasksToggleShowsColumnArchivedSections() throws {
+        // Requirements: TASK-024, UX-030, UX-032
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let archiveWorkTasksButton = app.buttons["column-archive-tasks-column-work"]
+        let showArchivedToggle = app.checkBoxes["workspace-toggle-show-archived"]
+        let archivedSection = app.staticTexts["column-archived-section-column-work"]
+        let archivedTaskTitle = app.staticTexts["archived-task-title-task-1"]
+
+        XCTAssertTrue(archiveWorkTasksButton.waitForExistence(timeout: uiTimeout), "Expected archive tasks button")
+        XCTAssertTrue(showArchivedToggle.waitForExistence(timeout: uiTimeout), "Expected show archived toggle")
+        XCTAssertTrue(archivedSection.waitForExistence(timeout: uiTimeout), "Expected archived section label")
+
+        archiveWorkTasksButton.tap()
+
+        XCTAssertFalse(archivedTaskTitle.exists, "Archived task rows should stay collapsed by default")
+
+        showArchivedToggle.tap()
+
+        XCTAssertTrue(archivedTaskTitle.waitForExistence(timeout: uiTimeout), "Expected archived task row after enabling show archived tasks")
+    }
+
+    @MainActor
+    func testArchivedTaskViewRestoreAndDelete() throws {
+        // Requirements: TASK-025, TASK-027, TASK-028, TASK-030, UX-033, UX-035
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let archiveWorkTasksButton = app.buttons["column-archive-tasks-column-work"]
+        let showArchivedToggle = app.checkBoxes["workspace-toggle-show-archived"]
+        let archivedTaskTitle = app.staticTexts["archived-task-title-task-1"]
+        let archivedTaskEditButton = app.buttons["task-edit-task-1"]
+        let archivedTaskDeleteButton = app.buttons["task-delete-task-1"]
+        let archivedTaskMoveUpButton = app.buttons["task-move-up-task-1"]
+        let archivedTaskMoveDownButton = app.buttons["task-move-down-task-1"]
+        let viewArchivedTaskButton = app.buttons["archived-task-view-task-1"]
+        let restoreArchivedTaskButton = app.buttons["archived-task-restore-task-1"]
+        let deleteArchivedTaskButton = app.buttons["archived-task-delete-task-1"]
+        let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
+        let workColumnTaskList = app.scrollViews["column-task-list-column-work"]
+
+        XCTAssertTrue(archiveWorkTasksButton.waitForExistence(timeout: uiTimeout), "Expected archive tasks button")
+        XCTAssertTrue(showArchivedToggle.waitForExistence(timeout: uiTimeout), "Expected show archived toggle")
+        archiveWorkTasksButton.tap()
+        showArchivedToggle.tap()
+
+        XCTAssertTrue(archivedTaskTitle.waitForExistence(timeout: uiTimeout), "Expected archived task title")
+        XCTAssertFalse(archivedTaskEditButton.exists, "Archived rows should not expose active-task edit controls")
+        XCTAssertFalse(archivedTaskDeleteButton.exists, "Archived rows should not expose active-task delete controls")
+        XCTAssertFalse(archivedTaskMoveUpButton.exists, "Archived rows should not expose active-task move-up controls")
+        XCTAssertFalse(archivedTaskMoveDownButton.exists, "Archived rows should not expose active-task move-down controls")
+        XCTAssertTrue(viewArchivedTaskButton.exists, "Expected archived view action")
+        viewArchivedTaskButton.tap()
+
+        dismissArchivedTaskViewSheet(in: app, timeout: uiTimeout)
+
+        XCTAssertTrue(archivedTaskTitle.exists, "Expected archived task to remain after view action")
+
+        XCTAssertTrue(restoreArchivedTaskButton.exists, "Expected archived restore action")
+        XCTAssertTrue(workColumnTaskList.waitForExistence(timeout: uiTimeout), "Expected work column task list")
+        XCTAssertTrue(
+            scrollUntilHittable(element: restoreArchivedTaskButton, in: workColumnTaskList, maxSwipes: 3),
+            "Expected archived restore action to be hittable"
+        )
+        restoreArchivedTaskButton.tap()
+        XCTAssertTrue(waitUntil(timeout: uiTimeout) { !archivedTaskTitle.exists }, "Expected archived task row to disappear after restore")
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 1, timeout: uiTimeout), "Expected active task count to increment after restore")
+
+        archiveWorkTasksButton.tap()
+        XCTAssertTrue(archivedTaskTitle.waitForExistence(timeout: uiTimeout), "Expected archived task row after re-archive")
+        XCTAssertTrue(deleteArchivedTaskButton.exists, "Expected archived delete action")
+        deleteArchivedTaskButton.tap()
+
+        let confirmDeleteArchivedTask = app.buttons["archived-task-delete-confirm-action"]
+        XCTAssertTrue(confirmDeleteArchivedTask.waitForExistence(timeout: uiTimeout), "Expected archived delete confirmation")
+        confirmDeleteArchivedTask.tap()
+
+        XCTAssertTrue(waitUntil(timeout: uiTimeout) { !archivedTaskTitle.exists }, "Expected archived task row to disappear after delete")
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 0, timeout: 3), "Expected active task count to remain zero after archived delete")
+    }
+
+    @MainActor
+    func testArchivedTaskSelectionEnablesKeyboardShortcuts() throws {
+        // Requirements: TASK-031, TASK-032, UX-036
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let archiveWorkTasksButton = app.buttons["column-archive-tasks-column-work"]
+        let showArchivedToggle = app.checkBoxes["workspace-toggle-show-archived"]
+        let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
+
+        XCTAssertTrue(archiveWorkTasksButton.waitForExistence(timeout: uiTimeout), "Expected archive tasks button")
+        XCTAssertTrue(showArchivedToggle.waitForExistence(timeout: uiTimeout), "Expected show archived toggle")
+        archiveWorkTasksButton.tap()
+        showArchivedToggle.tap()
+
+        XCTAssertTrue(
+          waitUntil(timeout: uiTimeout) { self.archivedTaskRowExists(in: app, taskID: "task-1") },
+            "Expected archived task row"
+        )
+
+        selectArchivedTaskForKeyboardShortcuts(taskID: "task-1", app: app)
+        app.typeKey("v", modifierFlags: [])
+
+        dismissArchivedTaskViewSheet(in: app, timeout: uiTimeout)
+
+        selectArchivedTaskForKeyboardShortcuts(taskID: "task-1", app: app)
+        app.typeKey("x", modifierFlags: [])
+
+        let archivedDeleteConfirmation = app.buttons["archived-task-delete-confirm-action"]
+        XCTAssertTrue(archivedDeleteConfirmation.waitForExistence(timeout: uiTimeout), "Expected archived delete confirmation after pressing x")
+
+        let cancelArchivedDeleteButton = app.buttons["archived-task-delete-confirm-cancel"]
+        XCTAssertTrue(cancelArchivedDeleteButton.waitForExistence(timeout: uiTimeout), "Expected archived delete cancel action")
+        cancelArchivedDeleteButton.tap()
+
+        selectArchivedTaskForKeyboardShortcuts(taskID: "task-1", app: app)
+        app.typeKey("r", modifierFlags: [])
+        XCTAssertTrue(
+          waitUntil(timeout: uiTimeout) { !self.archivedTaskRowExists(in: app, taskID: "task-1") },
+            "Expected archived row to disappear after pressing r"
+        )
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 1, timeout: uiTimeout), "Expected active task count to increment after pressing r")
+    }
+
+    @MainActor
     func testReorderColumnsFromEditBoardModal() throws {
         // Requirement: COL-MOVE-009
         let app = launchSignedInApp()
@@ -1509,6 +1680,30 @@ final class TodoMacOSUITests: XCTestCase {
         return false
     }
 
+    private func dismissArchivedTaskViewSheet(in app: XCUIApplication, timeout: TimeInterval) {
+        let archivedViewSheet = app.descendants(matching: .any).matching(identifier: "archived-task-view-sheet").firstMatch
+        XCTAssertTrue(waitUntil(timeout: timeout) { archivedViewSheet.exists }, "Expected archived task view sheet")
+
+        // Dismiss via Escape first because XCTest can expose sheet buttons
+        // inconsistently across accessibility hierarchies.
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        if !waitUntil(timeout: 1.2) { !archivedViewSheet.exists } {
+            let closeByID = app.descendants(matching: .any).matching(identifier: "archived-task-view-close").firstMatch
+            let closeInSheetByLabel = archivedViewSheet.descendants(matching: .button).matching(NSPredicate(format: "label == %@", "Close")).firstMatch
+            let closeButton = preferredElement(primary: closeByID, fallback: closeInSheetByLabel, waitTimeout: 1.2)
+            if closeButton.exists {
+                closeButton.tap()
+            }
+        }
+        if !waitUntil(timeout: 1.2) { !archivedViewSheet.exists } {
+            let closeByID = app.descendants(matching: .any).matching(identifier: "archived-task-view-close").firstMatch
+            if closeByID.exists {
+                closeByID.click()
+            }
+        }
+        XCTAssertTrue(waitUntil(timeout: timeout) { !archivedViewSheet.exists }, "Expected archived task view sheet to dismiss")
+    }
+
     private func setCheckbox(_ checkbox: XCUIElement, to isOn: Bool) {
         XCTAssertTrue(checkbox.waitForExistence(timeout: UITimeout.standard), "Expected checkbox to exist")
 
@@ -1572,6 +1767,45 @@ final class TodoMacOSUITests: XCTestCase {
         }
     }
 
+    private func selectArchivedTaskForKeyboardShortcuts(taskID: String, app: XCUIApplication) {
+        let row = archivedTaskRowElement(in: app, taskID: taskID, waitTimeout: UITimeout.standard)
+        guard row.waitForExistence(timeout: UITimeout.standard) else { return }
+        let rowTitle = app.staticTexts["archived-task-title-\(taskID)"]
+
+        for _ in 0..<3 {
+            row.click()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+            if isArchivedTaskSelected(taskID: taskID, row: row, app: app) {
+                return
+            }
+            if rowTitle.exists {
+                rowTitle.click()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+                if isArchivedTaskSelected(taskID: taskID, row: row, app: app) {
+                    return
+                }
+            }
+        }
+
+        app.windows.firstMatch.click()
+        row.click()
+
+        if isArchivedTaskSelected(taskID: taskID, row: row, app: app) {
+            return
+        }
+
+      _ = waitUntil(timeout: 0.6) { self.isArchivedTaskSelected(taskID: taskID, row: row, app: app) }
+    }
+
+    private func isArchivedTaskSelected(taskID: String, row: XCUIElement, app: XCUIApplication) -> Bool {
+        if (row.value as? String) == "selected" {
+            return true
+        }
+        return app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier == %@ AND value == %@", "archived-task-row-\(taskID)", "selected")
+        ).firstMatch.exists
+    }
+
     private func sourceTaskDragElement(in app: XCUIApplication, waitTimeout: TimeInterval) -> XCUIElement? {
         let sourceTaskCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: waitTimeout)
         if sourceTaskCard.exists {
@@ -1598,6 +1832,34 @@ final class TodoMacOSUITests: XCTestCase {
         }
 
         return exactCard
+    }
+
+    private func archivedTaskRowElement(in app: XCUIApplication, taskID: String, waitTimeout: TimeInterval) -> XCUIElement {
+        let exactRow = app.otherElements["archived-task-row-\(taskID)"]
+        if exactRow.waitForExistence(timeout: waitTimeout) {
+            return exactRow
+        }
+
+        let exactDescendant = app.descendants(matching: .any).matching(identifier: "archived-task-row-\(taskID)").firstMatch
+        if exactDescendant.waitForExistence(timeout: waitTimeout) {
+            return exactDescendant
+        }
+
+        let rowTitle = app.staticTexts["archived-task-title-\(taskID)"]
+        if rowTitle.waitForExistence(timeout: waitTimeout) {
+            return rowTitle
+        }
+
+        return exactRow
+    }
+
+    private func archivedTaskRowExists(in app: XCUIApplication, taskID: String) -> Bool {
+        let exactRow = app.descendants(matching: .any).matching(identifier: "archived-task-row-\(taskID)").firstMatch
+        if exactRow.exists {
+            return true
+        }
+        let exactTitle = app.staticTexts["archived-task-title-\(taskID)"]
+        return exactTitle.exists
     }
 
     private func columnDropZoneElement(in app: XCUIApplication, columnID: String, fallbackIndex: Int, waitTimeout: TimeInterval) -> XCUIElement {

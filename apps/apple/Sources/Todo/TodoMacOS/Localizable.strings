@@ -74,10 +74,12 @@
 "board.settings.shortcuts.top_bottom" = "Move top/bottom: t / b";
 "board.settings.shortcuts.up_down" = "Move up/down: u / d";
 "board.settings.shortcuts.edit_delete" = "Edit/Delete: e / x";
+"board.settings.shortcuts.archived_actions" = "Archived row actions: v view / r restore / x delete";
 "board.settings.task_controls.title" = "Task controls";
 "board.settings.task_controls.top_bottom" = "Show Top / Bottom buttons";
 "board.settings.task_controls.up_down" = "Show Up / Down buttons";
 "board.settings.task_controls.edit_delete" = "Show Edit / Delete buttons";
+"board.settings.task_controls.archived_actions" = "Show archived task action buttons";
 "board.settings.archived.title" = "Archived boards";
 "board.settings.archived.empty" = "No archived boards.";
 "board.archived.delete.confirm.title" = "Delete archived board";
@@ -115,6 +117,7 @@
 "board.column.add.submit" = "Add column";
 "board.column.rename" = "Rename";
 "board.column.delete" = "Delete";
+"board.column.archive_tasks" = "Archive tasks";
 "board.column.reorder.mode.enter" = "Edit board";
 "board.column.reorder.title" = "Reorder columns";
 "board.column.reorder.subtitle" = "Arrange the columns, then click Done to apply.";
@@ -131,6 +134,8 @@
 "board.column.status.renamed" = "Column renamed: %@.";
 "board.column.status.moved" = "Column moved.";
 "board.column.status.deleted" = "Column deleted.";
+"board.column.status.archived_tasks" = "Archived %d tasks.";
+"board.column.archived_count" = "Archived (%d)";
 "board.column.delete.confirm.title" = "Delete column?";
 "board.column.delete.confirm.message" = "This will permanently delete the column \"%@\".";
 "board.column.delete.confirm.action" = "Delete column";
@@ -143,6 +148,7 @@
 "board.task.edit" = "Edit";
 "board.task.delete" = "Delete";
 "board.task.title.placeholder" = "Task title";
+"board.task.description.placeholder" = "Description";
 "board.task.create.title" = "Create task";
 "board.task.create.submit" = "Create";
 "board.task.edit.title" = "Edit task";
@@ -152,6 +158,19 @@
 "board.task.status.updated" = "Task updated: %@.";
 "board.task.status.moved" = "Task moved.";
 "board.task.status.deleted" = "Task deleted.";
+"board.task.archived_at" = "Archived at: %@";
 "board.task.delete.confirm.title" = "Delete task?";
 "board.task.delete.confirm.message" = "This will permanently delete \"%@\".";
 "board.task.delete.confirm.action" = "Delete task";
+"board.archived_tasks.toggle" = "Show archived tasks";
+"board.archived_tasks.retry" = "Retry";
+"board.archived_tasks.status.failed" = "Failed to load archived tasks: %@";
+"board.archived_tasks.status.restored" = "Archived task restored.";
+"board.archived_tasks.status.deleted" = "Archived task deleted.";
+"board.archived_task.view" = "View";
+"board.archived_task.view.title" = "Archived task";
+"board.archived_task.restore" = "Restore";
+"board.archived_task.delete" = "Delete";
+"board.archived_task.delete.confirm.title" = "Delete archived task?";
+"board.archived_task.delete.confirm.message" = "This will permanently delete archived task \"%@\".";
+"board.archived_task.delete.confirm.action" = "Delete archived task";

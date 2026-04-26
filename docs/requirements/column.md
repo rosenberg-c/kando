@@ -17,6 +17,8 @@
 - `COL-RULE-001`: A column that still contains tasks must not be deletable.
 - `COL-RULE-002`: The API returns conflict (`409`) for this case.
 - `COL-RULE-003`: The UI surfaces the failure status to the user.
+- `COL-RULE-004`: A column that contains archived tasks must not be deletable until those archived tasks are removed or restored.
+- `COL-RULE-005`: Column-delete conflicts for archived-task presence return stable conflict detail and do not partially mutate column/task state.
 
 ## Move Column
 
@@ -32,6 +34,14 @@
 - `COL-MOVE-010`: Concurrent move requests preserve a valid deterministic order without duplicate or missing positions.
 - `COL-MOVE-011`: Bulk reorder requests are atomic: either the full new order is persisted or no column positions change.
 
+## Archive Column Tasks
+
+- `COL-ARCH-001`: When archiving tasks for a column, all tasks archived by the same archive action must receive the exact same `archivedAt` timestamp value.
+- `COL-ARCH-002`: Users can archive all active tasks in a single column with one archive action.
+- `COL-ARCH-003`: Archiving tasks for a column is column-scoped and must not archive tasks in other columns.
+- `COL-ARCH-004`: Column task archive actions are atomic: either all targeted tasks are archived or none are.
+- `COL-ARCH-005`: Archived tasks remain associated with their original board and column identity.
+
 ## Platform Applicability
 
 - `COL-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
@@ -39,5 +49,12 @@
 - `COL-DEL-003`: macOS (required), iOS (planned), TUI (N/A).
 - `COL-DEL-004`: macOS (required), iOS (planned), TUI (N/A).
 - `COL-RULE-003`: macOS (required), iOS (planned), TUI (N/A).
+- `COL-RULE-004`: macOS (required), iOS (planned), TUI (planned).
+- `COL-RULE-005`: macOS (required), iOS (planned), TUI (planned).
 - `COL-MOVE-008`: macOS (required), iOS (planned), TUI (planned).
 - `COL-MOVE-009`: macOS (required), iOS (planned), TUI (planned).
+- `COL-ARCH-001`: macOS (required), iOS (planned), TUI (planned).
+- `COL-ARCH-002`: macOS (required), iOS (planned), TUI (planned).
+- `COL-ARCH-003`: macOS (required), iOS (planned), TUI (planned).
+- `COL-ARCH-004`: macOS (required), iOS (planned), TUI (planned).
+- `COL-ARCH-005`: macOS (required), iOS (planned), TUI (planned).

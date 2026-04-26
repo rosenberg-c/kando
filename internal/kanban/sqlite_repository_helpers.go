@@ -65,7 +65,7 @@ func getOwnedColumn(ctx context.Context, q queryRower, ownerUserID, boardID, col
 func getOwnedTask(ctx context.Context, q queryRower, ownerUserID, boardID, taskID string) (Task, error) {
 	task, err := scanTask(q.QueryRowContext(
 		ctx,
-		`SELECT id, board_id, column_id, owner_user_id, title, description, position, created_at_ms, updated_at_ms
+		`SELECT id, board_id, column_id, owner_user_id, title, description, is_archived, archived_at_ms, position, created_at_ms, updated_at_ms
 		 FROM tasks
 		 WHERE id = ?`,
 		taskID,
@@ -81,6 +81,36 @@ func getOwnedTask(ctx context.Context, q queryRower, ownerUserID, boardID, taskI
 	}
 	if task.OwnerUserID != ownerUserID {
 		return Task{}, ErrForbidden
+	}
+	if task.IsArchived {
+		return Task{}, ErrNotFound
+	}
+
+	return task, nil
+}
+
+func getOwnedArchivedTask(ctx context.Context, q queryRower, ownerUserID, boardID, taskID string) (Task, error) {
+	task, err := scanTask(q.QueryRowContext(
+		ctx,
+		`SELECT id, board_id, column_id, owner_user_id, title, description, is_archived, archived_at_ms, position, created_at_ms, updated_at_ms
+		 FROM tasks
+		 WHERE id = ?`,
+		taskID,
+	).Scan)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Task{}, ErrNotFound
+		}
+		return Task{}, err
+	}
+	if task.BoardID != boardID {
+		return Task{}, ErrNotFound
+	}
+	if task.OwnerUserID != ownerUserID {
+		return Task{}, ErrForbidden
+	}
+	if !task.IsArchived {
+		return Task{}, ErrConflict
 	}
 
 	return task, nil
@@ -142,6 +172,7 @@ func scanColumn(scan scannerFunc) (Column, error) {
 
 func scanTask(scan scannerFunc) (Task, error) {
 	var task Task
+	var archivedAtMS sql.NullInt64
 	var createdAtMS int64
 	var updatedAtMS int64
 
@@ -152,11 +183,17 @@ func scanTask(scan scannerFunc) (Task, error) {
 		&task.OwnerUserID,
 		&task.Title,
 		&task.Description,
+		&task.IsArchived,
+		&archivedAtMS,
 		&task.Position,
 		&createdAtMS,
 		&updatedAtMS,
 	); err != nil {
 		return Task{}, err
+	}
+
+	if archivedAtMS.Valid {
+		task.ArchivedAt = fromUnixMillis(archivedAtMS.Int64)
 	}
 
 	task.CreatedAt = fromUnixMillis(createdAtMS)
@@ -206,10 +243,10 @@ func listColumnsForQuery(ctx context.Context, q queryer, boardID string) ([]Colu
 func listTasksForQuery(ctx context.Context, q queryer, boardID string) ([]Task, error) {
 	rows, err := q.QueryContext(
 		ctx,
-		`SELECT t.id, t.board_id, t.column_id, t.owner_user_id, t.title, t.description, t.position, t.created_at_ms, t.updated_at_ms
+		`SELECT t.id, t.board_id, t.column_id, t.owner_user_id, t.title, t.description, t.is_archived, t.archived_at_ms, t.position, t.created_at_ms, t.updated_at_ms
 		 FROM tasks t
 		 INNER JOIN columns c ON c.id = t.column_id
-		 WHERE t.board_id = ?
+		 WHERE t.board_id = ? AND t.is_archived = 0
 		 ORDER BY c.position, t.position`,
 		boardID,
 	)
@@ -268,7 +305,7 @@ func reindexColumnsTx(ctx context.Context, tx *sql.Tx, boardID string, now time.
 }
 
 func reindexTasksTx(ctx context.Context, tx *sql.Tx, columnID string, now time.Time) error {
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE column_id = ? ORDER BY position`, columnID)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE column_id = ? AND is_archived = 0 ORDER BY position`, columnID)
 	if err != nil {
 		return fmt.Errorf("list tasks for reindex: %w", err)
 	}
@@ -302,7 +339,7 @@ func reindexTasksTx(ctx context.Context, tx *sql.Tx, columnID string, now time.T
 }
 
 func taskIDsByColumnTx(ctx context.Context, tx *sql.Tx, columnID string) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE column_id = ? ORDER BY position`, columnID)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE column_id = ? AND is_archived = 0 ORDER BY position`, columnID)
 	if err != nil {
 		return nil, fmt.Errorf("list task ids by column: %w", err)
 	}
@@ -324,7 +361,7 @@ func taskIDsByColumnTx(ctx context.Context, tx *sql.Tx, columnID string) ([]stri
 }
 
 func taskIDsByBoardTx(ctx context.Context, tx *sql.Tx, boardID string) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE board_id = ? ORDER BY id`, boardID)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM tasks WHERE board_id = ? AND is_archived = 0 ORDER BY id`, boardID)
 	if err != nil {
 		return nil, fmt.Errorf("list task ids by board: %w", err)
 	}
@@ -349,7 +386,7 @@ func applyTaskOrderTx(ctx context.Context, tx *sql.Tx, columnID string, taskIDs 
 	for i, id := range taskIDs {
 		if _, err := tx.ExecContext(
 			ctx,
-			`UPDATE tasks SET column_id = ?, position = ?, updated_at_ms = ? WHERE id = ?`,
+			`UPDATE tasks SET column_id = ?, position = ?, updated_at_ms = ? WHERE id = ? AND is_archived = 0`,
 			columnID,
 			i,
 			toUnixMillis(now),
