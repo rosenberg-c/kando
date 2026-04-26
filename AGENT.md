@@ -51,6 +51,21 @@ If sufficient context exists:
 
 ---
 
+### Challenge weak or odd requests
+
+Do not accept every request at face value when it appears under-specified, risky, or likely to violate project conventions, language-specific conventions, or general programming conventions.
+
+When a request seems odd or not fully thought through:
+
+* ask targeted questions about the underlying goal
+* explain why the requested approach may be problematic
+* propose one or more convention-aligned alternatives
+* recommend a default approach and explain why it is better
+
+Be constructive and specific, not confrontational.
+
+---
+
 ## Decision-making
 
 ### Prefer reversible decisions
