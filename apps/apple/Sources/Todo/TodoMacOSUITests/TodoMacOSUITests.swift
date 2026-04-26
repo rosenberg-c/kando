@@ -1152,11 +1152,6 @@ final class TodoMacOSUITests: XCTestCase {
             fallback: app.textFields["Task title"],
             waitTimeout: uiTimeout
         )
-        let createButton = preferredElement(
-            primary: app.buttons["task-editor-submit"],
-            fallback: app.buttons["Create"],
-            waitTimeout: uiTimeout
-        )
         let createdTaskTitle = "Created in empty column"
 
         XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
@@ -1167,6 +1162,13 @@ final class TodoMacOSUITests: XCTestCase {
 
         XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
         XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+        let createButtonQuery = app.buttons.matching(
+            NSPredicate(format: "identifier == %@ OR label == %@", "task-editor-submit", "Create")
+        )
+        guard let createButton = firstHittableElement(in: createButtonQuery, timeout: uiTimeout) else {
+            XCTFail("Expected create-task submit button")
+            return
+        }
 
         taskTitleField.tap()
         taskTitleField.typeText(createdTaskTitle)
@@ -1244,11 +1246,6 @@ final class TodoMacOSUITests: XCTestCase {
             fallback: app.textFields["Task title"],
             waitTimeout: uiTimeout
         )
-        let createButton = preferredElement(
-            primary: app.buttons["task-editor-submit"],
-            fallback: app.buttons["Create"],
-            waitTimeout: uiTimeout
-        )
         let createdTaskTitle = "Created with 100 tasks"
 
         XCTAssertTrue(workColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected work column task count")
@@ -1268,6 +1265,13 @@ final class TodoMacOSUITests: XCTestCase {
 
         XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
         XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+        let createButtonQuery = app.buttons.matching(
+            NSPredicate(format: "identifier == %@ OR label == %@", "task-editor-submit", "Create")
+        )
+        guard let createButton = firstHittableElement(in: createButtonQuery, timeout: uiTimeout) else {
+            XCTFail("Expected create-task submit button")
+            return
+        }
         taskTitleField.tap()
         taskTitleField.typeText(createdTaskTitle)
         createButton.tap()
@@ -1284,6 +1288,29 @@ final class TodoMacOSUITests: XCTestCase {
             app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
             "Expected created task to be visible in selected column"
         )
+    }
+
+    @MainActor
+    func testArchiveColumnTasksArchivesOnlySelectedColumn() throws {
+        // Requirements: COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
+        let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
+        let archiveWorkTasksButton = app.buttons["column-archive-tasks-column-work"]
+
+        XCTAssertTrue(workColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected work column task count")
+        XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(archiveWorkTasksButton.waitForExistence(timeout: uiTimeout), "Expected archive tasks button for work column")
+
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 1, timeout: 3), "Expected work column initial task count")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column initial task count")
+
+        archiveWorkTasksButton.tap()
+
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 0, timeout: 3), "Expected selected column tasks to be archived")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected other column task count unchanged")
     }
 
     @MainActor
@@ -1447,6 +1474,18 @@ final class TodoMacOSUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         return condition()
+    }
+
+    private func firstHittableElement(in query: XCUIElementQuery, timeout: TimeInterval) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let candidate = query.allElementsBoundByIndex.first { $0.exists && $0.isHittable }
+            if let candidate {
+                return candidate
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return query.allElementsBoundByIndex.first { $0.exists }
     }
 
     private func preferredElement(primary: XCUIElement, fallback: XCUIElement, waitTimeout: TimeInterval) -> XCUIElement {
