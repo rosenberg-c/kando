@@ -178,29 +178,34 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
-    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload {
+    func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let output = try await client.exportTasks(path: .init(boardId: boardID))
+        let payload = Components.Schemas.TaskExportBundleRequest(boardIds: boardIDs)
+        let output = try await client.exportTasksBundle(body: .json(payload))
         switch output {
         case let .ok(ok):
-            return mapTaskExportPayload(try ok.body.json)
+            return try mapTaskExportBundle(try ok.body.json)
         case let .default(statusCode, payload):
-            throw mapStatus(statusCode, operation: "exportTasks", model: problem(from: payload.body))
+            throw mapStatus(statusCode, operation: "exportTasksBundle", model: problem(from: payload.body))
         }
     }
 
-    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult {
+    func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let output = try await client.importTasks(path: .init(boardId: boardID), body: .json(try mapTaskExportPayload(payload)))
+        let payload = Components.Schemas.TaskImportBundleRequest(
+            bundle: try mapTaskExportBundle(bundle),
+            sourceBoardIds: sourceBoardIDs
+        )
+        let output = try await client.importTasksBundle(body: .json(payload))
         switch output {
         case let .ok(ok):
             let body = try ok.body.json
-            return TaskImportResult(
-                createdColumnCount: Int(body.createdColumnCount),
-                importedTaskCount: Int(body.importedTaskCount)
+            return TaskImportBundleResult(
+                totalCreatedColumnCount: Int(body.totalCreatedColumnCount),
+                totalImportedTaskCount: Int(body.totalImportedTaskCount)
             )
         case let .default(statusCode, payload):
-            throw mapStatus(statusCode, operation: "importTasks", model: problem(from: payload.body))
+            throw mapStatus(statusCode, operation: "importTasksBundle", model: problem(from: payload.body))
         }
     }
 
@@ -285,11 +290,11 @@ struct GeneratedKanbanAPI: KanbanAPI {
            case let .applicationProblemJson(model) = body {
             return model
         }
-        if let body = body as? Operations.ExportTasks.Output.Default.Body,
+        if let body = body as? Operations.ExportTasksBundle.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }
-        if let body = body as? Operations.ImportTasks.Output.Default.Body,
+        if let body = body as? Operations.ImportTasksBundle.Output.Default.Body,
            case let .applicationProblemJson(model) = body {
             return model
         }
@@ -338,6 +343,34 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
 
         throw KanbanAPIError.invalidResponse
+    }
+
+    private func mapTaskExportBundle(_ bundle: Components.Schemas.TaskExportBundle) throws -> TaskExportBundle {
+        TaskExportBundle(
+            formatVersion: Int(bundle.formatVersion),
+            exportedAt: ExportDateFormatters.plain.string(from: bundle.exportedAt),
+            boards: bundle.boards.map { snapshot in
+                TaskExportBundleBoard(
+                    sourceBoardID: snapshot.sourceBoardId,
+                    sourceBoardTitle: snapshot.sourceBoardTitle,
+                    payload: mapTaskExportPayload(snapshot.payload)
+                )
+            }
+        )
+    }
+
+    private func mapTaskExportBundle(_ bundle: TaskExportBundle) throws -> Components.Schemas.TaskExportBundle {
+        Components.Schemas.TaskExportBundle(
+            boards: try bundle.boards.map { snapshot in
+                Components.Schemas.TaskExportBundleBoard(
+                    payload: try mapTaskExportPayload(snapshot.payload),
+                    sourceBoardId: snapshot.sourceBoardID,
+                    sourceBoardTitle: snapshot.sourceBoardTitle
+                )
+            },
+            exportedAt: try parseExportedAt(bundle.exportedAt),
+            formatVersion: Int64(bundle.formatVersion)
+        )
     }
 
     private func mapBoard(_ board: Components.Schemas.Board) -> KanbanBoard {

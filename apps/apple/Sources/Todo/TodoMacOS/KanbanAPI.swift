@@ -43,6 +43,26 @@ struct TaskExportPayload: Codable, Sendable, Equatable {
     }
 }
 
+struct TaskExportBundle: Codable, Sendable, Equatable {
+    static let currentFormatVersion = 2
+
+    let formatVersion: Int
+    let exportedAt: String
+    let boards: [TaskExportBundleBoard]
+
+    var taskCount: Int {
+        boards.reduce(0) { $0 + $1.payload.taskCount }
+    }
+}
+
+struct TaskExportBundleBoard: Codable, Sendable, Equatable, Identifiable {
+    let sourceBoardID: String
+    let sourceBoardTitle: String
+    let payload: TaskExportPayload
+
+    var id: String { sourceBoardID }
+}
+
 struct TaskExportColumn: Codable, Sendable, Equatable {
     let title: String
     let tasks: [TaskExportTask]
@@ -56,6 +76,11 @@ struct TaskExportTask: Codable, Sendable, Equatable {
 struct TaskImportResult: Sendable, Equatable {
     let createdColumnCount: Int
     let importedTaskCount: Int
+}
+
+struct TaskImportBundleResult: Sendable, Equatable {
+    let totalCreatedColumnCount: Int
+    let totalImportedTaskCount: Int
 }
 
 enum KanbanAPIError: LocalizedError {
@@ -117,6 +142,6 @@ protocol KanbanAPI: Sendable {
     func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws
-    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload
-    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult
+    func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle
+    func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult
 }

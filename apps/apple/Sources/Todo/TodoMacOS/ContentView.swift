@@ -135,11 +135,6 @@ private struct TaskControlVisibilityBindings {
 }
 
 private struct LoggedInWorkspaceView: View {
-    private enum DeferredSettingsAction {
-        case export
-        case `import`
-    }
-
     @ObservedObject var auth: AuthSessionViewModel
     let onSignOut: () -> Void
 
@@ -153,7 +148,8 @@ private struct LoggedInWorkspaceView: View {
     @State private var pendingColumnDeletion: EditableColumn?
     @State private var pendingTaskDeletion: EditableTask?
     @State private var isSettingsSheetPresented = false
-    @State private var deferredSettingsAction: DeferredSettingsAction?
+    @State private var exportSelectionSheet: BoardExportSelectionSheetState?
+    @State private var importSelectionSheet: BoardImportSelectionSheetState?
     @State private var selectedTaskID: String?
     @AppStorage(WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons) private var showsTopBottomTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showUpDownTaskButtons) private var showsUpDownTaskButtons = true
@@ -435,20 +431,7 @@ private struct LoggedInWorkspaceView: View {
             )
         }
         .sheet(
-            isPresented: $isSettingsSheetPresented,
-            onDismiss: {
-                guard let action = deferredSettingsAction else { return }
-                deferredSettingsAction = nil
-
-                switch action {
-                case .export:
-                    exportTasksFromSettings()
-                case .import:
-                    Task { @MainActor in
-                        await importTasksFromSettings()
-                    }
-                }
-            }
+            isPresented: $isSettingsSheetPresented
         ) {
             WorkspaceSettingsSheet(
                 canRefresh: board.canMutateBoardActions,
@@ -458,15 +441,16 @@ private struct LoggedInWorkspaceView: View {
                     Task { await board.reloadBoard() }
                 },
                 onExport: {
-                    deferredSettingsAction = .export
                     isSettingsSheetPresented = false
+                    presentExportSelection()
                 },
                 onImport: {
-                    deferredSettingsAction = .import
                     isSettingsSheetPresented = false
+                    Task { @MainActor in
+                        await presentImportSelection()
+                    }
                 },
                 onSignOut: {
-                    deferredSettingsAction = nil
                     isSettingsSheetPresented = false
                     onSignOut()
                 },
@@ -477,6 +461,34 @@ private struct LoggedInWorkspaceView: View {
                     Task { await board.deleteArchivedBoard(boardID: boardID) }
                 },
                 taskControlVisibility: taskControlVisibilityBindings
+            )
+        }
+        .sheet(item: $exportSelectionSheet) { sheet in
+            BoardTransferSelectionSheet(
+                accessibilityPrefix: "board-transfer-export",
+                titleKey: "board.transfer.export.selection.title",
+                subtitleKey: "board.transfer.export.selection.subtitle",
+                submitKey: "board.transfer.export.selection.submit",
+                initialBoards: sheet.boards,
+                onSubmit: { selectedBoardIDs in
+                    exportSelectionSheet = nil
+                    exportTasksFromSettings(includedBoardIDs: selectedBoardIDs)
+                }
+            )
+        }
+        .sheet(item: $importSelectionSheet) { sheet in
+            BoardTransferSelectionSheet(
+                accessibilityPrefix: "board-transfer-import",
+                titleKey: "board.transfer.import.selection.title",
+                subtitleKey: "board.transfer.import.selection.subtitle",
+                submitKey: "board.transfer.import.selection.submit",
+                initialBoards: sheet.boards,
+                onSubmit: { selectedBoardIDs in
+                    importSelectionSheet = nil
+                    Task { @MainActor in
+                        await board.importTasks(from: sheet.fileURL, includedSourceBoardIDs: selectedBoardIDs)
+                    }
+                }
             )
         }
         .sheet(item: $creatingTaskInColumn) { target in
@@ -725,8 +737,43 @@ private struct LoggedInWorkspaceView: View {
         return lines.joined(separator: "\n")
     }
 
+    private func presentExportSelection() {
+        let items = board.boards.map {
+            BoardTransferSelectionItem(id: $0.id, title: $0.title)
+        }
+        guard !items.isEmpty else {
+            return
+        }
+        exportSelectionSheet = BoardExportSelectionSheetState(boards: items)
+    }
+
+    private func presentImportSelection() async {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.title = Strings.t("board.import.panel.title")
+        panel.prompt = Strings.t("board.import.panel.submit")
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        guard let snapshots = await board.importSnapshots(from: url) else {
+            return
+        }
+        let items = snapshots.map {
+            BoardTransferSelectionItem(id: $0.sourceBoardID, title: $0.sourceBoardTitle)
+        }
+        guard !items.isEmpty else {
+            return
+        }
+        importSelectionSheet = BoardImportSelectionSheetState(fileURL: url, boards: items)
+    }
+
     @MainActor
-    private func exportTasksFromSettings() {
+    private func exportTasksFromSettings(includedBoardIDs: [String]) {
         NSApp.activate(ignoringOtherApps: true)
 
         // NOTE: Keep runModal for export panel.
@@ -745,24 +792,8 @@ private struct LoggedInWorkspaceView: View {
         }
 
         Task { @MainActor in
-            await board.exportTasks(to: url)
+            await board.exportTasks(to: url, includedBoardIDs: includedBoardIDs)
         }
-    }
-
-    private func importTasksFromSettings() async {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.json]
-        panel.title = Strings.t("board.import.panel.title")
-        panel.prompt = Strings.t("board.import.panel.submit")
-
-        guard panel.runModal() == .OK, let url = panel.url else {
-            return
-        }
-
-        await board.importTasks(from: url)
     }
 }
 
@@ -968,6 +999,94 @@ private struct WorkspaceSettingsSheet: View {
             if let board = pendingDeleteArchivedBoard {
                 Text(Strings.f("board.archived.delete.confirm.message", board.title))
             }
+        }
+    }
+}
+
+private struct BoardTransferSelectionItem: Identifiable {
+    let id: String
+    let title: String
+}
+
+private struct BoardExportSelectionSheetState: Identifiable {
+    let id = UUID()
+    let boards: [BoardTransferSelectionItem]
+}
+
+private struct BoardImportSelectionSheetState: Identifiable {
+    let id = UUID()
+    let fileURL: URL
+    let boards: [BoardTransferSelectionItem]
+}
+
+private struct BoardTransferSelectionSheet: View {
+    let accessibilityPrefix: String
+    let titleKey: String
+    let subtitleKey: String
+    let submitKey: String
+    let initialBoards: [BoardTransferSelectionItem]
+    let onSubmit: ([String]) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedBoardIDs: Set<String> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(LocalizedStringKey(titleKey))
+                .font(.title3.weight(.semibold))
+
+            Text(LocalizedStringKey(subtitleKey))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(initialBoards) { board in
+                        Toggle(isOn: Binding(
+                            get: { selectedBoardIDs.contains(board.id) },
+                            set: { isEnabled in
+                                if isEnabled {
+                                    selectedBoardIDs.insert(board.id)
+                                } else {
+                                    selectedBoardIDs.remove(board.id)
+                                }
+                            }
+                        )) {
+                            Text(board.title)
+                        }
+                        .toggleStyle(.checkbox)
+                        .accessibilityIdentifier("\(accessibilityPrefix)-checkbox-\(board.id)")
+                    }
+                }
+            }
+            .frame(maxHeight: 220)
+            .accessibilityIdentifier("\(accessibilityPrefix)-list")
+
+            HStack {
+                Button("common.cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("\(accessibilityPrefix)-cancel-button")
+
+                Spacer()
+
+                Button(LocalizedStringKey(submitKey)) {
+                    let orderedSelection = initialBoards
+                        .map(\.id)
+                        .filter { selectedBoardIDs.contains($0) }
+                    onSubmit(orderedSelection)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedBoardIDs.isEmpty)
+                .accessibilityIdentifier("\(accessibilityPrefix)-submit-button")
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .accessibilityIdentifier("\(accessibilityPrefix)-sheet")
+        .onAppear {
+            selectedBoardIDs = Set(initialBoards.map(\.id))
         }
     }
 }

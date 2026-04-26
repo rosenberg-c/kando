@@ -369,6 +369,66 @@ components:
         - columnId
         - taskIds
       type: object
+    TaskExportBundle:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskExportBundle.json
+          format: uri
+          readOnly: true
+          type: string
+        boards:
+          items:
+            $ref: "#/components/schemas/TaskExportBundleBoard"
+          minItems: 1
+          type: array
+        exportedAt:
+          format: date-time
+          type: string
+        formatVersion:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - formatVersion
+        - exportedAt
+        - boards
+      type: object
+    TaskExportBundleBoard:
+      additionalProperties: false
+      properties:
+        payload:
+          $ref: "#/components/schemas/TaskExportPayload"
+        sourceBoardId:
+          format: uuid
+          type: string
+        sourceBoardTitle:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - sourceBoardId
+        - sourceBoardTitle
+        - payload
+      type: object
+    TaskExportBundleRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskExportBundleRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        boardIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - boardIds
+      type: object
     TaskExportColumn:
       additionalProperties: false
       properties:
@@ -387,12 +447,6 @@ components:
     TaskExportPayload:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          example: https://example.com/TaskExportPayload.json
-          format: uri
-          readOnly: true
-          type: string
         boardTitle:
           maxLength: 120
           minLength: 1
@@ -428,26 +482,74 @@ components:
         - title
         - description
       type: object
-    TaskImportResponse:
+    TaskImportBundleBoardResult:
       additionalProperties: false
       properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          example: https://example.com/TaskImportResponse.json
-          format: uri
-          readOnly: true
-          type: string
         createdColumnCount:
           format: int64
           minimum: 0
           type: integer
+        destinationBoardId:
+          format: uuid
+          type: string
         importedTaskCount:
           format: int64
           minimum: 0
           type: integer
+        sourceBoardId:
+          format: uuid
+          type: string
       required:
+        - sourceBoardId
+        - destinationBoardId
         - createdColumnCount
         - importedTaskCount
+      type: object
+    TaskImportBundleRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskImportBundleRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        bundle:
+          $ref: "#/components/schemas/TaskExportBundle"
+        sourceBoardIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - sourceBoardIds
+        - bundle
+      type: object
+    TaskImportBundleResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskImportBundleResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        results:
+          items:
+            $ref: "#/components/schemas/TaskImportBundleBoardResult"
+          type: array
+        totalCreatedColumnCount:
+          format: int64
+          minimum: 0
+          type: integer
+        totalImportedTaskCount:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - results
+        - totalCreatedColumnCount
+        - totalImportedTaskCount
       type: object
     UpdateBoardRequest:
       additionalProperties: false
@@ -659,6 +761,66 @@ paths:
       security:
         - bearerAuth: []
       summary: List archived boards for the authenticated user
+  /boards/tasks/export:
+    post:
+      operationId: exportTasksBundle
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskExportBundleRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskExportBundle"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Export selected boards as a multi-board task bundle
+  /boards/tasks/import:
+    post:
+      operationId: importTasksBundle
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskImportBundleRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskImportBundleResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Import selected snapshots from a multi-board task bundle
   /boards/{boardId}:
     delete:
       operationId: deleteBoard
@@ -1005,70 +1167,6 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a task
-  /boards/{boardId}/tasks/export:
-    get:
-      operationId: exportTasks
-      parameters:
-        - in: header
-          name: Authorization
-          schema:
-            type: string
-        - in: path
-          name: boardId
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TaskExportPayload"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Error
-      security:
-        - bearerAuth: []
-      summary: Export board tasks as versioned payload
-  /boards/{boardId}/tasks/import:
-    post:
-      operationId: importTasks
-      parameters:
-        - in: header
-          name: Authorization
-          schema:
-            type: string
-        - in: path
-          name: boardId
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TaskExportPayload"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TaskImportResponse"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Error
-      security:
-        - bearerAuth: []
-      summary: Import board tasks from versioned payload
   /boards/{boardId}/tasks/order:
     put:
       operationId: reorderTasks

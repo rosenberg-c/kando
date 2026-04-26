@@ -51,8 +51,8 @@ struct MockKanbanAPI: KanbanAPI {
     var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var reorderTasksHandler: @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void
     var deleteTaskHandler: @Sendable (String, String, String, URL) async throws -> Void
-    var exportTasksHandler: @Sendable (String, String, URL) async throws -> TaskExportPayload
-    var importTasksHandler: @Sendable (String, TaskExportPayload, String, URL) async throws -> TaskImportResult
+    var exportTasksBundleHandler: @Sendable ([String], String, URL) async throws -> TaskExportBundle
+    var importTasksBundleHandler: @Sendable ([String], TaskExportBundle, String, URL) async throws -> TaskImportBundleResult
 
     init(
         listBoardsHandler: @escaping @Sendable (String, URL) async throws -> [KanbanBoard] = { _, _ in
@@ -86,11 +86,25 @@ struct MockKanbanAPI: KanbanAPI {
         updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         reorderTasksHandler: @escaping @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void = { _, _, _, _ in },
         deleteTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
-        exportTasksHandler: @escaping @Sendable (String, String, URL) async throws -> TaskExportPayload = { _, _, _ in
-            TaskExportPayload(formatVersion: TaskExportPayload.currentFormatVersion, boardTitle: "Main", exportedAt: "2026-04-24T00:00:00Z", columns: [])
+        exportTasksBundleHandler: @escaping @Sendable ([String], String, URL) async throws -> TaskExportBundle = { boardIDs, _, _ in
+            TaskExportBundle(
+                formatVersion: TaskExportBundle.currentFormatVersion,
+                exportedAt: "2026-04-24T00:00:00Z",
+                boards: boardIDs.map {
+                    TaskExportBundleBoard(
+                        sourceBoardID: $0,
+                        sourceBoardTitle: "Main",
+                        payload: TaskExportPayload(formatVersion: TaskExportPayload.currentFormatVersion, boardTitle: "Main", exportedAt: "2026-04-24T00:00:00Z", columns: [])
+                    )
+                }
+            )
         },
-        importTasksHandler: @escaping @Sendable (String, TaskExportPayload, String, URL) async throws -> TaskImportResult = { _, payload, _, _ in
-            TaskImportResult(createdColumnCount: 0, importedTaskCount: payload.taskCount)
+        importTasksBundleHandler: @escaping @Sendable ([String], TaskExportBundle, String, URL) async throws -> TaskImportBundleResult = { sourceBoardIDs, bundle, _, _ in
+            let selected = bundle.boards.filter { sourceBoardIDs.contains($0.sourceBoardID) }
+            return TaskImportBundleResult(
+                totalCreatedColumnCount: 0,
+                totalImportedTaskCount: selected.reduce(0) { $0 + $1.payload.taskCount }
+            )
         }
     ) {
         self.listBoardsHandler = listBoardsHandler
@@ -110,8 +124,8 @@ struct MockKanbanAPI: KanbanAPI {
         self.updateTaskHandler = updateTaskHandler
         self.reorderTasksHandler = reorderTasksHandler
         self.deleteTaskHandler = deleteTaskHandler
-        self.exportTasksHandler = exportTasksHandler
-        self.importTasksHandler = importTasksHandler
+        self.exportTasksBundleHandler = exportTasksBundleHandler
+        self.importTasksBundleHandler = importTasksBundleHandler
     }
 
     func listBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
@@ -182,11 +196,11 @@ struct MockKanbanAPI: KanbanAPI {
         try await deleteTaskHandler(boardID, taskID, accessToken, baseURL)
     }
 
-    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload {
-        try await exportTasksHandler(boardID, accessToken, baseURL)
+    func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {
+        try await exportTasksBundleHandler(boardIDs, accessToken, baseURL)
     }
 
-    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult {
-        try await importTasksHandler(boardID, payload, accessToken, baseURL)
+    func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult {
+        try await importTasksBundleHandler(sourceBoardIDs, bundle, accessToken, baseURL)
     }
 }

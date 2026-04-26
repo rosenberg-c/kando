@@ -350,23 +350,43 @@ final class BoardViewModel: ObservableObject {
     }
 
     func exportTasks(to fileURL: URL) async {
+        guard let selectedBoardID else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+        await exportTasks(to: fileURL, includedBoardIDs: [selectedBoardID])
+    }
+
+    func exportTasks(to fileURL: URL, includedBoardIDs: [String]) async {
+        let selectedIDs = Set(includedBoardIDs)
+        guard !selectedIDs.isEmpty else {
+            setError(Strings.t("board.transfer.status.no_boards_selected"))
+            return
+        }
+
         do {
-            let context = try await resolveContext(requireBoard: true)
-            let boardID = try requireBoardID(context)
-            let payload = try await api.exportTasks(
-                boardID: boardID,
+            let context = try await resolveContext()
+            let selectedBoards = boards.filter { selectedIDs.contains($0.id) }
+            guard selectedBoards.count == selectedIDs.count else {
+                setError(Strings.t("board.error.invalid_response"))
+                return
+            }
+
+            let orderedBoardIDs = selectedBoards.map(\.id)
+            let bundle = try await api.exportTasksBundle(
+                boardIDs: orderedBoardIDs,
                 accessToken: context.accessToken,
                 baseURL: context.baseURL
             )
             let data = try await Task.detached(priority: .userInitiated) { () throws -> Data in
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                return try encoder.encode(payload)
+                return try encoder.encode(bundle)
             }.value
             try await Task.detached(priority: .userInitiated) {
                 try data.write(to: fileURL, options: .atomic)
             }.value
-            setSuccess(Strings.f("board.export.status.success", payload.taskCount))
+            setSuccess(Strings.f("board.export.status.success", bundle.taskCount))
             debugMessage = ""
         } catch {
             setError(Strings.f("board.export.status.failed", error.localizedDescription))
@@ -375,37 +395,102 @@ final class BoardViewModel: ObservableObject {
     }
 
     func importTasks(from fileURL: URL) async {
-        let payload: TaskExportPayload
+        let snapshots: [TaskExportBundleBoard]
         do {
-            payload = try await Task.detached(priority: .userInitiated) { () throws -> TaskExportPayload in
-                let data = try Data(contentsOf: fileURL)
-                return try JSONDecoder().decode(TaskExportPayload.self, from: data)
-            }.value
+            snapshots = try await readImportSnapshots(from: fileURL)
         } catch {
             setError(Strings.f("board.import.status.failed", error.localizedDescription))
             debugMessage = error.localizedDescription
             return
         }
 
-        guard payload.formatVersion == TaskExportPayload.currentFormatVersion else {
-            setError(Strings.f("board.import.status.unsupported_version", payload.formatVersion))
-            debugMessage = "unsupported_format_version=\(payload.formatVersion)"
+        await importTasksFromSnapshots(snapshots, includedSourceBoardIDs: snapshots.map(\.sourceBoardID))
+    }
+
+    func importTasks(from fileURL: URL, includedSourceBoardIDs: [String]) async {
+        let snapshots: [TaskExportBundleBoard]
+        do {
+            snapshots = try await readImportSnapshots(from: fileURL)
+        } catch {
+            setError(Strings.f("board.import.status.failed", error.localizedDescription))
+            debugMessage = error.localizedDescription
+            return
+        }
+
+        await importTasksFromSnapshots(snapshots, includedSourceBoardIDs: includedSourceBoardIDs)
+    }
+
+    private func importTasksFromSnapshots(_ snapshots: [TaskExportBundleBoard], includedSourceBoardIDs: [String]) async {
+        let selectedSourceBoardIDs = Set(includedSourceBoardIDs)
+        guard !selectedSourceBoardIDs.isEmpty else {
+            setError(Strings.t("board.transfer.status.no_boards_selected"))
+            return
+        }
+
+        let selectedSnapshots = snapshots.filter { selectedSourceBoardIDs.contains($0.sourceBoardID) }
+        guard selectedSnapshots.count == selectedSourceBoardIDs.count else {
+            setError(Strings.t("board.error.invalid_response"))
             return
         }
 
         _ = await runMutation {
-            let context = try await self.resolveContext(requireBoard: true)
-            let boardID = try self.requireBoardID(context)
-            let result = try await self.api.importTasks(
-                boardID: boardID,
-                payload: payload,
+            let context = try await self.resolveContext()
+
+            let importBundle = TaskExportBundle(
+                formatVersion: TaskExportBundle.currentFormatVersion,
+                exportedAt: ISO8601DateFormatter().string(from: Date()),
+                boards: selectedSnapshots
+            )
+            let result = try await self.api.importTasksBundle(
+                sourceBoardIDs: selectedSnapshots.map(\.sourceBoardID),
+                bundle: importBundle,
                 accessToken: context.accessToken,
                 baseURL: context.baseURL
             )
 
             try await self.reloadWithContext(context)
-            self.setSuccess(Strings.f("board.import.status.success", result.importedTaskCount))
+            self.setSuccess(Strings.f("board.import.status.success", result.totalImportedTaskCount))
         }
+    }
+
+    func importSnapshots(from fileURL: URL) async -> [TaskExportBundleBoard]? {
+        do {
+            return try await readImportSnapshots(from: fileURL)
+        } catch {
+            setError(Strings.f("board.import.status.failed", error.localizedDescription))
+            debugMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func readImportSnapshots(from fileURL: URL) async throws -> [TaskExportBundleBoard] {
+        let data = try await Task.detached(priority: .userInitiated) {
+            try Data(contentsOf: fileURL)
+        }.value
+
+        let decoder = JSONDecoder()
+        let bundle = try decoder.decode(TaskExportBundle.self, from: data)
+        guard bundle.formatVersion == TaskExportBundle.currentFormatVersion else {
+            throw KanbanAPIError.unexpectedStatus(
+                code: 400,
+                operation: "importTasks",
+                title: nil,
+                detail: "unsupported_bundle_format_version=\(bundle.formatVersion)"
+            )
+        }
+
+        for snapshot in bundle.boards {
+            guard snapshot.payload.formatVersion == TaskExportPayload.currentFormatVersion else {
+                throw KanbanAPIError.unexpectedStatus(
+                    code: 400,
+                    operation: "importTasks",
+                    title: nil,
+                    detail: "unsupported_format_version=\(snapshot.payload.formatVersion)"
+                )
+            }
+        }
+
+        return bundle.boards
     }
 
     func tasks(for columnID: String) -> [KanbanTask] {

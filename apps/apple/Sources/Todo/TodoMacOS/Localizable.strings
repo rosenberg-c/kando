@@ -83,7 +83,13 @@
 "board.import.panel.submit" = "Import";
 "board.import.status.success" = "Imported %d tasks.";
 "board.import.status.failed" = "Import failed: %@";
-"board.import.status.unsupported_version" = "Import failed: unsupported format version %d.";
+"board.transfer.export.selection.title" = "Select boards to export";
+"board.transfer.export.selection.subtitle" = "Choose one or more boards to include in the export file.";
+"board.transfer.export.selection.submit" = "Continue";
+"board.transfer.import.selection.title" = "Select boards to import";
+"board.transfer.import.selection.subtitle" = "Choose one or more boards from the file to import.";
+"board.transfer.import.selection.submit" = "Import selected";
+"board.transfer.status.no_boards_selected" = "Select at least one board.";
 "board.status.loaded" = "Board loaded.";
 
 "board.error.unauthorized" = "Your session is not valid. Please sign in again.";

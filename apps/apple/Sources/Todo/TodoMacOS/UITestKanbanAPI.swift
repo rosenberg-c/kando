@@ -269,40 +269,127 @@ actor UITestKanbanAPI: KanbanAPI {
         tasksByBoardID[boardID] = tasks
     }
 
-    func exportTasks(boardID: String, accessToken: String, baseURL: URL) async throws -> TaskExportPayload {
+    func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {
         await maybeDelay()
+        let selectedBoardIDs = try normalizedUniqueIDs(boardIDs, operation: "exportTasksBundle")
 
-        let boardTitle = boards.first(where: { $0.id == boardID })?.title ?? "UI Test Board"
-        let columns = columnsByBoardID[boardID] ?? []
-        let tasks = tasksByBoardID[boardID] ?? []
-
-        let exportColumns = columns
-            .sorted { $0.position < $1.position }
-            .map { column in
-                TaskExportColumn(
-                    title: column.title,
-                    tasks: tasks
-                        .filter { $0.columnID == column.id }
-                        .sorted { $0.position < $1.position }
-                        .map { TaskExportTask(title: $0.title, description: $0.description) }
-                )
+        let snapshots = try selectedBoardIDs.map { boardID -> TaskExportBundleBoard in
+            guard let board = boards.first(where: { $0.id == boardID }) else {
+                throw KanbanAPIError.unexpectedStatus(code: 404, operation: "exportTasksBundle", title: "Not Found", detail: "board not found")
             }
+            let columns = columnsByBoardID[boardID] ?? []
+            let tasks = tasksByBoardID[boardID] ?? []
 
-        return TaskExportPayload(
-            formatVersion: TaskExportPayload.currentFormatVersion,
-            boardTitle: boardTitle,
+            let exportColumns = columns
+                .sorted { $0.position < $1.position }
+                .map { column in
+                    TaskExportColumn(
+                        title: column.title,
+                        tasks: tasks
+                            .filter { $0.columnID == column.id }
+                            .sorted { $0.position < $1.position }
+                            .map { TaskExportTask(title: $0.title, description: $0.description) }
+                    )
+                }
+
+            return TaskExportBundleBoard(
+                sourceBoardID: board.id,
+                sourceBoardTitle: board.title,
+                payload: TaskExportPayload(
+                    formatVersion: TaskExportPayload.currentFormatVersion,
+                    boardTitle: board.title,
+                    exportedAt: ISO8601DateFormatter().string(from: Date()),
+                    columns: exportColumns
+                )
+            )
+        }
+
+        return TaskExportBundle(
+            formatVersion: TaskExportBundle.currentFormatVersion,
             exportedAt: ISO8601DateFormatter().string(from: Date()),
-            columns: exportColumns
+            boards: snapshots
         )
     }
 
-    func importTasks(boardID: String, payload: TaskExportPayload, accessToken: String, baseURL: URL) async throws -> TaskImportResult {
+    func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult {
         await maybeDelay()
+
+        guard bundle.formatVersion == TaskExportBundle.currentFormatVersion else {
+            throw KanbanAPIError.unexpectedStatus(
+                code: 400,
+                operation: "importTasksBundle",
+                title: "Bad Request",
+                detail: "unsupported bundle format version"
+            )
+        }
+
+        let selectedSourceIDs = try normalizedUniqueIDs(sourceBoardIDs, operation: "importTasksBundle")
+
+        var snapshotBySourceID: [String: TaskExportBundleBoard] = [:]
+        for snapshot in bundle.boards {
+            snapshotBySourceID[snapshot.sourceBoardID] = snapshot
+        }
+
+        var totalCreatedColumns = 0
+        var totalImportedTasks = 0
+        for sourceBoardID in selectedSourceIDs {
+            guard let snapshot = snapshotBySourceID[sourceBoardID] else {
+                throw KanbanAPIError.unexpectedStatus(code: 400, operation: "importTasksBundle", title: "Bad Request", detail: "source board not found in bundle")
+            }
+            let destinationBoardID: String
+            if boards.contains(where: { $0.id == snapshot.sourceBoardID }) {
+                destinationBoardID = snapshot.sourceBoardID
+            } else if let board = boards.first(where: { $0.title == snapshot.sourceBoardTitle }) {
+                destinationBoardID = board.id
+            } else {
+                let created = KanbanBoard(id: UUID().uuidString, title: snapshot.sourceBoardTitle)
+                boards.insert(created, at: 0)
+                columnsByBoardID[created.id] = []
+                tasksByBoardID[created.id] = []
+                destinationBoardID = created.id
+            }
+
+            let result = try importPayload(into: destinationBoardID, payload: snapshot.payload)
+            totalCreatedColumns += result.createdColumnCount
+            totalImportedTasks += result.importedTaskCount
+        }
+
+        return TaskImportBundleResult(
+            totalCreatedColumnCount: totalCreatedColumns,
+            totalImportedTaskCount: totalImportedTasks
+        )
+    }
+
+    private func normalizedUniqueIDs(_ ids: [String], operation: String) throws -> [String] {
+        guard !ids.isEmpty else {
+            throw KanbanAPIError.unexpectedStatus(code: 400, operation: operation, title: "Bad Request", detail: "no boards selected")
+        }
+
+        var normalized: [String] = []
+        normalized.reserveCapacity(ids.count)
+        var seen: Set<String> = []
+
+        for value in ids {
+            let id = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.isEmpty else {
+                throw KanbanAPIError.unexpectedStatus(code: 400, operation: operation, title: "Bad Request", detail: "invalid board id")
+            }
+            guard !seen.contains(id) else {
+                throw KanbanAPIError.unexpectedStatus(code: 400, operation: operation, title: "Bad Request", detail: "duplicate board id")
+            }
+            seen.insert(id)
+            normalized.append(id)
+        }
+
+        return normalized
+    }
+
+    private func importPayload(into boardID: String, payload: TaskExportPayload) throws -> TaskImportResult {
 
         guard payload.formatVersion == TaskExportPayload.currentFormatVersion else {
             throw KanbanAPIError.unexpectedStatus(
                 code: 400,
-                operation: "importTasks",
+                operation: "importTasksBundle",
                 title: "Bad Request",
                 detail: "unsupported format version"
             )

@@ -180,6 +180,29 @@ type TaskColumnOrderRequest struct {
 	TaskIds  []string           `json:"taskIds"`
 }
 
+// TaskExportBundle defines model for TaskExportBundle.
+type TaskExportBundle struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema        *string                 `json:"$schema,omitempty"`
+	Boards        []TaskExportBundleBoard `json:"boards"`
+	ExportedAt    time.Time               `json:"exportedAt"`
+	FormatVersion int64                   `json:"formatVersion"`
+}
+
+// TaskExportBundleBoard defines model for TaskExportBundleBoard.
+type TaskExportBundleBoard struct {
+	Payload          TaskExportPayload  `json:"payload"`
+	SourceBoardId    openapi_types.UUID `json:"sourceBoardId"`
+	SourceBoardTitle string             `json:"sourceBoardTitle"`
+}
+
+// TaskExportBundleRequest defines model for TaskExportBundleRequest.
+type TaskExportBundleRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema   *string  `json:"$schema,omitempty"`
+	BoardIds []string `json:"boardIds"`
+}
+
 // TaskExportColumn defines model for TaskExportColumn.
 type TaskExportColumn struct {
 	Tasks []TaskExportTask `json:"tasks"`
@@ -188,8 +211,6 @@ type TaskExportColumn struct {
 
 // TaskExportPayload defines model for TaskExportPayload.
 type TaskExportPayload struct {
-	// Schema A URL to the JSON Schema for this object.
-	Schema        *string            `json:"$schema,omitempty"`
 	BoardTitle    string             `json:"boardTitle"`
 	Columns       []TaskExportColumn `json:"columns"`
 	ExportedAt    time.Time          `json:"exportedAt"`
@@ -202,12 +223,29 @@ type TaskExportTask struct {
 	Title       string `json:"title"`
 }
 
-// TaskImportResponse defines model for TaskImportResponse.
-type TaskImportResponse struct {
+// TaskImportBundleBoardResult defines model for TaskImportBundleBoardResult.
+type TaskImportBundleBoardResult struct {
+	CreatedColumnCount int64              `json:"createdColumnCount"`
+	DestinationBoardId openapi_types.UUID `json:"destinationBoardId"`
+	ImportedTaskCount  int64              `json:"importedTaskCount"`
+	SourceBoardId      openapi_types.UUID `json:"sourceBoardId"`
+}
+
+// TaskImportBundleRequest defines model for TaskImportBundleRequest.
+type TaskImportBundleRequest struct {
 	// Schema A URL to the JSON Schema for this object.
-	Schema             *string `json:"$schema,omitempty"`
-	CreatedColumnCount int64   `json:"createdColumnCount"`
-	ImportedTaskCount  int64   `json:"importedTaskCount"`
+	Schema         *string          `json:"$schema,omitempty"`
+	Bundle         TaskExportBundle `json:"bundle"`
+	SourceBoardIds []string         `json:"sourceBoardIds"`
+}
+
+// TaskImportBundleResponse defines model for TaskImportBundleResponse.
+type TaskImportBundleResponse struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema                  *string                       `json:"$schema,omitempty"`
+	Results                 []TaskImportBundleBoardResult `json:"results"`
+	TotalCreatedColumnCount int64                         `json:"totalCreatedColumnCount"`
+	TotalImportedTaskCount  int64                         `json:"totalImportedTaskCount"`
 }
 
 // UpdateBoardRequest defines model for UpdateBoardRequest.
@@ -244,6 +282,16 @@ type CreateBoardParams struct {
 
 // ListArchivedBoardsParams defines parameters for ListArchivedBoards.
 type ListArchivedBoardsParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// ExportTasksBundleParams defines parameters for ExportTasksBundle.
+type ExportTasksBundleParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// ImportTasksBundleParams defines parameters for ImportTasksBundle.
+type ImportTasksBundleParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -302,16 +350,6 @@ type CreateTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
-// ExportTasksParams defines parameters for ExportTasks.
-type ExportTasksParams struct {
-	Authorization *string `json:"Authorization,omitempty"`
-}
-
-// ImportTasksParams defines parameters for ImportTasks.
-type ImportTasksParams struct {
-	Authorization *string `json:"Authorization,omitempty"`
-}
-
 // ReorderTasksParams defines parameters for ReorderTasks.
 type ReorderTasksParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -344,6 +382,12 @@ type RefreshAuthJSONRequestBody = AuthRefreshRequest
 // CreateBoardJSONRequestBody defines body for CreateBoard for application/json ContentType.
 type CreateBoardJSONRequestBody = CreateBoardRequest
 
+// ExportTasksBundleJSONRequestBody defines body for ExportTasksBundle for application/json ContentType.
+type ExportTasksBundleJSONRequestBody = TaskExportBundleRequest
+
+// ImportTasksBundleJSONRequestBody defines body for ImportTasksBundle for application/json ContentType.
+type ImportTasksBundleJSONRequestBody = TaskImportBundleRequest
+
 // UpdateBoardJSONRequestBody defines body for UpdateBoard for application/json ContentType.
 type UpdateBoardJSONRequestBody = UpdateBoardRequest
 
@@ -358,9 +402,6 @@ type UpdateColumnJSONRequestBody = UpdateColumnRequest
 
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CreateTaskRequest
-
-// ImportTasksJSONRequestBody defines body for ImportTasks for application/json ContentType.
-type ImportTasksJSONRequestBody = TaskExportPayload
 
 // ReorderTasksJSONRequestBody defines body for ReorderTasks for application/json ContentType.
 type ReorderTasksJSONRequestBody = ReorderTasksRequest
@@ -467,6 +508,16 @@ type ClientInterface interface {
 	// ListArchivedBoards request
 	ListArchivedBoards(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ExportTasksBundleWithBody request with any body
+	ExportTasksBundleWithBody(ctx context.Context, params *ExportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ExportTasksBundle(ctx context.Context, params *ExportTasksBundleParams, body ExportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ImportTasksBundleWithBody request with any body
+	ImportTasksBundleWithBody(ctx context.Context, params *ImportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ImportTasksBundle(ctx context.Context, params *ImportTasksBundleParams, body ImportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteBoard request
 	DeleteBoard(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -509,14 +560,6 @@ type ClientInterface interface {
 	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ExportTasks request
-	ExportTasks(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ImportTasksWithBody request with any body
-	ImportTasksWithBody(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	ImportTasks(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReorderTasksWithBody request with any body
 	ReorderTasksWithBody(ctx context.Context, boardId string, params *ReorderTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -648,6 +691,54 @@ func (c *Client) CreateBoard(ctx context.Context, params *CreateBoardParams, bod
 
 func (c *Client) ListArchivedBoards(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListArchivedBoardsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExportTasksBundleWithBody(ctx context.Context, params *ExportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportTasksBundleRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExportTasksBundle(ctx context.Context, params *ExportTasksBundleParams, body ExportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportTasksBundleRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ImportTasksBundleWithBody(ctx context.Context, params *ImportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportTasksBundleRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ImportTasksBundle(ctx context.Context, params *ImportTasksBundleParams, body ImportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportTasksBundleRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -840,42 +931,6 @@ func (c *Client) CreateTaskWithBody(ctx context.Context, boardId string, params 
 
 func (c *Client) CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateTaskRequest(c.Server, boardId, params, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ExportTasks(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewExportTasksRequest(c.Server, boardId, params)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ImportTasksWithBody(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewImportTasksRequestWithBody(c.Server, boardId, params, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ImportTasks(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewImportTasksRequest(c.Server, boardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1210,6 +1265,116 @@ func NewListArchivedBoardsRequest(server string, params *ListArchivedBoardsParam
 	if err != nil {
 		return nil, err
 	}
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewExportTasksBundleRequest calls the generic ExportTasksBundle builder with application/json body
+func NewExportTasksBundleRequest(server string, params *ExportTasksBundleParams, body ExportTasksBundleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExportTasksBundleRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewExportTasksBundleRequestWithBody generates requests for ExportTasksBundle with any type of body
+func NewExportTasksBundleRequestWithBody(server string, params *ExportTasksBundleParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/tasks/export")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewImportTasksBundleRequest calls the generic ImportTasksBundle builder with application/json body
+func NewImportTasksBundleRequest(server string, params *ImportTasksBundleParams, body ImportTasksBundleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewImportTasksBundleRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewImportTasksBundleRequestWithBody generates requests for ImportTasksBundle with any type of body
+func NewImportTasksBundleRequestWithBody(server string, params *ImportTasksBundleParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/tasks/import")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -1847,117 +2012,6 @@ func NewCreateTaskRequestWithBody(server string, boardId string, params *CreateT
 	return req, nil
 }
 
-// NewExportTasksRequest generates requests for ExportTasks
-func NewExportTasksRequest(server string, boardId string, params *ExportTasksParams) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/boards/%s/tasks/export", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if params != nil {
-
-		if params.Authorization != nil {
-			var headerParam0 string
-
-			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("Authorization", headerParam0)
-		}
-
-	}
-
-	return req, nil
-}
-
-// NewImportTasksRequest calls the generic ImportTasks builder with application/json body
-func NewImportTasksRequest(server string, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewImportTasksRequestWithBody(server, boardId, params, "application/json", bodyReader)
-}
-
-// NewImportTasksRequestWithBody generates requests for ImportTasks with any type of body
-func NewImportTasksRequestWithBody(server string, boardId string, params *ImportTasksParams, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/boards/%s/tasks/import", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	if params != nil {
-
-		if params.Authorization != nil {
-			var headerParam0 string
-
-			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("Authorization", headerParam0)
-		}
-
-	}
-
-	return req, nil
-}
-
 // NewReorderTasksRequest calls the generic ReorderTasks builder with application/json body
 func NewReorderTasksRequest(server string, boardId string, params *ReorderTasksParams, body ReorderTasksJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -2283,6 +2337,16 @@ type ClientWithResponsesInterface interface {
 	// ListArchivedBoardsWithResponse request
 	ListArchivedBoardsWithResponse(ctx context.Context, params *ListArchivedBoardsParams, reqEditors ...RequestEditorFn) (*ListArchivedBoardsResponse, error)
 
+	// ExportTasksBundleWithBodyWithResponse request with any body
+	ExportTasksBundleWithBodyWithResponse(ctx context.Context, params *ExportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportTasksBundleResponse, error)
+
+	ExportTasksBundleWithResponse(ctx context.Context, params *ExportTasksBundleParams, body ExportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportTasksBundleResponse, error)
+
+	// ImportTasksBundleWithBodyWithResponse request with any body
+	ImportTasksBundleWithBodyWithResponse(ctx context.Context, params *ImportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportTasksBundleResponse, error)
+
+	ImportTasksBundleWithResponse(ctx context.Context, params *ImportTasksBundleParams, body ImportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportTasksBundleResponse, error)
+
 	// DeleteBoardWithResponse request
 	DeleteBoardWithResponse(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*DeleteBoardResponse, error)
 
@@ -2325,14 +2389,6 @@ type ClientWithResponsesInterface interface {
 	CreateTaskWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
 	CreateTaskWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
-
-	// ExportTasksWithResponse request
-	ExportTasksWithResponse(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*ExportTasksResponse, error)
-
-	// ImportTasksWithBodyWithResponse request with any body
-	ImportTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error)
-
-	ImportTasksWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error)
 
 	// ReorderTasksWithBodyWithResponse request with any body
 	ReorderTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ReorderTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReorderTasksResponse, error)
@@ -2485,6 +2541,52 @@ func (r ListArchivedBoardsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListArchivedBoardsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ExportTasksBundleResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *TaskExportBundle
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportTasksBundleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportTasksBundleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ImportTasksBundleResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *TaskImportBundleResponse
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportTasksBundleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportTasksBundleResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2741,52 +2843,6 @@ func (r CreateTaskResponse) StatusCode() int {
 	return 0
 }
 
-type ExportTasksResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *TaskExportPayload
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r ExportTasksResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ExportTasksResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ImportTasksResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *TaskImportResponse
-	ApplicationproblemJSONDefault *ErrorModel
-}
-
-// Status returns HTTPResponse.Status
-func (r ImportTasksResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ImportTasksResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type ReorderTasksResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -2986,6 +3042,40 @@ func (c *ClientWithResponses) ListArchivedBoardsWithResponse(ctx context.Context
 	return ParseListArchivedBoardsResponse(rsp)
 }
 
+// ExportTasksBundleWithBodyWithResponse request with arbitrary body returning *ExportTasksBundleResponse
+func (c *ClientWithResponses) ExportTasksBundleWithBodyWithResponse(ctx context.Context, params *ExportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportTasksBundleResponse, error) {
+	rsp, err := c.ExportTasksBundleWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportTasksBundleResponse(rsp)
+}
+
+func (c *ClientWithResponses) ExportTasksBundleWithResponse(ctx context.Context, params *ExportTasksBundleParams, body ExportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportTasksBundleResponse, error) {
+	rsp, err := c.ExportTasksBundle(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportTasksBundleResponse(rsp)
+}
+
+// ImportTasksBundleWithBodyWithResponse request with arbitrary body returning *ImportTasksBundleResponse
+func (c *ClientWithResponses) ImportTasksBundleWithBodyWithResponse(ctx context.Context, params *ImportTasksBundleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportTasksBundleResponse, error) {
+	rsp, err := c.ImportTasksBundleWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportTasksBundleResponse(rsp)
+}
+
+func (c *ClientWithResponses) ImportTasksBundleWithResponse(ctx context.Context, params *ImportTasksBundleParams, body ImportTasksBundleJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportTasksBundleResponse, error) {
+	rsp, err := c.ImportTasksBundle(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportTasksBundleResponse(rsp)
+}
+
 // DeleteBoardWithResponse request returning *DeleteBoardResponse
 func (c *ClientWithResponses) DeleteBoardWithResponse(ctx context.Context, boardId string, params *DeleteBoardParams, reqEditors ...RequestEditorFn) (*DeleteBoardResponse, error) {
 	rsp, err := c.DeleteBoard(ctx, boardId, params, reqEditors...)
@@ -3123,32 +3213,6 @@ func (c *ClientWithResponses) CreateTaskWithResponse(ctx context.Context, boardI
 		return nil, err
 	}
 	return ParseCreateTaskResponse(rsp)
-}
-
-// ExportTasksWithResponse request returning *ExportTasksResponse
-func (c *ClientWithResponses) ExportTasksWithResponse(ctx context.Context, boardId string, params *ExportTasksParams, reqEditors ...RequestEditorFn) (*ExportTasksResponse, error) {
-	rsp, err := c.ExportTasks(ctx, boardId, params, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseExportTasksResponse(rsp)
-}
-
-// ImportTasksWithBodyWithResponse request with arbitrary body returning *ImportTasksResponse
-func (c *ClientWithResponses) ImportTasksWithBodyWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error) {
-	rsp, err := c.ImportTasksWithBody(ctx, boardId, params, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseImportTasksResponse(rsp)
-}
-
-func (c *ClientWithResponses) ImportTasksWithResponse(ctx context.Context, boardId string, params *ImportTasksParams, body ImportTasksJSONRequestBody, reqEditors ...RequestEditorFn) (*ImportTasksResponse, error) {
-	rsp, err := c.ImportTasks(ctx, boardId, params, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseImportTasksResponse(rsp)
 }
 
 // ReorderTasksWithBodyWithResponse request with arbitrary body returning *ReorderTasksResponse
@@ -3386,6 +3450,72 @@ func ParseListArchivedBoardsResponse(rsp *http.Response) (*ListArchivedBoardsRes
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Board
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportTasksBundleResponse parses an HTTP response from a ExportTasksBundleWithResponse call
+func ParseExportTasksBundleResponse(rsp *http.Response) (*ExportTasksBundleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportTasksBundleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskExportBundle
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportTasksBundleResponse parses an HTTP response from a ImportTasksBundleWithResponse call
+func ParseImportTasksBundleResponse(rsp *http.Response) (*ImportTasksBundleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportTasksBundleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TaskImportBundleResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -3728,72 +3858,6 @@ func ParseCreateTaskResponse(rsp *http.Response) (*CreateTaskResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Task
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseExportTasksResponse parses an HTTP response from a ExportTasksWithResponse call
-func ParseExportTasksResponse(rsp *http.Response) (*ExportTasksResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ExportTasksResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TaskExportPayload
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest ErrorModel
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseImportTasksResponse parses an HTTP response from a ImportTasksWithResponse call
-func ParseImportTasksResponse(rsp *http.Response) (*ImportTasksResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ImportTasksResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TaskImportResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

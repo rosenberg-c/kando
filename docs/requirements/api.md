@@ -6,8 +6,8 @@
 - `API-004`: Backend API error responses include stable status and detail fields.
 - `API-005`: Backend API provides list-based task reordering via `PUT /boards/{boardId}/tasks/order` with body `{ columns: [{ columnId: string, taskIds: string[] }] }`.
 - `API-006`: Task reorder operations are atomic and do not expose partial-update states.
-- `API-007`: Backend API provides dedicated task transfer endpoints for export/import (`GET /boards/{boardId}/tasks/export`, `POST /boards/{boardId}/tasks/import`) instead of requiring clients to orchestrate row-level transfer mutations.
-- `API-008`: Task import validates payload format version and returns import summary counts (`createdColumnCount`, `importedTaskCount`).
+- `API-007`: Backend API provides dedicated task transfer endpoints for export/import (`POST /boards/tasks/export`, `POST /boards/tasks/import`) so clients can transfer selected board snapshots without row-level mutation orchestration.
+- `API-008`: Task import validates payload format version and returns import summary counts (`createdColumnCount`/`importedTaskCount` for per-board results and `totalCreatedColumnCount`/`totalImportedTaskCount` for bundle totals).
 - `API-009`: Task import applies atomically; on failure, it leaves board task/column state unchanged from pre-import state.
 - `API-010`: Backend API creates a new board for `POST /boards` requests and does not enforce single-board-per-user semantics.
 - `API-011`: Backend API returns all owned boards from `GET /boards`, sorted by most recently updated first.
@@ -16,3 +16,6 @@
 - `API-014`: Backend API supports board archive state transitions (`active` <-> `archived`) and enforces ownership checks on archive/restore operations.
 - `API-015`: Backend API provides archived-board listing separate from active-board listing.
 - `API-016`: Backend API permanent-delete operation is supported for archived boards and returns stable conflict/invalid-state errors when deletion preconditions are not met.
+- `API-017`: Backend API supports multi-board task export/import so clients can transfer selected board snapshots in one operation.
+- `API-018`: Multi-board task import applies atomically per selected destination board; failure for one selected board does not partially mutate that board.
+- `API-019`: Multi-board task transfer payload includes stable source board identity metadata and keeps columns/tasks nested under their board snapshot.

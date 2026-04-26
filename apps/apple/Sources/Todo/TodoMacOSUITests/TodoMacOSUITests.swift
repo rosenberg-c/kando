@@ -466,7 +466,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testExportFromSettingsShowsSavePanel() throws {
-        // Requirements: UX-012, UX-013
+        // Requirements: UX-012, UX-013, UX-024, UX-026
         let app = launchSignedInApp(extraEnvironment: [
             UITestEnvKey.columnCount: "4",
             UITestEnvKey.workTaskCount: "50",
@@ -499,12 +499,32 @@ final class TodoMacOSUITests: XCTestCase {
             "Expected settings sheet to dismiss after tapping export"
         )
 
+        let exportSelectionSheet = preferredElement(
+            primary: app.otherElements["board-transfer-export-sheet"],
+            fallback: app.sheets.firstMatch,
+            waitTimeout: 5
+        )
+        XCTAssertTrue(exportSelectionSheet.exists, "Expected export board selection sheet")
+
+        let exportSelectionSubmit = preferredElement(
+            primary: app.buttons["board-transfer-export-submit-button"],
+            fallback: preferredElement(
+                primary: exportSelectionSheet.buttons["Continue"],
+                fallback: app.buttons["Continue"],
+                waitTimeout: 5
+            ),
+            waitTimeout: 5
+        )
+        XCTAssertTrue(exportSelectionSubmit.exists, "Expected export board selection submit button")
+        XCTAssertTrue(exportSelectionSubmit.isEnabled, "Expected export board selection submit button to be enabled")
+        exportSelectionSubmit.tap()
+
         let exportSubmitButton = preferredElement(
             primary: app.buttons["Export"],
             fallback: app.buttons["Save"],
             waitTimeout: 5
         )
-        XCTAssertTrue(exportSubmitButton.exists, "Expected export save panel submit button")
+        XCTAssertTrue(exportSubmitButton.waitForExistence(timeout: 5), "Expected export save panel submit button")
 
         let savePanelContainer: XCUIElement
         if app.dialogs.firstMatch.exists {

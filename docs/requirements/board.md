@@ -17,6 +17,9 @@
 - `BOARD-015`: The app supports listing archived boards separately from active boards.
 - `BOARD-016`: The app supports restoring an archived board back to active state.
 - `BOARD-017`: The app supports permanent deletion of archived boards.
+- `BOARD-018`: Task export supports selecting one or more owned boards and includes only checked boards in the exported JSON.
+- `BOARD-019`: Task import supports selecting one or more boards discovered in the import file and imports only checked boards.
+- `BOARD-020`: Multi-board export/import preserves board boundaries so columns and tasks remain associated with the correct board snapshot.
 
 ## Platform Applicability
 
@@ -37,3 +40,6 @@
 - `BOARD-015`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-016`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-017`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-018`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-019`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-020`: macOS (required), iOS (planned), TUI (N/A).

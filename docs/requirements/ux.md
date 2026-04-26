@@ -23,6 +23,9 @@
 - `UX-021`: The app exposes an archived-board management view that supports restore and permanent delete actions with destructive confirmations.
 - `UX-022`: The settings panel includes a keyboard shortcuts section that lists task-selection and task-action shortcuts.
 - `UX-023`: The settings panel includes task-action visibility checkboxes and persists each checkbox state locally across app launches.
+- `UX-024`: The export flow shows a checkbox list of owned boards so users can include/exclude each board before writing the export file.
+- `UX-025`: The import flow shows a checkbox list of boards detected in the selected import file so users can include/exclude each board before import starts.
+- `UX-026`: Export/import primary actions stay disabled until at least one board is checked.
 
 ## Platform Applicability
 
@@ -49,3 +52,6 @@
 - `UX-021`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-022`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-023`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-024`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-025`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-026`: macOS (required), iOS (planned), TUI (N/A).

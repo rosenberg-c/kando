@@ -5,7 +5,7 @@ import Testing
 @MainActor
 struct BoardViewModelTests {
     @Test func exportTasksWritesVersionedJSONSnapshot() async throws {
-        // Requirements: API-007, BOARD-005, BOARD-007, BOARD-008, UX-013
+        // Requirements: API-007, BOARD-005, BOARD-007, BOARD-008, BOARD-018, BOARD-020, UX-013, UX-024
         let board = KanbanBoard(id: "board-1", title: "Main")
         let exportedPayload = TaskExportPayload(
             formatVersion: TaskExportPayload.currentFormatVersion,
@@ -31,7 +31,15 @@ struct BoardViewModelTests {
         let api = MockKanbanAPI(
             listBoardsHandler: { _, _ in [board] },
             getBoardHandler: { _, _, _ in details },
-            exportTasksHandler: { _, _, _ in exportedPayload }
+            exportTasksBundleHandler: { boardIDs, _, _ in
+                TaskExportBundle(
+                    formatVersion: TaskExportBundle.currentFormatVersion,
+                    exportedAt: "2026-04-24T00:00:00Z",
+                    boards: boardIDs.map {
+                        TaskExportBundleBoard(sourceBoardID: $0, sourceBoardTitle: "Main", payload: exportedPayload)
+                    }
+                )
+            }
         )
 
         let viewModel = BoardViewModel(
@@ -48,19 +56,20 @@ struct BoardViewModelTests {
         await viewModel.exportTasks(to: fileURL)
 
         let data = try Data(contentsOf: fileURL)
-        let payload = try JSONDecoder().decode(TaskExportPayload.self, from: data)
+        let payload = try JSONDecoder().decode(TaskExportBundle.self, from: data)
 
-        #expect(payload.formatVersion == TaskExportPayload.currentFormatVersion)
-        #expect(payload.boardTitle == "Main")
-        #expect(payload.columns.map(\.title) == ["Backlog", "Done"])
-        #expect(payload.columns.first?.tasks.map(\.title) == ["Plan"])
+        #expect(payload.formatVersion == TaskExportBundle.currentFormatVersion)
+        #expect(payload.boards.count == 1)
+        #expect(payload.boards.first?.sourceBoardTitle == "Main")
+        #expect(payload.boards.first?.payload.columns.map(\.title) == ["Backlog", "Done"])
+        #expect(payload.boards.first?.payload.columns.first?.tasks.map(\.title) == ["Plan"])
         #expect(payload.taskCount == 2)
         #expect(viewModel.statusIsError == false)
         #expect(viewModel.statusMessage.contains("2"))
     }
 
-    @Test func importTasksCreatesMissingColumnsAndTasksFromJSON() async throws {
-        // Requirements: API-007, API-008, BOARD-006, BOARD-008, UX-013
+    @Test func importTasksCreatesMissingColumnsAndTasksFromBundleJSON() async throws {
+        // Requirements: API-007, API-008, BOARD-006, BOARD-008, BOARD-019, UX-013, UX-025
         let board = KanbanBoard(id: "board-1", title: "Main")
         let capture = ImportCapture()
 
@@ -76,9 +85,12 @@ struct BoardViewModelTests {
                     tasks: []
                 )
             },
-            importTasksHandler: { boardID, payload, _, _ in
-                await capture.record(boardID: boardID, payload: payload)
-                return TaskImportResult(createdColumnCount: 1, importedTaskCount: 3)
+            importTasksBundleHandler: { sourceBoardIDs, bundle, _, _ in
+                let selected = bundle.boards.filter { sourceBoardIDs.contains($0.sourceBoardID) }
+                if let first = selected.first {
+                    await capture.record(boardID: first.sourceBoardID, payload: first.payload)
+                }
+                return TaskImportBundleResult(totalCreatedColumnCount: 1, totalImportedTaskCount: 3)
             }
         )
 
@@ -90,22 +102,32 @@ struct BoardViewModelTests {
 
         await viewModel.reloadBoard()
 
-        let payload = TaskExportPayload(
-            formatVersion: TaskExportPayload.currentFormatVersion,
-            boardTitle: "Main",
+        let bundle = TaskExportBundle(
+            formatVersion: TaskExportBundle.currentFormatVersion,
             exportedAt: "2026-04-24T00:00:00Z",
-            columns: [
-                TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: "Plan", description: "")]),
-                TaskExportColumn(title: "Done", tasks: [
-                    TaskExportTask(title: "Ship", description: ""),
-                    TaskExportTask(title: "Celebrate", description: "")
-                ])
+            boards: [
+                TaskExportBundleBoard(
+                    sourceBoardID: "board-1",
+                    sourceBoardTitle: "Main",
+                    payload: TaskExportPayload(
+                        formatVersion: TaskExportPayload.currentFormatVersion,
+                        boardTitle: "Main",
+                        exportedAt: "2026-04-24T00:00:00Z",
+                        columns: [
+                            TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: "Plan", description: "")]),
+                            TaskExportColumn(title: "Done", tasks: [
+                                TaskExportTask(title: "Ship", description: ""),
+                                TaskExportTask(title: "Celebrate", description: "")
+                            ])
+                        ]
+                    )
+                )
             ]
         )
 
         let fileURL = makeTemporaryFileURL(fileName: "task-import.json")
         defer { try? FileManager.default.removeItem(at: fileURL) }
-        try JSONEncoder().encode(payload).write(to: fileURL, options: .atomic)
+        try JSONEncoder().encode(bundle).write(to: fileURL, options: .atomic)
 
         await viewModel.importTasks(from: fileURL)
 
@@ -115,6 +137,126 @@ struct BoardViewModelTests {
         #expect(importedPayload?.taskCount == 3)
         #expect(viewModel.statusIsError == false)
         #expect(viewModel.statusMessage.contains("3"))
+    }
+
+    @Test func exportTasksIncludesOnlyCheckedBoards() async throws {
+        // Requirements: BOARD-018, UX-024, UX-026
+        let boardA = KanbanBoard(id: "board-a", title: "A")
+        let boardB = KanbanBoard(id: "board-b", title: "B")
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [boardA, boardB] },
+            getBoardHandler: { boardID, _, _ in
+                let board = boardID == boardA.id ? boardA : boardB
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            },
+            exportTasksBundleHandler: { boardIDs, _, _ in
+                TaskExportBundle(
+                    formatVersion: TaskExportBundle.currentFormatVersion,
+                    exportedAt: "2026-04-24T00:00:00Z",
+                    boards: boardIDs.map { boardID in
+                        TaskExportBundleBoard(
+                            sourceBoardID: boardID,
+                            sourceBoardTitle: boardID == boardA.id ? "A" : "B",
+                            payload: TaskExportPayload(
+                                formatVersion: TaskExportPayload.currentFormatVersion,
+                                boardTitle: boardID == boardA.id ? "A" : "B",
+                                exportedAt: "2026-04-24T00:00:00Z",
+                                columns: [TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: boardID, description: "")])]
+                            )
+                        )
+                    }
+                )
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        let fileURL = makeTemporaryFileURL(fileName: "task-export-selected.json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        await viewModel.exportTasks(to: fileURL, includedBoardIDs: [boardB.id])
+
+        let data = try Data(contentsOf: fileURL)
+        let bundle = try JSONDecoder().decode(TaskExportBundle.self, from: data)
+        #expect(bundle.boards.count == 1)
+        #expect(bundle.boards.first?.sourceBoardID == boardB.id)
+        #expect(bundle.boards.first?.payload.columns.first?.tasks.first?.title == boardB.id)
+    }
+
+    @Test func importTasksIncludesOnlyCheckedBoardsFromBundle() async throws {
+        // Requirements: BOARD-019, UX-025, UX-026
+        let boardA = KanbanBoard(id: "board-a", title: "A")
+        let boardB = KanbanBoard(id: "board-b", title: "B")
+        let capture = MultiImportCapture()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [boardA, boardB] },
+            getBoardHandler: { boardID, _, _ in
+                let board = boardID == boardA.id ? boardA : boardB
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            },
+            importTasksBundleHandler: { sourceBoardIDs, bundle, _, _ in
+                let selected = bundle.boards.filter { sourceBoardIDs.contains($0.sourceBoardID) }
+                for snapshot in selected {
+                    await capture.record(boardID: snapshot.sourceBoardID, payload: snapshot.payload)
+                }
+                return TaskImportBundleResult(
+                    totalCreatedColumnCount: 0,
+                    totalImportedTaskCount: selected.reduce(0) { $0 + $1.payload.taskCount }
+                )
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+
+        let bundle = TaskExportBundle(
+            formatVersion: TaskExportBundle.currentFormatVersion,
+            exportedAt: "2026-04-24T00:00:00Z",
+            boards: [
+                TaskExportBundleBoard(
+                    sourceBoardID: boardA.id,
+                    sourceBoardTitle: boardA.title,
+                    payload: TaskExportPayload(
+                        formatVersion: TaskExportPayload.currentFormatVersion,
+                        boardTitle: boardA.title,
+                        exportedAt: "2026-04-24T00:00:00Z",
+                        columns: [TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: "A task", description: "")])]
+                    )
+                ),
+                TaskExportBundleBoard(
+                    sourceBoardID: boardB.id,
+                    sourceBoardTitle: boardB.title,
+                    payload: TaskExportPayload(
+                        formatVersion: TaskExportPayload.currentFormatVersion,
+                        boardTitle: boardB.title,
+                        exportedAt: "2026-04-24T00:00:00Z",
+                        columns: [TaskExportColumn(title: "Backlog", tasks: [TaskExportTask(title: "B task", description: "")])]
+                    )
+                )
+            ]
+        )
+
+        let fileURL = makeTemporaryFileURL(fileName: "task-import-selected.json")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        try JSONEncoder().encode(bundle).write(to: fileURL, options: .atomic)
+
+        await viewModel.importTasks(from: fileURL, includedSourceBoardIDs: [boardA.id])
+
+        let boardIDs = await capture.boardIDs()
+        #expect(boardIDs == [boardA.id])
     }
 
     @Test func manualRefreshReloadsBoardStateFromAPI() async {
@@ -628,6 +770,18 @@ private actor ImportCapture {
 
     func payload() -> TaskExportPayload? {
         capturedPayload
+    }
+}
+
+private actor MultiImportCapture {
+    private var imports: [(String, TaskExportPayload)] = []
+
+    func record(boardID: String, payload: TaskExportPayload) {
+        imports.append((boardID, payload))
+    }
+
+    func boardIDs() -> [String] {
+        imports.map(\.0)
     }
 }
 

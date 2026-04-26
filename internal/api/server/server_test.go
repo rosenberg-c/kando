@@ -421,8 +421,8 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodPatch)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodDelete)
 	assertPathMethod("/boards/{boardId}/tasks/order", http.MethodPut)
-	assertPathMethod("/boards/{boardId}/tasks/export", http.MethodGet)
-	assertPathMethod("/boards/{boardId}/tasks/import", http.MethodPost)
+	assertPathMethod("/boards/tasks/export", http.MethodPost)
+	assertPathMethod("/boards/tasks/import", http.MethodPost)
 }
 
 func TestOpenAPIDefinesReorderColumnsContract(t *testing.T) {
@@ -495,24 +495,12 @@ func TestOpenAPIDefinesTaskExportContract(t *testing.T) {
 	// Requirement: PUBLIC-006
 	t.Parallel()
 
-	_, api := NewAPI()
-	Register(api, Dependencies{})
-
-	path := api.OpenAPI().Paths["/boards/{boardId}/tasks/export"]
-	if path == nil || path.Get == nil {
-		t.Fatal("missing GET /boards/{boardId}/tasks/export operation")
+	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/export")
+	if requestRef == "" {
+		t.Fatal("expected export bundle request schema ref")
 	}
-
-	response := path.Get.Responses["200"]
-	if response == nil {
-		t.Fatal("missing 200 response for export tasks operation")
-	}
-	mediaType, ok := response.Content["application/json"]
-	if !ok || mediaType == nil || mediaType.Schema == nil {
-		t.Fatal("missing application/json response schema for export tasks operation")
-	}
-	if mediaType.Schema.Ref == "" {
-		t.Fatal("expected export tasks response schema ref")
+	if responseRef == "" {
+		t.Fatal("expected export bundle response schema ref")
 	}
 }
 
@@ -520,37 +508,71 @@ func TestOpenAPIDefinesTaskImportContract(t *testing.T) {
 	// Requirement: PUBLIC-007
 	t.Parallel()
 
+	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/import")
+	if requestRef == "" {
+		t.Fatal("expected import tasks request schema ref")
+	}
+	if responseRef == "" {
+		t.Fatal("expected import tasks response schema ref")
+	}
+}
+
+func TestOpenAPIDefinesTaskBundleExportContract(t *testing.T) {
+	// Requirement: PUBLIC-008
+	t.Parallel()
+
+	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/export")
+	if requestRef != "#/components/schemas/TaskExportBundleRequest" {
+		t.Fatalf("request schema ref = %q, want %q", requestRef, "#/components/schemas/TaskExportBundleRequest")
+	}
+	if responseRef != "#/components/schemas/TaskExportBundle" {
+		t.Fatalf("response schema ref = %q, want %q", responseRef, "#/components/schemas/TaskExportBundle")
+	}
+}
+
+func TestOpenAPIDefinesTaskBundleImportContract(t *testing.T) {
+	// Requirement: PUBLIC-009
+	t.Parallel()
+
+	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/import")
+	if requestRef != "#/components/schemas/TaskImportBundleRequest" {
+		t.Fatalf("request schema ref = %q, want %q", requestRef, "#/components/schemas/TaskImportBundleRequest")
+	}
+	if responseRef != "#/components/schemas/TaskImportBundleResponse" {
+		t.Fatalf("response schema ref = %q, want %q", responseRef, "#/components/schemas/TaskImportBundleResponse")
+	}
+}
+
+func requireOpenAPIPostJSONSchemaRefs(t *testing.T, pathKey string) (string, string) {
+	t.Helper()
+
 	_, api := NewAPI()
 	Register(api, Dependencies{})
 
-	path := api.OpenAPI().Paths["/boards/{boardId}/tasks/import"]
+	path := api.OpenAPI().Paths[pathKey]
 	if path == nil || path.Post == nil {
-		t.Fatal("missing POST /boards/{boardId}/tasks/import operation")
+		t.Fatalf("missing POST %s operation", pathKey)
 	}
 
 	requestBody := path.Post.RequestBody
 	if requestBody == nil {
-		t.Fatal("missing request body for import tasks operation")
+		t.Fatalf("missing request body for POST %s", pathKey)
 	}
 	requestMediaType, ok := requestBody.Content["application/json"]
 	if !ok || requestMediaType == nil || requestMediaType.Schema == nil {
-		t.Fatal("missing application/json request schema for import tasks operation")
-	}
-	if requestMediaType.Schema.Ref == "" {
-		t.Fatal("expected import tasks request schema ref")
+		t.Fatalf("missing application/json request schema for POST %s", pathKey)
 	}
 
 	response := path.Post.Responses["200"]
 	if response == nil {
-		t.Fatal("missing 200 response for import tasks operation")
+		t.Fatalf("missing 200 response for POST %s", pathKey)
 	}
 	responseMediaType, ok := response.Content["application/json"]
 	if !ok || responseMediaType == nil || responseMediaType.Schema == nil {
-		t.Fatal("missing application/json response schema for import tasks operation")
+		t.Fatalf("missing application/json response schema for POST %s", pathKey)
 	}
-	if responseMediaType.Schema.Ref == "" {
-		t.Fatal("expected import tasks response schema ref")
-	}
+
+	return requestMediaType.Schema.Ref, responseMediaType.Schema.Ref
 }
 
 func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
@@ -1211,7 +1233,11 @@ func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
 	_ = createTaskWithTitle(t, mux, boardID, columnAID, "Build", "")
 	_ = createTaskWithTitle(t, mux, boardID, columnBID, "Ship", "")
 
-	request := httptest.NewRequest(http.MethodGet, "/boards/"+boardID+"/tasks/export", nil)
+	requestBody, _ := json.Marshal(map[string]any{
+		"boardIds": []string{boardID},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/export", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, request)
@@ -1220,22 +1246,37 @@ func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
 		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 
-	var payload struct {
+	var bundle struct {
 		FormatVersion int    `json:"formatVersion"`
-		BoardTitle    string `json:"boardTitle"`
 		ExportedAt    string `json:"exportedAt"`
-		Columns       []struct {
-			Title string `json:"title"`
-			Tasks []struct {
-				Title       string `json:"title"`
-				Description string `json:"description"`
-			} `json:"tasks"`
-		} `json:"columns"`
+		Boards        []struct {
+			SourceBoardID    string `json:"sourceBoardId"`
+			SourceBoardTitle string `json:"sourceBoardTitle"`
+			Payload          struct {
+				FormatVersion int    `json:"formatVersion"`
+				BoardTitle    string `json:"boardTitle"`
+				ExportedAt    string `json:"exportedAt"`
+				Columns       []struct {
+					Title string `json:"title"`
+					Tasks []struct {
+						Title       string `json:"title"`
+						Description string `json:"description"`
+					} `json:"tasks"`
+				} `json:"columns"`
+			} `json:"payload"`
+		} `json:"boards"`
 	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+	if err := json.Unmarshal(recorder.Body.Bytes(), &bundle); err != nil {
 		t.Fatalf("decode export response: %v", err)
 	}
 
+	if bundle.FormatVersion != 2 {
+		t.Fatalf("bundle formatVersion = %d, want 2", bundle.FormatVersion)
+	}
+	if len(bundle.Boards) != 1 {
+		t.Fatalf("bundle boards count = %d, want 1", len(bundle.Boards))
+	}
+	payload := bundle.Boards[0].Payload
 	if payload.FormatVersion != 1 {
 		t.Fatalf("formatVersion = %d, want 1", payload.FormatVersion)
 	}
@@ -1259,44 +1300,155 @@ func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
 	}
 }
 
-func TestKanbanImportTasksCreatesColumnsAndTasks(t *testing.T) {
-	// Requirements: API-007, API-008, BOARD-006, BOARD-008
+func TestKanbanExportTasksBundleReturnsSelectedBoardSnapshots(t *testing.T) {
+	// Requirements: API-017, API-019
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
 	mux := newKanbanMuxForUser(repo, "user-1")
 
-	boardID := createBoard(t, mux)
-	_ = createColumnWithTitle(t, mux, boardID, "Backlog")
+	boardAID := createBoardWithTitle(t, mux, "Project A")
+	boardBID := createBoardWithTitle(t, mux, "Project B")
+	columnAID := createColumnWithTitle(t, mux, boardAID, "Backlog")
+	columnBID := createColumnWithTitle(t, mux, boardBID, "Done")
+	_ = createTaskWithTitle(t, mux, boardAID, columnAID, "Plan A", "")
+	_ = createTaskWithTitle(t, mux, boardBID, columnBID, "Ship B", "")
 
-	payload := map[string]any{
-		"formatVersion": 1,
-		"boardTitle":    "Imported",
+	requestBody, _ := json.Marshal(map[string]any{
+		"boardIds": []string{boardAID, boardBID},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/export", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var payload struct {
+		FormatVersion int    `json:"formatVersion"`
+		ExportedAt    string `json:"exportedAt"`
+		Boards        []struct {
+			SourceBoardID    string `json:"sourceBoardId"`
+			SourceBoardTitle string `json:"sourceBoardTitle"`
+			Payload          struct {
+				FormatVersion int `json:"formatVersion"`
+				Columns       []struct {
+					Tasks []struct {
+						Title string `json:"title"`
+					} `json:"tasks"`
+				} `json:"columns"`
+			} `json:"payload"`
+		} `json:"boards"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode bundle export response: %v", err)
+	}
+
+	if payload.FormatVersion != 2 {
+		t.Fatalf("formatVersion = %d, want 2", payload.FormatVersion)
+	}
+	if strings.TrimSpace(payload.ExportedAt) == "" {
+		t.Fatal("expected exportedAt")
+	}
+	if len(payload.Boards) != 2 {
+		t.Fatalf("boards count = %d, want 2", len(payload.Boards))
+	}
+	if payload.Boards[0].SourceBoardID != boardAID || payload.Boards[0].SourceBoardTitle != "Project A" {
+		t.Fatalf("first snapshot = %+v", payload.Boards[0])
+	}
+	if payload.Boards[1].SourceBoardID != boardBID || payload.Boards[1].SourceBoardTitle != "Project B" {
+		t.Fatalf("second snapshot = %+v", payload.Boards[1])
+	}
+	if payload.Boards[0].Payload.FormatVersion != 1 || payload.Boards[1].Payload.FormatVersion != 1 {
+		t.Fatalf("nested format versions = %d,%d, want 1,1", payload.Boards[0].Payload.FormatVersion, payload.Boards[1].Payload.FormatVersion)
+	}
+}
+
+func TestKanbanExportTasksBundleRejectsInvalidBoardID(t *testing.T) {
+	// Requirement: API-004
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	requestBody, _ := json.Marshal(map[string]any{
+		"boardIds": []string{"not-a-uuid"},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/export", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+}
+
+func TestKanbanImportTasksBundleImportsOnlySelectedSnapshots(t *testing.T) {
+	// Requirements: API-017, API-019
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardAID := createBoardWithTitle(t, mux, "Project A")
+	boardBID := createBoardWithTitle(t, mux, "Project B")
+	boardCID := createBoardWithTitle(t, mux, "Project C")
+
+	bundle := map[string]any{
+		"formatVersion": 2,
 		"exportedAt":    "2026-04-24T00:00:00Z",
-		"columns": []map[string]any{
+		"boards": []map[string]any{
 			{
-				"title": "Backlog",
-				"tasks": []map[string]any{
-					{"title": "Plan", "description": "notes"},
-					{"title": "   ", "description": "skip"},
+				"sourceBoardId":    boardAID,
+				"sourceBoardTitle": "Project A",
+				"payload": map[string]any{
+					"formatVersion": 1,
+					"boardTitle":    "Project A",
+					"exportedAt":    "2026-04-24T00:00:00Z",
+					"columns": []map[string]any{{
+						"title": "Backlog",
+						"tasks": []map[string]any{{"title": "Plan A", "description": ""}},
+					}},
 				},
 			},
 			{
-				"title": "Done",
-				"tasks": []map[string]any{
-					{"title": "Ship", "description": ""},
+				"sourceBoardId":    boardBID,
+				"sourceBoardTitle": "Project B",
+				"payload": map[string]any{
+					"formatVersion": 1,
+					"boardTitle":    "Project B",
+					"exportedAt":    "2026-04-24T00:00:00Z",
+					"columns": []map[string]any{{
+						"title": "Done",
+						"tasks": []map[string]any{{"title": "Ship B", "description": ""}},
+					}},
 				},
 			},
 			{
-				"title": "Done",
-				"tasks": []map[string]any{
-					{"title": "Celebrate", "description": ""},
+				"sourceBoardId":    boardCID,
+				"sourceBoardTitle": "Project C",
+				"payload": map[string]any{
+					"formatVersion": 1,
+					"boardTitle":    "Project C",
+					"exportedAt":    "2026-04-24T00:00:00Z",
+					"columns": []map[string]any{{
+						"title": "Review",
+						"tasks": []map[string]any{{"title": "Skip C", "description": ""}},
+					}},
 				},
 			},
 		},
 	}
-	body, _ := json.Marshal(payload)
-	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/import", bytes.NewReader(body))
+	requestBody, _ := json.Marshal(map[string]any{
+		"sourceBoardIds": []string{boardAID, boardBID},
+		"bundle":         bundle,
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(requestBody))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
@@ -1307,17 +1459,221 @@ func TestKanbanImportTasksCreatesColumnsAndTasks(t *testing.T) {
 	}
 
 	var response struct {
-		CreatedColumnCount int `json:"createdColumnCount"`
-		ImportedTaskCount  int `json:"importedTaskCount"`
+		Results []struct {
+			SourceBoardID      string `json:"sourceBoardId"`
+			DestinationBoardID string `json:"destinationBoardId"`
+			ImportedTaskCount  int    `json:"importedTaskCount"`
+		} `json:"results"`
+		TotalImportedTaskCount int `json:"totalImportedTaskCount"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode bundle import response: %v", err)
+	}
+	if len(response.Results) != 2 {
+		t.Fatalf("results count = %d, want 2", len(response.Results))
+	}
+	if response.TotalImportedTaskCount != 2 {
+		t.Fatalf("totalImportedTaskCount = %d, want 2", response.TotalImportedTaskCount)
+	}
+
+	boardA := getBoardDetails(t, mux, boardAID)
+	if !boardHasTaskTitle(boardA, "Plan A") {
+		t.Fatalf("board A tasks = %+v, want Plan A", boardA.Tasks)
+	}
+	boardB := getBoardDetails(t, mux, boardBID)
+	if !boardHasTaskTitle(boardB, "Ship B") {
+		t.Fatalf("board B tasks = %+v, want Ship B", boardB.Tasks)
+	}
+	boardC := getBoardDetails(t, mux, boardCID)
+	if boardHasTaskTitle(boardC, "Skip C") {
+		t.Fatalf("board C tasks = %+v, did not expect Skip C", boardC.Tasks)
+	}
+}
+
+func TestKanbanImportTasksBundleRejectsInvalidSourceBoardID(t *testing.T) {
+	// Requirement: API-004
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoardWithTitle(t, mux, "Project A")
+
+	requestBody, _ := json.Marshal(map[string]any{
+		"sourceBoardIds": []string{"not-a-uuid"},
+		"bundle": map[string]any{
+			"formatVersion": 2,
+			"exportedAt":    "2026-04-24T00:00:00Z",
+			"boards": []map[string]any{
+				{
+					"sourceBoardId":    boardID,
+					"sourceBoardTitle": "Project A",
+					"payload": map[string]any{
+						"formatVersion": 1,
+						"boardTitle":    "Project A",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns":       []map[string]any{},
+					},
+				},
+			},
+		},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+}
+
+func TestKanbanImportTasksBundleIsAtomicPerDestinationBoard(t *testing.T) {
+	// Requirement: API-018
+	t.Parallel()
+
+	baseRepo := kanban.NewService(kanban.NewMemoryRepository())
+	failingRepo := &failOnCreateTaskRepository{
+		Repository: baseRepo,
+		failAfter:  2,
+	}
+	mux := newKanbanMuxForUser(failingRepo, "user-1")
+
+	boardAID := createBoardWithTitle(t, mux, "Project A")
+	boardBID := createBoardWithTitle(t, mux, "Project B")
+
+	requestBody, _ := json.Marshal(map[string]any{
+		"sourceBoardIds": []string{boardAID, boardBID},
+		"bundle": map[string]any{
+			"formatVersion": 2,
+			"exportedAt":    "2026-04-24T00:00:00Z",
+			"boards": []map[string]any{
+				{
+					"sourceBoardId":    boardAID,
+					"sourceBoardTitle": "Project A",
+					"payload": map[string]any{
+						"formatVersion": 1,
+						"boardTitle":    "Project A",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns": []map[string]any{{
+							"title": "Backlog",
+							"tasks": []map[string]any{{"title": "A-1", "description": ""}},
+						}},
+					},
+				},
+				{
+					"sourceBoardId":    boardBID,
+					"sourceBoardTitle": "Project B",
+					"payload": map[string]any{
+						"formatVersion": 1,
+						"boardTitle":    "Project B",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns": []map[string]any{{
+							"title": "Done",
+							"tasks": []map[string]any{{"title": "B-1", "description": ""}, {"title": "B-2", "description": ""}},
+						}},
+					},
+				},
+			},
+		},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+
+	boardA := getBoardDetails(t, mux, boardAID)
+	if !boardHasTaskTitle(boardA, "A-1") {
+		t.Fatalf("board A tasks = %+v, want A-1", boardA.Tasks)
+	}
+	boardB := getBoardDetails(t, mux, boardBID)
+	if boardHasTaskTitle(boardB, "B-1") || boardHasTaskTitle(boardB, "B-2") {
+		t.Fatalf("board B tasks = %+v, expected rollback", boardB.Tasks)
+	}
+}
+
+func TestKanbanImportTasksCreatesColumnsAndTasks(t *testing.T) {
+	// Requirements: API-007, API-008, BOARD-006, BOARD-008
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	_ = createColumnWithTitle(t, mux, boardID, "Backlog")
+
+	requestPayload := map[string]any{
+		"sourceBoardIds": []string{boardID},
+		"bundle": map[string]any{
+			"formatVersion": 2,
+			"exportedAt":    "2026-04-24T00:00:00Z",
+			"boards": []map[string]any{
+				{
+					"sourceBoardId":    boardID,
+					"sourceBoardTitle": "Imported",
+					"payload": map[string]any{
+						"formatVersion": 1,
+						"boardTitle":    "Imported",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns": []map[string]any{
+							{
+								"title": "Backlog",
+								"tasks": []map[string]any{
+									{"title": "Plan", "description": "notes"},
+									{"title": "   ", "description": "skip"},
+								},
+							},
+							{
+								"title": "Done",
+								"tasks": []map[string]any{
+									{"title": "Ship", "description": ""},
+								},
+							},
+							{
+								"title": "Done",
+								"tasks": []map[string]any{
+									{"title": "Celebrate", "description": ""},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	body, _ := json.Marshal(requestPayload)
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response struct {
+		Results []struct {
+			CreatedColumnCount int `json:"createdColumnCount"`
+			ImportedTaskCount  int `json:"importedTaskCount"`
+		} `json:"results"`
+		TotalCreatedColumnCount int `json:"totalCreatedColumnCount"`
+		TotalImportedTaskCount  int `json:"totalImportedTaskCount"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode import response: %v", err)
 	}
-	if response.CreatedColumnCount != 1 {
-		t.Fatalf("createdColumnCount = %d, want 1", response.CreatedColumnCount)
+	if response.TotalCreatedColumnCount != 1 {
+		t.Fatalf("totalCreatedColumnCount = %d, want 1", response.TotalCreatedColumnCount)
 	}
-	if response.ImportedTaskCount != 3 {
-		t.Fatalf("importedTaskCount = %d, want 3", response.ImportedTaskCount)
+	if response.TotalImportedTaskCount != 3 {
+		t.Fatalf("totalImportedTaskCount = %d, want 3", response.TotalImportedTaskCount)
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/boards/"+boardID, nil)
@@ -1379,22 +1735,31 @@ func TestKanbanImportTasksRollsBackOnFailure(t *testing.T) {
 	boardID := createBoard(t, mux)
 	_ = createColumnWithTitle(t, mux, boardID, "Backlog")
 
-	payload := map[string]any{
-		"formatVersion": 1,
-		"boardTitle":    "Imported",
-		"exportedAt":    "2026-04-24T00:00:00Z",
-		"columns": []map[string]any{
-			{
-				"title": "Done",
-				"tasks": []map[string]any{
-					{"title": "First", "description": ""},
-					{"title": "Second", "description": ""},
+	body, _ := json.Marshal(map[string]any{
+		"sourceBoardIds": []string{boardID},
+		"bundle": map[string]any{
+			"formatVersion": 2,
+			"exportedAt":    "2026-04-24T00:00:00Z",
+			"boards": []map[string]any{
+				{
+					"sourceBoardId":    boardID,
+					"sourceBoardTitle": "Imported",
+					"payload": map[string]any{
+						"formatVersion": 1,
+						"boardTitle":    "Imported",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns": []map[string]any{
+							{
+								"title": "Done",
+								"tasks": []map[string]any{{"title": "First", "description": ""}, {"title": "Second", "description": ""}},
+							},
+						},
+					},
 				},
 			},
 		},
-	}
-	body, _ := json.Marshal(payload)
-	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/import", bytes.NewReader(body))
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
@@ -1441,8 +1806,8 @@ func TestKanbanImportTasksRejectsUnsupportedFormatVersion(t *testing.T) {
 	mux := newKanbanMuxForUser(repo, "user-1")
 
 	boardID := createBoard(t, mux)
-	payload := `{"formatVersion":99,"boardTitle":"Main","exportedAt":"2026-04-24T00:00:00Z","columns":[]}`
-	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/import", strings.NewReader(payload))
+	payload := `{"sourceBoardIds":["` + boardID + `"],"bundle":{"formatVersion":99,"exportedAt":"2026-04-24T00:00:00Z","boards":[{"sourceBoardId":"` + boardID + `","sourceBoardTitle":"Main","payload":{"formatVersion":1,"boardTitle":"Main","exportedAt":"2026-04-24T00:00:00Z","columns":[]}}]}}`
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", strings.NewReader(payload))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
@@ -1467,22 +1832,31 @@ func TestKanbanImportTasksTransactionalFailureDoesNotFallbackToCompensation(t *t
 	boardID := createBoard(t, mux)
 	_ = createColumnWithTitle(t, mux, boardID, "Backlog")
 
-	payload := map[string]any{
-		"formatVersion": 1,
-		"boardTitle":    "Imported",
-		"exportedAt":    "2026-04-24T00:00:00Z",
-		"columns": []map[string]any{
-			{
-				"title": "Backlog",
-				"tasks": []map[string]any{
-					{"title": "First", "description": ""},
-					{"title": "Second", "description": ""},
+	body, _ := json.Marshal(map[string]any{
+		"sourceBoardIds": []string{boardID},
+		"bundle": map[string]any{
+			"formatVersion": 2,
+			"exportedAt":    "2026-04-24T00:00:00Z",
+			"boards": []map[string]any{
+				{
+					"sourceBoardId":    boardID,
+					"sourceBoardTitle": "Imported",
+					"payload": map[string]any{
+						"formatVersion": 1,
+						"boardTitle":    "Imported",
+						"exportedAt":    "2026-04-24T00:00:00Z",
+						"columns": []map[string]any{
+							{
+								"title": "Backlog",
+								"tasks": []map[string]any{{"title": "First", "description": ""}, {"title": "Second", "description": ""}},
+							},
+						},
+					},
 				},
 			},
 		},
-	}
-	body, _ := json.Marshal(payload)
-	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/import", bytes.NewReader(body))
+	})
+	request := httptest.NewRequest(http.MethodPost, "/boards/tasks/import", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
@@ -1622,4 +1996,44 @@ func createTaskWithTitle(t *testing.T, mux *http.ServeMux, boardID, columnID, ti
 	}
 
 	return response.ID
+}
+
+type boardDetailsTestResponse struct {
+	Columns []struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	} `json:"columns"`
+	Tasks []struct {
+		ColumnID string `json:"columnId"`
+		Title    string `json:"title"`
+	} `json:"tasks"`
+}
+
+func getBoardDetails(t *testing.T, mux *http.ServeMux, boardID string) boardDetailsTestResponse {
+	t.Helper()
+
+	request := httptest.NewRequest(http.MethodGet, "/boards/"+boardID, nil)
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("get board status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response boardDetailsTestResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode board response: %v", err)
+	}
+
+	return response
+}
+
+func boardHasTaskTitle(response boardDetailsTestResponse, title string) bool {
+	for _, task := range response.Tasks {
+		if task.Title == title {
+			return true
+		}
+	}
+	return false
 }

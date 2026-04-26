@@ -118,3 +118,37 @@ type TaskImportResponse struct {
 	CreatedColumnCount int `json:"createdColumnCount" minimum:"0"`
 	ImportedTaskCount  int `json:"importedTaskCount" minimum:"0"`
 }
+
+type TaskExportBundle struct {
+	FormatVersion int                     `json:"formatVersion" minimum:"1"`
+	ExportedAt    string                  `json:"exportedAt" format:"date-time"`
+	Boards        []TaskExportBundleBoard `json:"boards" minItems:"1" nullable:"false"`
+}
+
+type TaskExportBundleBoard struct {
+	SourceBoardID    string            `json:"sourceBoardId" format:"uuid"`
+	SourceBoardTitle string            `json:"sourceBoardTitle" minLength:"1" maxLength:"120"`
+	Payload          TaskExportPayload `json:"payload"`
+}
+
+type TaskExportBundleRequest struct {
+	BoardIDs []string `json:"boardIds" minItems:"1" nullable:"false"`
+}
+
+type TaskImportBundleRequest struct {
+	SourceBoardIDs []string         `json:"sourceBoardIds" minItems:"1" nullable:"false"`
+	Bundle         TaskExportBundle `json:"bundle"`
+}
+
+type TaskImportBundleBoardResult struct {
+	SourceBoardID      string `json:"sourceBoardId" format:"uuid"`
+	DestinationBoardID string `json:"destinationBoardId" format:"uuid"`
+	CreatedColumnCount int    `json:"createdColumnCount" minimum:"0"`
+	ImportedTaskCount  int    `json:"importedTaskCount" minimum:"0"`
+}
+
+type TaskImportBundleResponse struct {
+	Results                 []TaskImportBundleBoardResult `json:"results" nullable:"false"`
+	TotalCreatedColumnCount int                           `json:"totalCreatedColumnCount" minimum:"0"`
+	TotalImportedTaskCount  int                           `json:"totalImportedTaskCount" minimum:"0"`
+}

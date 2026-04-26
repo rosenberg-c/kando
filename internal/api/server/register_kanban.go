@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 
 	"go_macos_todo/internal/api/contracts"
 	"go_macos_todo/internal/auth"
@@ -106,10 +107,22 @@ type taskPathInput struct {
 	TaskID        string `path:"taskId"`
 }
 
-type importTasksInput struct {
+type exportTasksBundleInput struct {
 	Authorization string `header:"Authorization"`
-	BoardID       string `path:"boardId"`
-	Body          contracts.TaskExportPayload
+	Body          contracts.TaskExportBundleRequest
+}
+
+type exportTasksBundleOutput struct {
+	Body contracts.TaskExportBundle
+}
+
+type importTasksBundleInput struct {
+	Authorization string `header:"Authorization"`
+	Body          contracts.TaskImportBundleRequest
+}
+
+type importTasksBundleOutput struct {
+	Body contracts.TaskImportBundleResponse
 }
 
 type taskOutput struct {
@@ -120,15 +133,10 @@ type tasksOutput struct {
 	Body []contracts.Task
 }
 
-type exportTasksOutput struct {
-	Body contracts.TaskExportPayload
-}
-
-type importTasksOutput struct {
-	Body contracts.TaskImportResponse
-}
-
-const taskExportFormatVersion = 1
+const (
+	taskExportFormatVersion       = 1
+	taskExportBundleFormatVersion = 2
+)
 
 type archiveRepository interface {
 	kanban.Repository
@@ -502,48 +510,43 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "exportTasks",
-		Method:      http.MethodGet,
-		Path:        "/boards/{boardId}/tasks/export",
-		Summary:     "Export board tasks as versioned payload",
+		OperationID: "exportTasksBundle",
+		Method:      http.MethodPost,
+		Path:        "/boards/tasks/export",
+		Summary:     "Export selected boards as a multi-board task bundle",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *boardPathInput) (*exportTasksOutput, error) {
+	}, func(ctx context.Context, input *exportTasksBundleInput) (*exportTasksBundleOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		details, err := repo.GetBoard(ctx, identity.UserID, input.BoardID)
+		bundle, err := exportTasksBundle(ctx, repo, identity.UserID, input.Body.BoardIDs, time.Now().UTC())
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
 
-		payload := buildTaskExportPayload(details, time.Now().UTC())
-		return &exportTasksOutput{Body: payload}, nil
+		return &exportTasksBundleOutput{Body: bundle}, nil
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "importTasks",
+		OperationID: "importTasksBundle",
 		Method:      http.MethodPost,
-		Path:        "/boards/{boardId}/tasks/import",
-		Summary:     "Import board tasks from versioned payload",
+		Path:        "/boards/tasks/import",
+		Summary:     "Import selected snapshots from a multi-board task bundle",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *importTasksInput) (*importTasksOutput, error) {
+	}, func(ctx context.Context, input *importTasksBundleInput) (*importTasksBundleOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		if input.Body.FormatVersion != taskExportFormatVersion {
-			return nil, huma.Error400BadRequest("unsupported task export format version")
-		}
-
-		result, err := importTasksAtomically(ctx, repo, identity.UserID, input.BoardID, input.Body)
+		response, err := importTasksBundle(ctx, repo, identity.UserID, input.Body)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
 
-		return &importTasksOutput{Body: result}, nil
+		return &importTasksBundleOutput{Body: response}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -692,6 +695,166 @@ func buildTaskExportPayload(details kanban.BoardDetails, exportedAt time.Time) c
 		ExportedAt:    exportedAt.Format(time.RFC3339),
 		Columns:       exportColumns,
 	}
+}
+
+func exportTasksBundle(ctx context.Context, repo kanban.Repository, ownerUserID string, boardIDs []string, exportedAt time.Time) (contracts.TaskExportBundle, error) {
+	selectedBoardIDs, err := normalizeUniqueNonEmptyIDs(boardIDs)
+	if err != nil {
+		return contracts.TaskExportBundle{}, err
+	}
+
+	snapshots := make([]contracts.TaskExportBundleBoard, 0, len(selectedBoardIDs))
+	for _, boardID := range selectedBoardIDs {
+		details, err := repo.GetBoard(ctx, ownerUserID, boardID)
+		if err != nil {
+			return contracts.TaskExportBundle{}, err
+		}
+
+		snapshots = append(snapshots, contracts.TaskExportBundleBoard{
+			SourceBoardID:    details.Board.ID,
+			SourceBoardTitle: details.Board.Title,
+			Payload:          buildTaskExportPayload(details, exportedAt),
+		})
+	}
+
+	return contracts.TaskExportBundle{
+		FormatVersion: taskExportBundleFormatVersion,
+		ExportedAt:    exportedAt.Format(time.RFC3339),
+		Boards:        snapshots,
+	}, nil
+}
+
+func importTasksBundle(ctx context.Context, repo kanban.Repository, ownerUserID string, request contracts.TaskImportBundleRequest) (contracts.TaskImportBundleResponse, error) {
+	if request.Bundle.FormatVersion != taskExportBundleFormatVersion {
+		return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+	}
+	if len(request.Bundle.Boards) == 0 {
+		return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+	}
+
+	selectedSourceBoardIDs, err := normalizeUniqueNonEmptyIDs(request.SourceBoardIDs)
+	if err != nil {
+		return contracts.TaskImportBundleResponse{}, err
+	}
+
+	bundleBySourceID := make(map[string]contracts.TaskExportBundleBoard, len(request.Bundle.Boards))
+	for _, snapshot := range request.Bundle.Boards {
+		sourceID := strings.TrimSpace(snapshot.SourceBoardID)
+		if sourceID == "" {
+			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+		}
+		if _, err := uuid.Parse(sourceID); err != nil {
+			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+		}
+		sourceTitle := strings.TrimSpace(snapshot.SourceBoardTitle)
+		if sourceTitle == "" {
+			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+		}
+		if snapshot.Payload.FormatVersion != taskExportFormatVersion {
+			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+		}
+		if _, exists := bundleBySourceID[sourceID]; exists {
+			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+		}
+		normalizedSnapshot := snapshot
+		normalizedSnapshot.SourceBoardID = sourceID
+		normalizedSnapshot.SourceBoardTitle = sourceTitle
+		bundleBySourceID[sourceID] = normalizedSnapshot
+	}
+
+	availableBoards, err := repo.ListBoardsByOwner(ctx, ownerUserID)
+	if err != nil {
+		return contracts.TaskImportBundleResponse{}, err
+	}
+
+	results := make([]contracts.TaskImportBundleBoardResult, 0, len(selectedSourceBoardIDs))
+	totalCreatedColumns := 0
+	totalImportedTasks := 0
+
+	for _, sourceBoardID := range selectedSourceBoardIDs {
+		snapshot, exists := bundleBySourceID[sourceBoardID]
+		if !exists {
+			return contracts.TaskImportBundleResponse{}, kanban.ErrInvalidInput
+		}
+
+		destinationBoardID, updatedBoards, err := resolveImportBundleDestinationBoard(ctx, repo, ownerUserID, availableBoards, snapshot)
+		if err != nil {
+			return contracts.TaskImportBundleResponse{}, err
+		}
+		availableBoards = updatedBoards
+
+		result, err := importTasksAtomically(ctx, repo, ownerUserID, destinationBoardID, snapshot.Payload)
+		if err != nil {
+			return contracts.TaskImportBundleResponse{}, err
+		}
+
+		results = append(results, contracts.TaskImportBundleBoardResult{
+			SourceBoardID:      snapshot.SourceBoardID,
+			DestinationBoardID: destinationBoardID,
+			CreatedColumnCount: result.CreatedColumnCount,
+			ImportedTaskCount:  result.ImportedTaskCount,
+		})
+		totalCreatedColumns += result.CreatedColumnCount
+		totalImportedTasks += result.ImportedTaskCount
+	}
+
+	return contracts.TaskImportBundleResponse{
+		Results:                 results,
+		TotalCreatedColumnCount: totalCreatedColumns,
+		TotalImportedTaskCount:  totalImportedTasks,
+	}, nil
+}
+
+func resolveImportBundleDestinationBoard(
+	ctx context.Context,
+	repo kanban.Repository,
+	ownerUserID string,
+	availableBoards []kanban.Board,
+	snapshot contracts.TaskExportBundleBoard,
+) (string, []kanban.Board, error) {
+	for _, board := range availableBoards {
+		if board.ID == snapshot.SourceBoardID {
+			return board.ID, availableBoards, nil
+		}
+	}
+	for _, board := range availableBoards {
+		if board.Title == snapshot.SourceBoardTitle {
+			return board.ID, availableBoards, nil
+		}
+	}
+
+	createdBoard, err := repo.CreateBoard(ctx, ownerUserID, snapshot.SourceBoardTitle)
+	if err != nil {
+		return "", nil, err
+	}
+
+	updatedBoards := append([]kanban.Board{createdBoard}, availableBoards...)
+	return createdBoard.ID, updatedBoards, nil
+}
+
+func normalizeUniqueNonEmptyIDs(ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, kanban.ErrInvalidInput
+	}
+
+	normalized := make([]string, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, value := range ids {
+		id := strings.TrimSpace(value)
+		if id == "" {
+			return nil, kanban.ErrInvalidInput
+		}
+		if _, err := uuid.Parse(id); err != nil {
+			return nil, kanban.ErrInvalidInput
+		}
+		if _, exists := seen[id]; exists {
+			return nil, kanban.ErrInvalidInput
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+
+	return normalized, nil
 }
 
 func importTasksAtomically(ctx context.Context, repo kanban.Repository, ownerUserID, boardID string, payload contracts.TaskExportPayload) (contracts.TaskImportResponse, error) {
