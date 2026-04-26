@@ -276,3 +276,79 @@ func TestServiceReorderTasksDelegates(t *testing.T) {
 		t.Fatalf("reorder tasks calls = %d, want 1", stub.reorderTasksCalls)
 	}
 }
+
+func TestServiceApplyTaskBatchMutationRejectsInvalidAction(t *testing.T) {
+	// Requirement: API-033
+	t.Parallel()
+
+	stub := &serviceRepoStub{}
+	svc := NewService(stub)
+
+	_, err := svc.ApplyTaskBatchMutation(context.Background(), "user-1", "board-1", TaskBatchMutationRequest{
+		Action:  TaskBatchAction("noop"),
+		TaskIDs: []string{"task-1"},
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("apply batch err = %v, want ErrInvalidInput", err)
+	}
+}
+
+func TestServiceApplyTaskBatchMutationDeleteRemovesAllRequestedTasks(t *testing.T) {
+	// Requirements: API-033, TASK-041
+	t.Parallel()
+
+	repo := NewMemoryRepository()
+	svc := NewService(repo)
+
+	board, err := svc.CreateBoard(context.Background(), "user-1", "Main")
+	if err != nil {
+		t.Fatalf("create board: %v", err)
+	}
+	column, _, err := svc.CreateColumn(context.Background(), "user-1", board.ID, "Backlog")
+	if err != nil {
+		t.Fatalf("create column: %v", err)
+	}
+	taskA, _, err := svc.CreateTask(context.Background(), "user-1", board.ID, column.ID, "A", "")
+	if err != nil {
+		t.Fatalf("create task A: %v", err)
+	}
+	taskB, _, err := svc.CreateTask(context.Background(), "user-1", board.ID, column.ID, "B", "")
+	if err != nil {
+		t.Fatalf("create task B: %v", err)
+	}
+	taskC, _, err := svc.CreateTask(context.Background(), "user-1", board.ID, column.ID, "C", "")
+	if err != nil {
+		t.Fatalf("create task C: %v", err)
+	}
+
+	if _, err := svc.ApplyTaskBatchMutation(context.Background(), "user-1", board.ID, TaskBatchMutationRequest{
+		Action:  TaskBatchActionDelete,
+		TaskIDs: []string{taskA.ID, taskC.ID},
+	}); err != nil {
+		t.Fatalf("apply batch delete: %v", err)
+	}
+
+	details, err := svc.GetBoard(context.Background(), "user-1", board.ID)
+	if err != nil {
+		t.Fatalf("get board: %v", err)
+	}
+	if len(details.Tasks) != 1 || details.Tasks[0].ID != taskB.ID {
+		t.Fatalf("remaining tasks = %+v, want only %s", details.Tasks, taskB.ID)
+	}
+}
+
+func TestServiceApplyTaskBatchMutationRequiresTransactionalRepository(t *testing.T) {
+	// Requirement: API-033
+	t.Parallel()
+
+	stub := &serviceRepoStub{}
+	svc := NewService(stub)
+
+	_, err := svc.ApplyTaskBatchMutation(context.Background(), "user-1", "board-1", TaskBatchMutationRequest{
+		Action:  TaskBatchActionDelete,
+		TaskIDs: []string{"task-1"},
+	})
+	if !errors.Is(err, ErrNotImplemented) {
+		t.Fatalf("apply batch err = %v, want ErrNotImplemented", err)
+	}
+}

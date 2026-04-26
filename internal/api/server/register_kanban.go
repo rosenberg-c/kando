@@ -111,6 +111,12 @@ type reorderTasksInput struct {
 	Body          contracts.ReorderTasksRequest
 }
 
+type taskBatchMutationInput struct {
+	Authorization string `header:"Authorization"`
+	BoardID       string `path:"boardId"`
+	Body          contracts.TaskBatchMutationRequest
+}
+
 type taskPathInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
@@ -627,6 +633,39 @@ func registerKanban(api huma.API, deps Dependencies) {
 		}
 
 		if _, err := repo.ReorderTasks(ctx, identity.UserID, input.BoardID, orders); err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		details, err := repo.GetBoard(ctx, identity.UserID, input.BoardID)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		tasks := make([]contracts.Task, 0, len(details.Tasks))
+		for _, task := range details.Tasks {
+			tasks = append(tasks, toContractTask(task))
+		}
+
+		return &tasksOutput{Body: tasks}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "applyTaskBatchMutation",
+		Method:      http.MethodPost,
+		Path:        "/boards/{boardId}/tasks/actions",
+		Summary:     "Apply list-based task batch action",
+		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+	}, func(ctx context.Context, input *taskBatchMutationInput) (*tasksOutput, error) {
+		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
+		if err != nil {
+			return nil, err
+		}
+
+		service := kanban.NewService(repo)
+		if _, err := service.ApplyTaskBatchMutation(ctx, identity.UserID, input.BoardID, kanban.TaskBatchMutationRequest{
+			Action:  kanban.TaskBatchAction(input.Body.Action),
+			TaskIDs: input.Body.TaskIDs,
+		}); err != nil {
 			return nil, mapKanbanError(err)
 		}
 

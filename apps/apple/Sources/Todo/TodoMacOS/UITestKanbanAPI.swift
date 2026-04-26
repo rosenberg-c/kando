@@ -383,6 +383,17 @@ actor UITestKanbanAPI: KanbanAPI {
         tasksByBoardID[boardID] = tasks
     }
 
+    func applyTaskBatchMutation(boardID: String, request: TaskBatchMutationRequest, accessToken: String, baseURL: URL) async throws {
+        await maybeDelay()
+        switch request.action {
+        case .delete:
+            let uniqueTaskIDs = try normalizedUniqueIDs(request.taskIDs, operation: "applyTaskBatchMutation")
+            var tasks = tasksByBoardID[boardID] ?? []
+            tasks.removeAll { uniqueTaskIDs.contains($0.id) }
+            tasksByBoardID[boardID] = tasks
+        }
+    }
+
     func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {
         await maybeDelay()
         let selectedBoardIDs = try normalizedUniqueIDs(boardIDs, operation: "exportTasksBundle")

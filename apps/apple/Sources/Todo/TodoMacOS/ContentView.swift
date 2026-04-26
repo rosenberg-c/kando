@@ -141,6 +141,32 @@ private struct TaskControlVisibilityBindings {
     let showsArchivedActions: Binding<Bool>
 }
 
+private struct ColumnTaskActionHandlers {
+    let onMoveTaskToTop: (String, String) -> Void
+    let onMoveTaskToBottom: (String, String) -> Void
+    let onMoveTaskUp: (String, String) -> Void
+    let onMoveTaskDown: (String, String) -> Void
+    let taskDragItem: (String, String) -> TaskDragItem
+    let onDropTaskItem: (TaskDragItem, String, Int) -> Void
+}
+
+private enum TaskSelectionInteraction {
+    case single
+    case toggle
+    case range
+
+    static func current() -> TaskSelectionInteraction {
+        let modifiers = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.contains(.shift) {
+            return .range
+        }
+        if modifiers.contains(.control) {
+            return .toggle
+        }
+        return .single
+    }
+}
+
 private struct LoggedInWorkspaceView: View {
     @ObservedObject var auth: AuthSessionViewModel
     let onSignOut: () -> Void
@@ -153,13 +179,15 @@ private struct LoggedInWorkspaceView: View {
     @State private var isCreateBoardSheetPresented = false
     @State private var editingTask: EditableTask?
     @State private var pendingColumnDeletion: EditableColumn?
-    @State private var pendingTaskDeletion: EditableTask?
+    @State private var pendingTaskDeletion: PendingTaskDeletion?
     @State private var viewingArchivedTask: KanbanTask?
     @State private var pendingArchivedTaskDeletion: KanbanTask?
     @State private var isSettingsSheetPresented = false
     @State private var exportSelectionSheet: BoardExportSelectionSheetState?
     @State private var importSelectionSheet: BoardImportSelectionSheetState?
     @State private var selectedTaskID: String?
+    @State private var selectedTaskIDs: Set<String> = []
+    @State private var taskSelectionAnchorTaskID: String?
     @State private var selectedArchivedTaskID: String?
     @State private var showsArchivedTasks = false
     @AppStorage(WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons) private var showsTopBottomTaskButtons = true
@@ -213,220 +241,16 @@ private struct LoggedInWorkspaceView: View {
     }
 
     var body: some View {
+        workspaceScaffold
+    }
+
+    private var workspaceScaffold: some View {
+        workspaceWithDialogs
+    }
+
+    private var workspaceBase: some View {
         ZStack {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(board.board?.title ?? Strings.t("board.title"))
-                            .font(.largeTitle.weight(.semibold))
-                            .accessibilityIdentifier("workspace-board-title")
-
-                        Picker(
-                            Strings.t("board.selector.label"),
-                            selection: Binding<String?>(
-                                get: { board.selectedBoardID },
-                                set: { selectedID in
-                                    guard let selectedID else { return }
-                                    Task { await board.selectBoard(boardID: selectedID) }
-                                }
-                            )
-                        ) {
-                            ForEach(board.boards, id: \.id) { boardOption in
-                                Text(boardOption.title).tag(Optional(boardOption.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 260, alignment: .leading)
-                        .disabled(board.isLoading || board.boards.isEmpty)
-                        .accessibilityIdentifier("board-selector-picker")
-                    }
-
-                    Spacer()
-
-                    Button("board.create") {
-                        isCreateBoardSheetPresented = true
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(board.isLoading)
-                    .accessibilityIdentifier("board-create-button")
-
-                    Button("board.column.reorder.mode.enter") {
-                        isEditBoardSheetPresented = true
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!board.canMutateBoardActions)
-                    .accessibilityIdentifier("board-edit-mode-toggle")
-
-                    Button("board.settings") {
-                        isSettingsSheetPresented = true
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("board-settings-button")
-                }
-
-                Text(Strings.f("loggedin.subtitle", auth.signedInEmail))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 10) {
-                    TextField("board.column.add.placeholder", text: $newColumnTitle)
-                        .textFieldStyle(.roundedBorder)
-
-                    Button("board.column.add.submit") {
-                        let title = newColumnTitle
-                        newColumnTitle = ""
-                        Task { await board.createColumn(title: title) }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!board.canMutateBoardActions)
-                }
-
-                HStack(spacing: 10) {
-                    Toggle("board.archived_tasks.toggle", isOn: $showsArchivedTasks)
-                        .toggleStyle(.checkbox)
-                        .accessibilityIdentifier("workspace-toggle-show-archived")
-
-                    if board.isArchivedTasksLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                            .accessibilityIdentifier("workspace-archived-tasks-loading")
-                    }
-
-                    if board.archivedTasksStatusIsError {
-                        Text(board.archivedTasksStatusMessage)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .lineLimit(2)
-                            .accessibilityIdentifier("workspace-archived-tasks-error")
-
-                        Button("board.archived_tasks.retry") {
-                            Task { await board.reloadArchivedTasks() }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("workspace-archived-tasks-retry")
-                    }
-                }
-
-                GeometryReader { geometry in
-                    let taskListMaxHeight = max(
-                        WorkspaceLayout.taskListMinHeight,
-                        geometry.size.height - WorkspaceLayout.reservedVerticalChromeHeight
-                    )
-
-                    ScrollView(.horizontal) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach(board.columns, id: \.id) { column in
-                                ColumnCard(
-                                    column: column,
-                                    tasks: board.tasks(for: column.id),
-                                    archivedTasks: board.archivedTasks(for: column.id),
-                                    showsArchivedTasks: showsArchivedTasks,
-                                    taskListMaxHeight: taskListMaxHeight,
-                                    isEnabled: board.canMutateBoardActions,
-                                    onRename: { editingColumn = EditableColumn(column: column) },
-                                    onDelete: {
-                                        pendingColumnDeletion = EditableColumn(column: column)
-                                    },
-                                    onArchiveTasks: {
-                                        Task {
-                                            await board.archiveColumnTasks(columnID: column.id)
-                                        }
-                                    },
-                                    onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
-                                    onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
-                                    onDeleteTask: { task in
-                                        pendingTaskDeletion = EditableTask(columnID: column.id, task: task)
-                                    },
-                                    onViewArchivedTask: { task in
-                                        viewingArchivedTask = task
-                                    },
-                                    onRestoreArchivedTask: { task in
-                                        Task { await board.restoreArchivedTask(taskID: task.id) }
-                                    },
-                                    onDeleteArchivedTask: { task in
-                                        pendingArchivedTaskDeletion = task
-                                    },
-                                    taskControlVisibility: taskControlVisibility,
-                                    selectedTaskID: selectedTaskID,
-                                    selectedArchivedTaskID: selectedArchivedTaskID,
-                                    onSelectTask: { taskID in
-                                        selectedTaskID = taskID
-                                        selectedArchivedTaskID = nil
-                                    },
-                                    onSelectArchivedTask: { taskID in
-                                        selectedArchivedTaskID = taskID
-                                        selectedTaskID = nil
-                                    },
-                                    onMoveTask: { taskID, destinationColumnID, destinationPosition in
-                                        Task {
-                                            await board.moveTask(
-                                                taskID: taskID,
-                                                destinationColumnID: destinationColumnID,
-                                                destinationPosition: destinationPosition
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.vertical, 4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-
-                if !board.statusMessage.isEmpty {
-                    Text(board.statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(board.statusIsError ? .red : .green)
-                        .textSelection(.enabled)
-                        .accessibilityIdentifier("board-status-message")
-                }
-
-                if board.statusIsError || !board.debugMessage.isEmpty {
-                    DisclosureGroup(Strings.t("board.dev.title")) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Spacer()
-                                Button(Strings.t("board.dev.copy")) {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(devDiagnosticText, forType: .string)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
-
-                            Text(Strings.f("board.dev.base_url", auth.currentAPIBaseURL()?.absoluteString ?? "(nil)"))
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-
-                            if let boardID = board.board?.id {
-                                Text(Strings.f("board.dev.board_id", boardID))
-                                    .font(.caption.monospaced())
-                                    .textSelection(.enabled)
-                            }
-
-                            if !board.debugMessage.isEmpty {
-                                Text(board.debugMessage)
-                                    .font(.caption.monospaced())
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .font(.caption)
-                    .accessibilityIdentifier("board-dev-diagnostics")
-                }
-
-                Spacer(minLength: 0)
-            }
-            .allowsHitTesting(!board.isLoading)
+            workspaceContent
 
             if board.isLoading {
                 BlockingLoadingOverlay(
@@ -435,6 +259,10 @@ private struct LoggedInWorkspaceView: View {
                 )
             }
         }
+    }
+
+    private var workspaceWithLifecycle: some View {
+        workspaceBase
         .padding(24)
         .frame(minWidth: 980, minHeight: 620)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -449,12 +277,27 @@ private struct LoggedInWorkspaceView: View {
         }
         .onChange(of: board.board?.id, perform: { _ in
             selectedTaskID = nil
+            selectedTaskIDs = []
+            taskSelectionAnchorTaskID = nil
             selectedArchivedTaskID = nil
         })
         .onChange(of: board.columns, perform: { _ in
-            guard let selectedTaskID else { return }
-            if taskDetails(for: selectedTaskID) == nil {
-                self.selectedTaskID = nil
+            let existingTaskIDs = Set(board.columns.flatMap { column in
+                board.tasks(for: column.id).map(\.id)
+            })
+
+            selectedTaskIDs.formIntersection(existingTaskIDs)
+
+            if let selectedTaskID, !selectedTaskIDs.contains(selectedTaskID) {
+                self.selectedTaskID = firstSelectedTaskIDInBoardOrder()
+            }
+
+            if selectedTaskID == nil {
+                selectedTaskID = firstSelectedTaskIDInBoardOrder()
+            }
+
+            if let taskSelectionAnchorTaskID, !selectedTaskIDs.contains(taskSelectionAnchorTaskID) {
+                self.taskSelectionAnchorTaskID = nil
             }
         })
         .onChange(of: board.archivedTasksByColumnID, perform: { _ in
@@ -468,6 +311,10 @@ private struct LoggedInWorkspaceView: View {
                 selectedArchivedTaskID = nil
             }
         })
+    }
+
+    private var workspaceWithSheets: some View {
+        workspaceWithLifecycle
         .sheet(item: $editingColumn) { item in
             ColumnEditorSheet(
                 title: Strings.t("board.column.edit.title"),
@@ -595,6 +442,10 @@ private struct LoggedInWorkspaceView: View {
         .sheet(item: $viewingArchivedTask) { task in
             ArchivedTaskDetailsSheet(task: task)
         }
+    }
+
+    private var workspaceWithDialogs: some View {
+        workspaceWithSheets
         .confirmationDialog(
             Strings.t("board.column.delete.confirm.title"),
             isPresented: Binding(
@@ -633,8 +484,15 @@ private struct LoggedInWorkspaceView: View {
             titleVisibility: .visible
         ) {
             Button(Strings.t("board.task.delete.confirm.action"), role: .destructive) {
-                guard let task = pendingTaskDeletion else { return }
-                Task { await board.deleteTask(taskID: task.id) }
+                guard let deletion = pendingTaskDeletion else { return }
+                Task {
+                    switch deletion {
+                    case .single(let task):
+                        await board.deleteTask(taskID: task.id)
+                    case .multiple(let taskIDs):
+                        await board.applyTaskBatchMutation(TaskBatchMutationRequest(action: .delete, taskIDs: taskIDs))
+                    }
+                }
                 pendingTaskDeletion = nil
             }
             .accessibilityIdentifier("task-delete-confirm-action")
@@ -643,8 +501,13 @@ private struct LoggedInWorkspaceView: View {
             }
             .accessibilityIdentifier("task-delete-confirm-cancel")
         } message: {
-            if let task = pendingTaskDeletion {
-                Text(Strings.f("board.task.delete.confirm.message", task.title))
+            if let pendingTaskDeletion {
+                switch pendingTaskDeletion {
+                case .single(let task):
+                    Text(Strings.f("board.task.delete.confirm.message", task.title))
+                case .multiple(let taskIDs):
+                    Text(Strings.f("board.task.delete.confirm.message.multiple", taskIDs.count))
+                }
             }
         }
         .confirmationDialog(
@@ -674,6 +537,259 @@ private struct LoggedInWorkspaceView: View {
                 Text(Strings.f("board.archived_task.delete.confirm.message", task.title))
             }
         }
+    }
+
+    private var workspaceContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            workspaceHeader
+
+            Text(Strings.f("loggedin.subtitle", auth.signedInEmail))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            addColumnControls
+            archivedToggleRow
+            boardColumnsRegion
+            statusAndDiagnosticsSection
+
+            Spacer(minLength: 0)
+        }
+        .allowsHitTesting(!board.isLoading)
+    }
+
+    private var workspaceHeader: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(board.board?.title ?? Strings.t("board.title"))
+                    .font(.largeTitle.weight(.semibold))
+                    .accessibilityIdentifier("workspace-board-title")
+
+                Picker(
+                    Strings.t("board.selector.label"),
+                    selection: Binding<String?>(
+                        get: { board.selectedBoardID },
+                        set: { selectedID in
+                            guard let selectedID else { return }
+                            Task { await board.selectBoard(boardID: selectedID) }
+                        }
+                    )
+                ) {
+                    ForEach(board.boards, id: \.id) { boardOption in
+                        Text(boardOption.title).tag(Optional(boardOption.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 260, alignment: .leading)
+                .disabled(board.isLoading || board.boards.isEmpty)
+                .accessibilityIdentifier("board-selector-picker")
+            }
+
+            Spacer()
+
+            Button("board.create") {
+                isCreateBoardSheetPresented = true
+            }
+            .buttonStyle(.bordered)
+            .disabled(board.isLoading)
+            .accessibilityIdentifier("board-create-button")
+
+            Button("board.column.reorder.mode.enter") {
+                isEditBoardSheetPresented = true
+            }
+            .buttonStyle(.bordered)
+            .disabled(!board.canMutateBoardActions)
+            .accessibilityIdentifier("board-edit-mode-toggle")
+
+            Button("board.settings") {
+                isSettingsSheetPresented = true
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("board-settings-button")
+        }
+    }
+
+    private var addColumnControls: some View {
+        HStack(spacing: 10) {
+            TextField("board.column.add.placeholder", text: $newColumnTitle)
+                .textFieldStyle(.roundedBorder)
+
+            Button("board.column.add.submit") {
+                let title = newColumnTitle
+                newColumnTitle = ""
+                Task { await board.createColumn(title: title) }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!board.canMutateBoardActions)
+        }
+    }
+
+    private var archivedToggleRow: some View {
+        HStack(spacing: 10) {
+            Toggle("board.archived_tasks.toggle", isOn: $showsArchivedTasks)
+                .toggleStyle(.checkbox)
+                .accessibilityIdentifier("workspace-toggle-show-archived")
+
+            if board.isArchivedTasksLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityIdentifier("workspace-archived-tasks-loading")
+            }
+
+            if board.archivedTasksStatusIsError {
+                Text(board.archivedTasksStatusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("workspace-archived-tasks-error")
+
+                Button("board.archived_tasks.retry") {
+                    Task { await board.reloadArchivedTasks() }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("workspace-archived-tasks-retry")
+            }
+        }
+    }
+
+    private var boardColumnsRegion: some View {
+        GeometryReader { geometry in
+            let taskListMaxHeight = max(
+                WorkspaceLayout.taskListMinHeight,
+                geometry.size.height - WorkspaceLayout.reservedVerticalChromeHeight
+            )
+
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(board.columns, id: \.id) { column in
+                        columnCardView(for: column, taskListMaxHeight: taskListMaxHeight)
+                    }
+                }
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var statusAndDiagnosticsSection: some View {
+        if !board.statusMessage.isEmpty {
+            Text(board.statusMessage)
+                .font(.caption)
+                .foregroundStyle(board.statusIsError ? .red : .green)
+                .textSelection(.enabled)
+                .accessibilityIdentifier("board-status-message")
+        }
+
+        if board.statusIsError || !board.debugMessage.isEmpty {
+            DisclosureGroup(Strings.t("board.dev.title")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Spacer()
+                        Button(Strings.t("board.dev.copy")) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(devDiagnosticText, forType: .string)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+
+                    Text(Strings.f("board.dev.base_url", auth.currentAPIBaseURL()?.absoluteString ?? "(nil)"))
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+
+                    if let boardID = board.board?.id {
+                        Text(Strings.f("board.dev.board_id", boardID))
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                    }
+
+                    if !board.debugMessage.isEmpty {
+                        Text(board.debugMessage)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .font(.caption)
+            .accessibilityIdentifier("board-dev-diagnostics")
+        }
+    }
+
+    @ViewBuilder
+    private func columnCardView(for column: KanbanColumn, taskListMaxHeight: CGFloat) -> some View {
+        let taskActionHandlers = ColumnTaskActionHandlers(
+            onMoveTaskToTop: { taskID, columnID in
+                _ = moveTaskSelectionToTop(triggerTaskID: taskID, columnID: columnID)
+            },
+            onMoveTaskToBottom: { taskID, columnID in
+                _ = moveTaskSelectionToBottom(triggerTaskID: taskID, columnID: columnID)
+            },
+            onMoveTaskUp: { taskID, columnID in
+                _ = moveTaskSelectionUp(triggerTaskID: taskID, columnID: columnID)
+            },
+            onMoveTaskDown: { taskID, columnID in
+                _ = moveTaskSelectionDown(triggerTaskID: taskID, columnID: columnID)
+            },
+            taskDragItem: { taskID, columnID in
+                dragItem(taskID: taskID, columnID: columnID)
+            },
+            onDropTaskItem: { item, destinationColumnID, destinationPosition in
+                _ = handleTaskDrop(item: item, destinationColumnID: destinationColumnID, destinationPosition: destinationPosition)
+            }
+        )
+
+        ColumnCard(
+            column: column,
+            tasks: board.tasks(for: column.id),
+            archivedTasks: board.archivedTasks(for: column.id),
+            showsArchivedTasks: showsArchivedTasks,
+            taskListMaxHeight: taskListMaxHeight,
+            isEnabled: board.canMutateBoardActions,
+            onRename: { editingColumn = EditableColumn(column: column) },
+            onDelete: {
+                pendingColumnDeletion = EditableColumn(column: column)
+            },
+            onArchiveTasks: {
+                Task {
+                    await board.archiveColumnTasks(columnID: column.id)
+                }
+            },
+            onAddTask: { creatingTaskInColumn = CreateTaskTarget(columnID: column.id) },
+            onEditTask: { task in editingTask = EditableTask(columnID: column.id, task: task) },
+            onDeleteTask: { task in
+                _ = beginTaskDeletion(triggerTaskID: task.id, columnID: column.id)
+            },
+            onViewArchivedTask: { task in
+                viewingArchivedTask = task
+            },
+            onRestoreArchivedTask: { task in
+                Task { await board.restoreArchivedTask(taskID: task.id) }
+            },
+            onDeleteArchivedTask: { task in
+                pendingArchivedTaskDeletion = task
+            },
+            taskControlVisibility: taskControlVisibility,
+            selectedTaskIDs: selectedTaskIDs,
+            selectedArchivedTaskID: selectedArchivedTaskID,
+            onSelectTask: { taskID, interaction in
+                selectTask(taskID: taskID, interaction: interaction)
+            },
+            onSelectArchivedTask: { taskID in
+                selectedArchivedTaskID = taskID
+                selectedTaskID = nil
+                selectedTaskIDs = []
+                taskSelectionAnchorTaskID = nil
+            },
+            taskActions: taskActionHandlers
+        )
     }
 
     private struct SelectedTaskDetails {
@@ -734,6 +850,144 @@ private struct LoggedInWorkspaceView: View {
         return nil
     }
 
+    private func firstSelectedTaskIDInBoardOrder() -> String? {
+        for column in board.columns {
+            for task in board.tasks(for: column.id) where selectedTaskIDs.contains(task.id) {
+                return task.id
+            }
+        }
+        return nil
+    }
+
+    private func rangeSelectionTaskIDs(anchorTaskID: String, targetTaskID: String) -> Set<String>? {
+        guard let anchorDetails = taskDetails(for: anchorTaskID),
+            let targetDetails = taskDetails(for: targetTaskID),
+            anchorDetails.columnID == targetDetails.columnID
+        else {
+            return nil
+        }
+
+        let tasks = board.tasks(for: anchorDetails.columnID)
+        let lower = min(anchorDetails.index, targetDetails.index)
+        let upper = max(anchorDetails.index, targetDetails.index)
+        return Set(tasks[lower...upper].map(\.id))
+    }
+
+    private func selectedTaskIDsForColumnAction(triggerTaskID: String, columnID: String) -> [String] {
+        let columnTasks = board.tasks(for: columnID)
+        let selectedInColumn = columnTasks.filter { selectedTaskIDs.contains($0.id) }
+        if !selectedInColumn.isEmpty {
+            return selectedInColumn.map(\.id)
+        }
+        if columnTasks.contains(where: { $0.id == triggerTaskID }) {
+            return [triggerTaskID]
+        }
+        return []
+    }
+
+    private func reorderColumnTasksIfNeeded(columnID: String, orderedTaskIDs: [String]) -> Bool {
+        let existingTaskIDs = board.tasks(for: columnID).map(\.id)
+        guard orderedTaskIDs != existingTaskIDs else { return false }
+        Task {
+            await board.reorderTasksInColumn(columnID: columnID, orderedTaskIDs: orderedTaskIDs)
+        }
+        return true
+    }
+
+    private func dragItem(taskID: String, columnID: String) -> TaskDragItem {
+        let orderedSelectedTaskIDs = board.tasks(for: columnID)
+            .map(\.id)
+            .filter { selectedTaskIDs.contains($0) }
+        if orderedSelectedTaskIDs.contains(taskID) {
+            return TaskDragItem(taskIDs: orderedSelectedTaskIDs)
+        }
+        return TaskDragItem(taskIDs: [taskID])
+    }
+
+    private func handleTaskDrop(item: TaskDragItem, destinationColumnID: String, destinationPosition: Int) -> Bool {
+        guard board.canMutateBoardActions else { return false }
+
+        var seen = Set<String>()
+        let movingTaskIDs = item.taskIDs.filter { seen.insert($0).inserted }
+        guard !movingTaskIDs.isEmpty else { return false }
+
+        let movingTaskIDSet = Set(movingTaskIDs)
+        var orderedTaskIDsByColumnID: [String: [String]] = [:]
+        for column in board.columns {
+            orderedTaskIDsByColumnID[column.id] = board.tasks(for: column.id).map(\.id)
+        }
+
+        guard let originalDestinationTaskIDs = orderedTaskIDsByColumnID[destinationColumnID] else {
+            return false
+        }
+
+        for columnID in orderedTaskIDsByColumnID.keys {
+            orderedTaskIDsByColumnID[columnID] = orderedTaskIDsByColumnID[columnID, default: []]
+                .filter { !movingTaskIDSet.contains($0) }
+        }
+
+        var destinationTaskIDs = orderedTaskIDsByColumnID[destinationColumnID, default: []]
+        let removedBeforeDestination = originalDestinationTaskIDs
+            .prefix(max(0, destinationPosition))
+            .filter { movingTaskIDSet.contains($0) }
+            .count
+        let adjustedDestinationPosition = max(0, destinationPosition - removedBeforeDestination)
+        let insertionIndex = min(adjustedDestinationPosition, destinationTaskIDs.count)
+        destinationTaskIDs.insert(contentsOf: movingTaskIDs, at: insertionIndex)
+        orderedTaskIDsByColumnID[destinationColumnID] = destinationTaskIDs
+
+        let orderedTasksByColumn = board.columns
+            .sorted { $0.position < $1.position }
+            .map { column in
+                KanbanTaskColumnOrder(columnID: column.id, taskIDs: orderedTaskIDsByColumnID[column.id, default: []])
+            }
+
+        Task {
+            await board.reorderTasks(orderedTasksByColumn: orderedTasksByColumn)
+        }
+        return true
+    }
+
+    private func selectTask(taskID: String, interaction: TaskSelectionInteraction) {
+        switch interaction {
+        case .single:
+            selectedTaskIDs = [taskID]
+            selectedTaskID = taskID
+            taskSelectionAnchorTaskID = taskID
+        case .toggle:
+            if selectedTaskIDs.contains(taskID) {
+                selectedTaskIDs.remove(taskID)
+                if selectedTaskID == taskID {
+                    selectedTaskID = firstSelectedTaskIDInBoardOrder()
+                }
+                if taskSelectionAnchorTaskID == taskID, selectedTaskIDs.isEmpty {
+                    taskSelectionAnchorTaskID = nil
+                }
+            } else {
+                selectedTaskIDs.insert(taskID)
+                selectedTaskID = taskID
+                if taskSelectionAnchorTaskID == nil {
+                    taskSelectionAnchorTaskID = taskID
+                }
+            }
+        case .range:
+            if let anchorTaskID = taskSelectionAnchorTaskID,
+                let rangeTaskIDs = rangeSelectionTaskIDs(anchorTaskID: anchorTaskID, targetTaskID: taskID)
+            {
+                selectedTaskIDs = rangeTaskIDs
+                selectedTaskID = taskID
+            } else {
+                selectedTaskIDs = [taskID]
+                selectedTaskID = taskID
+                taskSelectionAnchorTaskID = taskID
+            }
+        }
+
+        if !selectedTaskIDs.isEmpty {
+            selectedArchivedTaskID = nil
+        }
+    }
+
     private func withSelectedTaskDetails(_ action: (SelectedTaskDetails) -> Bool) -> Bool {
         guard board.canMutateBoardActions, let selectedTaskID, let details = taskDetails(for: selectedTaskID) else {
             return false
@@ -772,50 +1026,136 @@ private struct LoggedInWorkspaceView: View {
         return withSelectedArchivedTaskDetails(action)
     }
 
-    private func moveSelectedTask(
-        when predicate: (SelectedTaskDetails) -> Bool,
-        destinationPosition: (SelectedTaskDetails) -> Int
-    ) -> Bool {
+    private func moveSelectedTaskUp() -> Bool {
         withSelectedTaskDetails { details in
-            guard predicate(details) else { return false }
-            let resolvedDestinationPosition = destinationPosition(details)
-            Task {
-                await board.moveTask(
-                    taskID: details.taskID,
-                    destinationColumnID: details.columnID,
-                    destinationPosition: resolvedDestinationPosition
-                )
-            }
-            return true
+            moveTaskSelectionUp(triggerTaskID: details.taskID, columnID: details.columnID)
         }
     }
 
-    private func moveSelectedTaskUp() -> Bool {
-        moveSelectedTask(
-            when: { details in details.index > 0 },
-            destinationPosition: { details in details.index - 1 }
-        )
-    }
-
     private func moveSelectedTaskDown() -> Bool {
-        moveSelectedTask(
-            when: { details in details.index < (details.taskCount - 1) },
-            destinationPosition: { details in details.index + 1 }
-        )
+        withSelectedTaskDetails { details in
+            moveTaskSelectionDown(triggerTaskID: details.taskID, columnID: details.columnID)
+        }
     }
 
     private func moveSelectedTaskToTop() -> Bool {
-        moveSelectedTask(
-            when: { details in details.index > 0 },
-            destinationPosition: { _ in 0 }
-        )
+        withSelectedTaskDetails { details in
+            moveTaskSelectionToTop(triggerTaskID: details.taskID, columnID: details.columnID)
+        }
+    }
+
+    private func moveTaskSelectionToTop(triggerTaskID: String, columnID: String) -> Bool {
+        guard board.canMutateBoardActions else { return false }
+        let columnTasks = board.tasks(for: columnID)
+        guard !columnTasks.isEmpty else { return false }
+
+        let selectedTaskIDsForMove = selectedTaskIDsForColumnAction(triggerTaskID: triggerTaskID, columnID: columnID)
+
+        guard !selectedTaskIDsForMove.isEmpty else { return false }
+        if selectedTaskIDsForMove.count == 1 {
+            guard let singleTaskID = selectedTaskIDsForMove.first,
+                let details = taskDetails(for: singleTaskID),
+                details.index > 0
+            else {
+                return false
+            }
+            Task {
+                await board.moveTask(taskID: singleTaskID, destinationColumnID: columnID, destinationPosition: 0)
+            }
+            return true
+        }
+
+        let selectedIDSet = Set(selectedTaskIDsForMove)
+        let reorderedTaskIDs = selectedTaskIDsForMove + columnTasks
+            .map(\.id)
+            .filter { !selectedIDSet.contains($0) }
+        return reorderColumnTasksIfNeeded(columnID: columnID, orderedTaskIDs: reorderedTaskIDs)
+    }
+
+    private func moveTaskSelectionToBottom(triggerTaskID: String, columnID: String) -> Bool {
+        guard board.canMutateBoardActions else { return false }
+        let columnTasks = board.tasks(for: columnID)
+        guard !columnTasks.isEmpty else { return false }
+
+        let selectedTaskIDsForMove = selectedTaskIDsForColumnAction(triggerTaskID: triggerTaskID, columnID: columnID)
+        guard !selectedTaskIDsForMove.isEmpty else { return false }
+        if selectedTaskIDsForMove.count == 1 {
+            guard let singleTaskID = selectedTaskIDsForMove.first,
+                let details = taskDetails(for: singleTaskID),
+                details.index < (details.taskCount - 1)
+            else {
+                return false
+            }
+            Task {
+                await board.moveTask(taskID: singleTaskID, destinationColumnID: columnID, destinationPosition: details.taskCount)
+            }
+            return true
+        }
+
+        let selectedIDSet = Set(selectedTaskIDsForMove)
+        let reorderedTaskIDs = columnTasks
+            .map(\.id)
+            .filter { !selectedIDSet.contains($0) } + selectedTaskIDsForMove
+        return reorderColumnTasksIfNeeded(columnID: columnID, orderedTaskIDs: reorderedTaskIDs)
+    }
+
+    private func moveTaskSelectionUp(triggerTaskID: String, columnID: String) -> Bool {
+        guard board.canMutateBoardActions else { return false }
+        let selectedTaskIDsForMove = selectedTaskIDsForColumnAction(triggerTaskID: triggerTaskID, columnID: columnID)
+        guard !selectedTaskIDsForMove.isEmpty else { return false }
+        if selectedTaskIDsForMove.count == 1 {
+            guard let singleTaskID = selectedTaskIDsForMove.first,
+                let details = taskDetails(for: singleTaskID),
+                details.index > 0
+            else {
+                return false
+            }
+            Task {
+                await board.moveTask(taskID: singleTaskID, destinationColumnID: columnID, destinationPosition: details.index - 1)
+            }
+            return true
+        }
+
+        let selectedIDSet = Set(selectedTaskIDsForMove)
+        var reorderedTaskIDs = board.tasks(for: columnID).map(\.id)
+        guard reorderedTaskIDs.count > 1 else { return false }
+        for index in 1..<reorderedTaskIDs.count where selectedIDSet.contains(reorderedTaskIDs[index]) && !selectedIDSet.contains(reorderedTaskIDs[index - 1]) {
+            reorderedTaskIDs.swapAt(index, index - 1)
+        }
+        return reorderColumnTasksIfNeeded(columnID: columnID, orderedTaskIDs: reorderedTaskIDs)
+    }
+
+    private func moveTaskSelectionDown(triggerTaskID: String, columnID: String) -> Bool {
+        guard board.canMutateBoardActions else { return false }
+        let selectedTaskIDsForMove = selectedTaskIDsForColumnAction(triggerTaskID: triggerTaskID, columnID: columnID)
+        guard !selectedTaskIDsForMove.isEmpty else { return false }
+        if selectedTaskIDsForMove.count == 1 {
+            guard let singleTaskID = selectedTaskIDsForMove.first,
+                let details = taskDetails(for: singleTaskID),
+                details.index < (details.taskCount - 1)
+            else {
+                return false
+            }
+            Task {
+                await board.moveTask(taskID: singleTaskID, destinationColumnID: columnID, destinationPosition: details.index + 1)
+            }
+            return true
+        }
+
+        let selectedIDSet = Set(selectedTaskIDsForMove)
+        var reorderedTaskIDs = board.tasks(for: columnID).map(\.id)
+        guard reorderedTaskIDs.count > 1 else { return false }
+        for index in stride(from: reorderedTaskIDs.count - 2, through: 0, by: -1)
+        where selectedIDSet.contains(reorderedTaskIDs[index]) && !selectedIDSet.contains(reorderedTaskIDs[index + 1]) {
+            reorderedTaskIDs.swapAt(index, index + 1)
+        }
+        return reorderColumnTasksIfNeeded(columnID: columnID, orderedTaskIDs: reorderedTaskIDs)
     }
 
     private func moveSelectedTaskToBottom() -> Bool {
-        moveSelectedTask(
-            when: { details in details.index < (details.taskCount - 1) },
-            destinationPosition: { details in details.taskCount }
-        )
+        withSelectedTaskDetails { details in
+            moveTaskSelectionToBottom(triggerTaskID: details.taskID, columnID: details.columnID)
+        }
     }
 
     private func editSelectedTask() -> Bool {
@@ -827,9 +1167,27 @@ private struct LoggedInWorkspaceView: View {
 
     private func deleteSelectedTask() -> Bool {
         withEditableSelectedTaskDetails { details in
-            pendingTaskDeletion = EditableTask(columnID: details.columnID, task: details.task)
+            beginTaskDeletion(triggerTaskID: details.taskID, columnID: details.columnID)
+        }
+    }
+
+    private func beginTaskDeletion(triggerTaskID: String, columnID: String) -> Bool {
+        guard pendingTaskDeletion == nil, editingTask == nil else { return false }
+        let selectedTaskIDsForDelete = selectedTaskIDsForColumnAction(triggerTaskID: triggerTaskID, columnID: columnID)
+        guard !selectedTaskIDsForDelete.isEmpty else { return false }
+
+        if selectedTaskIDsForDelete.count == 1 {
+            guard let taskID = selectedTaskIDsForDelete.first,
+                let details = taskDetails(for: taskID)
+            else {
+                return false
+            }
+            pendingTaskDeletion = .single(EditableTask(columnID: details.columnID, task: details.task))
             return true
         }
+
+        pendingTaskDeletion = .multiple(taskIDs: selectedTaskIDsForDelete)
+        return true
     }
 
     private func viewSelectedArchivedTask() -> Bool {
@@ -860,8 +1218,10 @@ private struct LoggedInWorkspaceView: View {
 
         switch action {
         case .clearSelection:
-            guard selectedTaskID != nil || selectedArchivedTaskID != nil else { return false }
+            guard !selectedTaskIDs.isEmpty || selectedArchivedTaskID != nil else { return false }
             selectedTaskID = nil
+            selectedTaskIDs = []
+            taskSelectionAnchorTaskID = nil
             selectedArchivedTaskID = nil
             return true
         case .moveTop:
@@ -1438,11 +1798,11 @@ private struct ColumnCard: View {
     let onRestoreArchivedTask: (KanbanTask) -> Void
     let onDeleteArchivedTask: (KanbanTask) -> Void
     let taskControlVisibility: TaskControlVisibility
-    let selectedTaskID: String?
+    let selectedTaskIDs: Set<String>
     let selectedArchivedTaskID: String?
-    let onSelectTask: (String) -> Void
+    let onSelectTask: (String, TaskSelectionInteraction) -> Void
     let onSelectArchivedTask: (String) -> Void
-    let onMoveTask: (String, String, Int) -> Void
+    let taskActions: ColumnTaskActionHandlers
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1484,13 +1844,25 @@ private struct ColumnCard: View {
                             onEditTask: onEditTask,
                             onDeleteTask: onDeleteTask,
                             taskControlVisibility: taskControlVisibility,
-                            isSelected: selectedTaskID == task.id,
+                            isSelected: selectedTaskIDs.contains(task.id),
                             onSelectTask: onSelectTask,
-                            onMoveToPosition: { position in
-                                onMoveTask(task.id, column.id, position)
+                            onMoveToTop: {
+                                taskActions.onMoveTaskToTop(task.id, column.id)
                             },
-                            onDropTask: { draggedTaskID in
-                                onMoveTask(draggedTaskID, column.id, task.position)
+                            onMoveToBottom: {
+                                taskActions.onMoveTaskToBottom(task.id, column.id)
+                            },
+                            onMoveUp: {
+                                taskActions.onMoveTaskUp(task.id, column.id)
+                            },
+                            onMoveDown: {
+                                taskActions.onMoveTaskDown(task.id, column.id)
+                            },
+                            dragItem: {
+                                taskActions.taskDragItem(task.id, column.id)
+                            },
+                            onDropTask: { draggedTask in
+                                taskActions.onDropTaskItem(draggedTask, column.id, task.position)
                             }
                         )
                     }
@@ -1534,12 +1906,12 @@ private struct ColumnCard: View {
         .dropDestination(for: TaskDragItem.self) { items, _ in
             guard let item = items.first else { return false }
             let destinationPosition: Int
-            if tasks.contains(where: { $0.id == item.taskID }) {
+            if tasks.contains(where: { item.taskIDs.contains($0.id) }) {
                 destinationPosition = max(0, tasks.count - 1)
             } else {
                 destinationPosition = tasks.count
             }
-            onMoveTask(item.taskID, column.id, destinationPosition)
+            taskActions.onDropTaskItem(item, column.id, destinationPosition)
             return true
         }
         .accessibilityElement(children: .contain)
@@ -1563,23 +1935,22 @@ private struct TaskCardView: View {
     let onDeleteTask: (KanbanTask) -> Void
     let taskControlVisibility: TaskControlVisibility
     let isSelected: Bool
-    let onSelectTask: (String) -> Void
-    let onMoveToPosition: (Int) -> Void
-    let onDropTask: (String) -> Void
+    let onSelectTask: (String, TaskSelectionInteraction) -> Void
+    let onMoveToTop: () -> Void
+    let onMoveToBottom: () -> Void
+    let onMoveUp: () -> Void
+    let onMoveDown: () -> Void
+    let dragItem: () -> TaskDragItem
+    let onDropTask: (TaskDragItem) -> Void
 
     private var isFirstTask: Bool { index == 0 }
     private var isLastTask: Bool { index == taskCount - 1 }
-    private var topPosition: Int { 0 }
-    private var bottomPosition: Int { taskCount }
-    private var upPosition: Int { max(0, index - 1) }
-    private var downPosition: Int { min(taskCount - 1, index + 1) }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if taskControlVisibility.showsTopBottom {
                 HStack(spacing: 8) {
                     Button("board.task.move_top") {
-                        onMoveToPosition(topPosition)
+                        onMoveToTop()
                     }
                     .buttonStyle(.bordered)
                     .disabled(!isEnabled || isFirstTask)
@@ -1588,7 +1959,7 @@ private struct TaskCardView: View {
                     Spacer(minLength: 0)
 
                     Button("board.task.move_bottom") {
-                        onMoveToPosition(bottomPosition)
+                        onMoveToBottom()
                     }
                     .buttonStyle(.bordered)
                     .disabled(!isEnabled || isLastTask)
@@ -1610,14 +1981,14 @@ private struct TaskCardView: View {
                 HStack(spacing: 8) {
                     if taskControlVisibility.showsUpDown {
                         Button("board.task.move_up") {
-                            onMoveToPosition(upPosition)
+                            onMoveUp()
                         }
                         .buttonStyle(.bordered)
                         .disabled(!isEnabled || isFirstTask)
                         .accessibilityIdentifier("task-move-up-\(task.id)")
 
                         Button("board.task.move_down") {
-                            onMoveToPosition(downPosition)
+                            onMoveDown()
                         }
                         .buttonStyle(.bordered)
                         .disabled(!isEnabled || isLastTask)
@@ -1650,13 +2021,13 @@ private struct TaskCardView: View {
         .accessibilityIdentifier("task-card-\(task.id)")
         .accessibilityValue(isSelected ? "selected" : "unselected")
         .onTapGesture {
-            onSelectTask(task.id)
+            onSelectTask(task.id, TaskSelectionInteraction.current())
             NSApp.keyWindow?.makeFirstResponder(nil)
         }
-        .draggable(TaskDragItem(taskID: task.id))
+        .draggable(dragItem())
         .dropDestination(for: TaskDragItem.self) { items, _ in
             guard let item = items.first else { return false }
-            onDropTask(item.taskID)
+            onDropTask(item)
             return true
         }
     }
@@ -2220,32 +2591,42 @@ private struct EditableTask: Identifiable {
     }
 }
 
+private enum PendingTaskDeletion {
+    case single(EditableTask)
+    case multiple(taskIDs: [String])
+}
+
 private struct CreateTaskTarget: Identifiable {
     let columnID: String
     var id: String { columnID }
 }
 
 private struct TaskDragItem: Transferable {
-    let taskID: String
+    let taskIDs: [String]
+
+    var taskID: String {
+        taskIDs.first ?? ""
+    }
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(
             contentType: TaskDragPayload.type,
-            exporting: { item in encodedPayload(for: item.taskID) },
-            importing: { data in TaskDragItem(taskID: try decodeTaskID(from: data)) }
+            exporting: { item in encodedPayload(for: item.taskIDs) },
+            importing: { data in TaskDragItem(taskIDs: try decodeTaskIDs(from: data)) }
         )
         DataRepresentation(
             contentType: .data,
-            exporting: { item in encodedPayload(for: item.taskID) },
-            importing: { data in TaskDragItem(taskID: try decodeTaskID(from: data)) }
+            exporting: { item in encodedPayload(for: item.taskIDs) },
+            importing: { data in TaskDragItem(taskIDs: try decodeTaskIDs(from: data)) }
         )
     }
 
-    private static func encodedPayload(for taskID: String) -> Data {
-        Data("\(TaskDragPayload.payloadPrefix)\(taskID)".utf8)
+    private static func encodedPayload(for taskIDs: [String]) -> Data {
+        let joined = taskIDs.joined(separator: ",")
+        return Data("\(TaskDragPayload.payloadPrefix)\(joined)".utf8)
     }
 
-    private static func decodeTaskID(from data: Data) throws -> String {
+    private static func decodeTaskIDs(from data: Data) throws -> [String] {
         guard
             let payload = String(data: data, encoding: .utf8),
             payload.hasPrefix(TaskDragPayload.payloadPrefix)
@@ -2253,11 +2634,15 @@ private struct TaskDragItem: Transferable {
             throw TaskDragItemTransferError.invalidPayload
         }
 
-        let taskID = String(payload.dropFirst(TaskDragPayload.payloadPrefix.count))
-        guard !taskID.isEmpty else {
+        let raw = String(payload.dropFirst(TaskDragPayload.payloadPrefix.count))
+        let taskIDs = raw
+            .split(separator: ",")
+            .map { String($0) }
+            .filter { !$0.isEmpty }
+        guard !taskIDs.isEmpty else {
             throw TaskDragItemTransferError.invalidPayload
         }
-        return taskID
+        return taskIDs
     }
 }
 

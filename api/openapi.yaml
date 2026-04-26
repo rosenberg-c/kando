@@ -438,6 +438,28 @@ components:
         - createdAt
         - updatedAt
       type: object
+    TaskBatchMutationRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskBatchMutationRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        action:
+          enum:
+            - delete
+          type: string
+        taskIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - action
+        - taskIds
+      type: object
     TaskColumnOrderRequest:
       additionalProperties: false
       properties:
@@ -1297,6 +1319,44 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a task
+  /boards/{boardId}/tasks/actions:
+    post:
+      operationId: applyTaskBatchMutation
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBatchMutationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Task"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Apply list-based task batch action
   /boards/{boardId}/tasks/archived:
     get:
       operationId: listArchivedTasksByBoard

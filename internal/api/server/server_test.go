@@ -422,6 +422,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodPatch)
 	assertPathMethod("/boards/{boardId}/tasks/{taskId}", http.MethodDelete)
 	assertPathMethod("/boards/{boardId}/tasks/order", http.MethodPut)
+	assertPathMethod("/boards/{boardId}/tasks/actions", http.MethodPost)
 	assertPathMethod("/boards/tasks/export", http.MethodPost)
 	assertPathMethod("/boards/tasks/import", http.MethodPost)
 }
@@ -489,6 +490,39 @@ func TestOpenAPIDefinesReorderTasksContract(t *testing.T) {
 	}
 	if _, ok := response.Content["application/json"]; !ok {
 		t.Fatal("missing application/json response schema for reorder tasks operation")
+	}
+}
+
+func TestOpenAPIDefinesTaskBatchMutationContract(t *testing.T) {
+	// Requirement: API-033
+	t.Parallel()
+
+	_, api := NewAPI()
+	Register(api, Dependencies{})
+
+	path := api.OpenAPI().Paths["/boards/{boardId}/tasks/actions"]
+	if path == nil || path.Post == nil {
+		t.Fatal("missing POST /boards/{boardId}/tasks/actions operation")
+	}
+
+	requestBody := path.Post.RequestBody
+	if requestBody == nil {
+		t.Fatal("missing request body for task batch mutation operation")
+	}
+	mediaType, ok := requestBody.Content["application/json"]
+	if !ok || mediaType == nil || mediaType.Schema == nil {
+		t.Fatal("missing application/json schema for task batch mutation operation")
+	}
+	if mediaType.Schema.Ref != "#/components/schemas/TaskBatchMutationRequest" {
+		t.Fatalf("request schema ref = %q, want %q", mediaType.Schema.Ref, "#/components/schemas/TaskBatchMutationRequest")
+	}
+
+	response := path.Post.Responses["200"]
+	if response == nil {
+		t.Fatal("missing 200 response for task batch mutation operation")
+	}
+	if _, ok := response.Content["application/json"]; !ok {
+		t.Fatal("missing application/json response schema for task batch mutation operation")
 	}
 }
 
@@ -1293,6 +1327,68 @@ func TestKanbanReorderTasksReturnsForbiddenForOtherOwner(t *testing.T) {
 
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+}
+
+func TestKanbanTaskBatchDeleteAppliesSelectedTaskIDs(t *testing.T) {
+	// Requirements: API-033, TASK-041
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	columnID := createColumn(t, mux, boardID)
+	taskAID := createTask(t, mux, boardID, columnID)
+	taskBID := createTask(t, mux, boardID, columnID)
+	taskCID := createTask(t, mux, boardID, columnID)
+
+	body := strings.NewReader(`{"action":"delete","taskIds":["` + taskAID + `","` + taskCID + `"]}`)
+	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/actions", body)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("task batch status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	board := getBoardDetails(t, mux, boardID)
+	if len(board.Tasks) != 1 || board.Tasks[0].ID != taskBID {
+		t.Fatalf("remaining tasks = %+v, want only %s", board.Tasks, taskBID)
+	}
+}
+
+func TestKanbanTaskBatchDeleteRejectsDuplicateTaskIDs(t *testing.T) {
+	// Requirement: API-033
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	columnID := createColumn(t, mux, boardID)
+	taskAID := createTask(t, mux, boardID, columnID)
+	taskBID := createTask(t, mux, boardID, columnID)
+
+	body := strings.NewReader(`{"action":"delete","taskIds":["` + taskAID + `","` + taskAID + `"]}`)
+	request := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/tasks/actions", body)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+	}
+
+	board := getBoardDetails(t, mux, boardID)
+	if len(board.Tasks) != 2 {
+		t.Fatalf("task count after failed batch delete = %d, want 2", len(board.Tasks))
+	}
+	if !boardHasTaskID(board, taskAID) || !boardHasTaskID(board, taskBID) {
+		t.Fatalf("tasks after failed batch delete = %+v, want both original tasks", board.Tasks)
 	}
 }
 
@@ -2473,6 +2569,7 @@ type boardDetailsTestResponse struct {
 		Title string `json:"title"`
 	} `json:"columns"`
 	Tasks []struct {
+		ID       string `json:"id"`
 		ColumnID string `json:"columnId"`
 		Title    string `json:"title"`
 	} `json:"tasks"`
@@ -2501,6 +2598,15 @@ func getBoardDetails(t *testing.T, mux *http.ServeMux, boardID string) boardDeta
 func boardHasTaskTitle(response boardDetailsTestResponse, title string) bool {
 	for _, task := range response.Tasks {
 		if task.Title == title {
+			return true
+		}
+	}
+	return false
+}
+
+func boardHasTaskID(response boardDetailsTestResponse, taskID string) bool {
+	for _, task := range response.Tasks {
+		if task.ID == taskID {
 			return true
 		}
 	}

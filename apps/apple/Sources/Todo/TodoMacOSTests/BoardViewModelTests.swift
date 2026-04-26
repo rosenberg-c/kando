@@ -641,6 +641,212 @@ struct BoardViewModelTests {
         #expect(viewModel.debugMessage.contains("detail=invalid task list"))
     }
 
+    @Test func reorderTasksInColumnSendsListOrderPayload() async {
+        // Requirements: TASK-037, TASK-038
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-1", title: "Backlog", position: 0)],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-1", title: "1", description: "", position: 0),
+                KanbanTask(id: "task-2", columnID: "column-1", title: "2", description: "", position: 1),
+                KanbanTask(id: "task-3", columnID: "column-1", title: "3", description: "", position: 2),
+                KanbanTask(id: "task-4", columnID: "column-1", title: "4", description: "", position: 3),
+                KanbanTask(id: "task-5", columnID: "column-1", title: "5", description: "", position: 4)
+            ]
+        )
+        let capture = ReorderTasksCapture()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            reorderTasksHandler: { _, orderedTasksByColumn, _, _ in
+                await capture.record(orderedTasksByColumn)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.reorderTasksInColumn(
+            columnID: "column-1",
+            orderedTaskIDs: ["task-2", "task-4", "task-1", "task-3", "task-5"]
+        )
+
+        let payload = await capture.current()
+        #expect(payload?.count == 1)
+        #expect(payload?.first?.columnID == "column-1")
+        #expect(payload?.first?.taskIDs == ["task-2", "task-4", "task-1", "task-3", "task-5"])
+    }
+
+    @Test func deleteTasksDeletesSelectedSetWithSingleMutationCycle() async {
+        // Requirement: TASK-039
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-1", title: "Backlog", position: 0)],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-1", title: "1", description: "", position: 0),
+                KanbanTask(id: "task-2", columnID: "column-1", title: "2", description: "", position: 1),
+                KanbanTask(id: "task-3", columnID: "column-1", title: "3", description: "", position: 2)
+            ]
+        )
+        let capture = TaskBatchMutationCapture()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            applyTaskBatchMutationHandler: { _, request, _, _ in
+                await capture.record(request)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.deleteTasks(taskIDs: ["task-2", "task-3", "task-2"])
+
+        #expect(await capture.current()?.action == .delete)
+        #expect(await capture.current()?.taskIDs == ["task-2", "task-3"])
+        #expect(viewModel.statusIsError == false)
+        #expect(viewModel.statusMessage == Strings.t("board.task.status.deleted"))
+    }
+
+    @Test func reorderTasksRejectsDuplicateTaskIDsInPayload() async {
+        // Requirement: API-005
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-1", title: "Backlog", position: 0),
+                KanbanColumn(id: "column-2", title: "Done", position: 1)
+            ],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-1", title: "1", description: "", position: 0),
+                KanbanTask(id: "task-2", columnID: "column-1", title: "2", description: "", position: 1),
+                KanbanTask(id: "task-3", columnID: "column-2", title: "3", description: "", position: 0)
+            ]
+        )
+        let capture = ReorderTasksCapture()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            reorderTasksHandler: { _, orderedTasksByColumn, _, _ in
+                await capture.record(orderedTasksByColumn)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.reorderTasks(
+            orderedTasksByColumn: [
+                KanbanTaskColumnOrder(columnID: "column-1", taskIDs: ["task-1", "task-1"]),
+                KanbanTaskColumnOrder(columnID: "column-2", taskIDs: ["task-3"])
+            ]
+        )
+
+        #expect(await capture.current() == nil)
+        #expect(viewModel.statusIsError == true)
+    }
+
+    @Test func reorderTasksSupportsCrossColumnBatchMovePayload() async {
+        // Requirements: TASK-040, UX-040
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [
+                KanbanColumn(id: "column-1", title: "Backlog", position: 0),
+                KanbanColumn(id: "column-2", title: "Done", position: 1)
+            ],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-1", title: "1", description: "", position: 0),
+                KanbanTask(id: "task-2", columnID: "column-1", title: "2", description: "", position: 1),
+                KanbanTask(id: "task-3", columnID: "column-1", title: "3", description: "", position: 2),
+                KanbanTask(id: "task-4", columnID: "column-2", title: "4", description: "", position: 0)
+            ]
+        )
+        let capture = ReorderTasksCapture()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            reorderTasksHandler: { _, orderedTasksByColumn, _, _ in
+                await capture.record(orderedTasksByColumn)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.reorderTasks(
+            orderedTasksByColumn: [
+                KanbanTaskColumnOrder(columnID: "column-1", taskIDs: ["task-1"]),
+                KanbanTaskColumnOrder(columnID: "column-2", taskIDs: ["task-4", "task-2", "task-3"])
+            ]
+        )
+
+        let payload = await capture.current()
+        #expect(payload?.count == 2)
+        #expect(payload?.first(where: { $0.columnID == "column-1" })?.taskIDs == ["task-1"])
+        #expect(payload?.first(where: { $0.columnID == "column-2" })?.taskIDs == ["task-4", "task-2", "task-3"])
+    }
+
+    @Test func applyTaskBatchMutationDeleteUsesBatchRequestShape() async {
+        // Requirement: TASK-041
+        let board = KanbanBoard(id: "board-1", title: "Main")
+        let details = KanbanBoardDetails(
+            board: board,
+            columns: [KanbanColumn(id: "column-1", title: "Backlog", position: 0)],
+            tasks: [
+                KanbanTask(id: "task-1", columnID: "column-1", title: "1", description: "", position: 0),
+                KanbanTask(id: "task-2", columnID: "column-1", title: "2", description: "", position: 1),
+                KanbanTask(id: "task-3", columnID: "column-1", title: "3", description: "", position: 2)
+            ]
+        )
+        let capture = TaskBatchMutationCapture()
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in [board] },
+            getBoardHandler: { _, _, _ in details },
+            applyTaskBatchMutationHandler: { _, request, _, _ in
+                await capture.record(request)
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        await viewModel.applyTaskBatchMutation(
+            TaskBatchMutationRequest(action: .delete, taskIDs: ["task-3", "task-1", "task-3"])
+        )
+
+        #expect(await capture.current()?.action == .delete)
+        #expect(await capture.current()?.taskIDs == ["task-3", "task-1"])
+        #expect(viewModel.statusIsError == false)
+    }
+
     @Test func reorderColumnsOptimisticallyReordersAndPersists() async {
         // Requirement: COL-MOVE-008
         let gate = SuspendedOperationGate()
@@ -1099,6 +1305,30 @@ private actor ArchivedTaskState {
 
     func remove(taskID: String) {
         tasks.removeAll { $0.id == taskID }
+    }
+}
+
+private actor ReorderTasksCapture {
+    private var payload: [KanbanTaskColumnOrder]?
+
+    func record(_ value: [KanbanTaskColumnOrder]) {
+        payload = value
+    }
+
+    func current() -> [KanbanTaskColumnOrder]? {
+        payload
+    }
+}
+
+private actor TaskBatchMutationCapture {
+    private var request: TaskBatchMutationRequest?
+
+    func record(_ value: TaskBatchMutationRequest) {
+        request = value
+    }
+
+    func current() -> TaskBatchMutationRequest? {
+        request
     }
 }
 

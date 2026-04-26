@@ -54,6 +54,7 @@ struct MockKanbanAPI: KanbanAPI {
     var createTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var updateTaskHandler: @Sendable (String, String, String, String, String, URL) async throws -> Void
     var reorderTasksHandler: @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void
+    var applyTaskBatchMutationHandler: @Sendable (String, TaskBatchMutationRequest, String, URL) async throws -> Void
     var deleteTaskHandler: @Sendable (String, String, String, URL) async throws -> Void
     var exportTasksBundleHandler: @Sendable ([String], String, URL) async throws -> TaskExportBundle
     var importTasksBundleHandler: @Sendable ([String], TaskExportBundle, String, URL) async throws -> TaskImportBundleResult
@@ -99,6 +100,7 @@ struct MockKanbanAPI: KanbanAPI {
         createTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         updateTaskHandler: @escaping @Sendable (String, String, String, String, String, URL) async throws -> Void = { _, _, _, _, _, _ in },
         reorderTasksHandler: @escaping @Sendable (String, [KanbanTaskColumnOrder], String, URL) async throws -> Void = { _, _, _, _ in },
+        applyTaskBatchMutationHandler: @escaping @Sendable (String, TaskBatchMutationRequest, String, URL) async throws -> Void = { _, _, _, _ in },
         deleteTaskHandler: @escaping @Sendable (String, String, String, URL) async throws -> Void = { _, _, _, _ in },
         exportTasksBundleHandler: @escaping @Sendable ([String], String, URL) async throws -> TaskExportBundle = { boardIDs, _, _ in
             TaskExportBundle(
@@ -141,6 +143,7 @@ struct MockKanbanAPI: KanbanAPI {
         self.createTaskHandler = createTaskHandler
         self.updateTaskHandler = updateTaskHandler
         self.reorderTasksHandler = reorderTasksHandler
+        self.applyTaskBatchMutationHandler = applyTaskBatchMutationHandler
         self.deleteTaskHandler = deleteTaskHandler
         self.exportTasksBundleHandler = exportTasksBundleHandler
         self.importTasksBundleHandler = importTasksBundleHandler
@@ -228,6 +231,10 @@ struct MockKanbanAPI: KanbanAPI {
 
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
         try await deleteTaskHandler(boardID, taskID, accessToken, baseURL)
+    }
+
+    func applyTaskBatchMutation(boardID: String, request: TaskBatchMutationRequest, accessToken: String, baseURL: URL) async throws {
+        try await applyTaskBatchMutationHandler(boardID, request, accessToken, baseURL)
     }
 
     func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {

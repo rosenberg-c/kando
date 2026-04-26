@@ -69,9 +69,9 @@
 "board.settings.transfer.export" = "Export tasks";
 "board.settings.transfer.import" = "Import tasks";
 "board.settings.shortcuts.title" = "Keyboard shortcuts";
-"board.settings.shortcuts.select" = "Select task: click a task card";
+"board.settings.shortcuts.select" = "Select tasks: click (single), Ctrl-click (toggle), Shift-click (range)";
 "board.settings.shortcuts.clear" = "Clear selection: Esc";
-"board.settings.shortcuts.top_bottom" = "Move top/bottom: t / b";
+"board.settings.shortcuts.top_bottom" = "Move top/bottom: t / b (acts on current selection in column)";
 "board.settings.shortcuts.up_down" = "Move up/down: u / d";
 "board.settings.shortcuts.edit_delete" = "Edit/Delete: e / x";
 "board.settings.shortcuts.archived_actions" = "Archived row actions: v view / r restore / x delete";
@@ -161,6 +161,7 @@
 "board.task.archived_at" = "Archived at: %@";
 "board.task.delete.confirm.title" = "Delete task?";
 "board.task.delete.confirm.message" = "This will permanently delete \"%@\".";
+"board.task.delete.confirm.message.multiple" = "This will permanently delete %d selected tasks.";
 "board.task.delete.confirm.action" = "Delete task";
 "board.archived_tasks.toggle" = "Show archived tasks";
 "board.archived_tasks.retry" = "Retry";

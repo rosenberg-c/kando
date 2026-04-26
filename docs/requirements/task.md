@@ -33,6 +33,14 @@
 - `TASK-031`: On macOS, users can select an archived task row by clicking it.
 - `TASK-032`: On macOS, when an archived task row is selected, pressing `v` opens read-only view, `r` restores the archived task, and `x` initiates archived-task delete confirmation.
 - `TASK-033`: On macOS, users can toggle whether archived-task action buttons (`View`, `Restore`, `Delete`) are visible from settings.
+- `TASK-034`: On macOS, holding `Ctrl` while clicking active task rows toggles each clicked row in the current task selection so users can build arbitrary multi-selection sets.
+- `TASK-035`: On macOS, holding `Shift` while clicking an active task row selects the inclusive range between the selection anchor and the clicked row within that column.
+- `TASK-036`: On macOS, multi-selection state supports task actions that mutate order, and actions apply to the full selected set in the affected column rather than only the row that triggered the action.
+- `TASK-037`: On macOS, `Move to top` with a multi-selection reorders the column so selected tasks become a contiguous block at the top while preserving relative order among selected tasks.
+- `TASK-038`: On macOS, when `Move to top` is applied to a multi-selection, unselected tasks retain their relative order after selected tasks are moved.
+- `TASK-039`: On macOS, when multiple active tasks are selected within a column, task-row `Delete` action and `x` shortcut apply to the selected set with one confirmation flow.
+- `TASK-040`: On macOS, dragging a selected active task to another column moves the full selected set from that source column to the drop destination while preserving selected-task relative order.
+- `TASK-041`: Task batch actions use a list-shaped action request (`action` + `taskIds[]`) so clients submit one explicit intent payload for multi-task operations.
 
 ## Delete Task Confirmation
 
@@ -69,6 +77,14 @@
 - `TASK-031`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-032`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-033`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-034`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-035`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-036`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-037`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-038`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-039`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-040`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-041`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).

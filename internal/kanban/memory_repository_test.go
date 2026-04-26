@@ -7,6 +7,44 @@ import (
 	"time"
 )
 
+func TestMemoryRepositoryRunInTransactionRollsBackOnError(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repo := NewMemoryRepository()
+
+	board, err := repo.CreateBoard(ctx, "user-1", "Main")
+	if err != nil {
+		t.Fatalf("create board: %v", err)
+	}
+	column, _, err := repo.CreateColumn(ctx, "user-1", board.ID, "Backlog")
+	if err != nil {
+		t.Fatalf("create column: %v", err)
+	}
+	task, _, err := repo.CreateTask(ctx, "user-1", board.ID, column.ID, "Task", "")
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+
+	err = repo.RunInTransaction(ctx, func(txRepo Repository) error {
+		if _, err := txRepo.DeleteTask(ctx, "user-1", board.ID, task.ID); err != nil {
+			return err
+		}
+		return errors.New("force rollback")
+	})
+	if err == nil || err.Error() != "force rollback" {
+		t.Fatalf("transaction err = %v, want force rollback", err)
+	}
+
+	details, err := repo.GetBoard(ctx, "user-1", board.ID)
+	if err != nil {
+		t.Fatalf("get board: %v", err)
+	}
+	if len(details.Tasks) != 1 || details.Tasks[0].ID != task.ID {
+		t.Fatalf("tasks after rollback = %+v, want original task", details.Tasks)
+	}
+}
+
 func TestMemoryRepositoryCRUDAndReindex(t *testing.T) {
 	// Requirements: COL-002, COL-003, COL-004, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007
 	t.Parallel()

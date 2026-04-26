@@ -323,6 +323,45 @@ final class BoardViewModel: ObservableObject {
         }
     }
 
+    func deleteTasks(taskIDs: [String]) async {
+        await applyTaskBatchMutation(TaskBatchMutationRequest(action: .delete, taskIDs: taskIDs))
+    }
+
+    func applyTaskBatchMutation(_ request: TaskBatchMutationRequest) async {
+        var seen = Set<String>()
+        var normalizedTaskIDs: [String] = []
+        for rawTaskID in request.taskIDs {
+            let taskID = rawTaskID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !taskID.isEmpty else {
+                setError(Strings.t("board.error.invalid_response"))
+                return
+            }
+            if seen.insert(taskID).inserted {
+                normalizedTaskIDs.append(taskID)
+            }
+        }
+        guard !normalizedTaskIDs.isEmpty else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        _ = await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            try await self.api.applyTaskBatchMutation(
+                boardID: boardID,
+                request: TaskBatchMutationRequest(action: request.action, taskIDs: normalizedTaskIDs),
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            switch request.action {
+            case .delete:
+                self.setSuccess(Strings.t("board.task.status.deleted"))
+            }
+        }
+    }
+
     func moveTask(taskID: String, destinationColumnID: String, destinationPosition: Int) async {
         guard destinationPosition >= 0 else {
             setError(Strings.t("board.error.invalid_response"))
@@ -359,6 +398,86 @@ final class BoardViewModel: ObservableObject {
                     taskIDs: (reorderedTasksByColumn[column.id] ?? []).map(\.id)
                 )
             }
+
+        _ = await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            try await self.api.reorderTasks(
+                boardID: boardID,
+                orderedTasksByColumn: orderedTasksByColumn,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.t("board.task.status.moved"))
+        }
+    }
+
+    func reorderTasksInColumn(columnID: String, orderedTaskIDs: [String]) async {
+        guard !orderedTaskIDs.isEmpty else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        guard let column = columns.first(where: { $0.id == columnID }) else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        let existingColumnTaskIDs = tasks(for: column.id).map(\.id)
+        guard Set(existingColumnTaskIDs) == Set(orderedTaskIDs), existingColumnTaskIDs.count == orderedTaskIDs.count else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        let orderedTasksByColumn = columns
+            .sorted { $0.position < $1.position }
+            .map { currentColumn in
+                KanbanTaskColumnOrder(
+                    columnID: currentColumn.id,
+                    taskIDs: currentColumn.id == columnID ? orderedTaskIDs : tasks(for: currentColumn.id).map(\.id)
+                )
+            }
+
+        _ = await runMutation {
+            let context = try await self.resolveContext(requireBoard: true)
+            let boardID = try self.requireBoardID(context)
+            try await self.api.reorderTasks(
+                boardID: boardID,
+                orderedTasksByColumn: orderedTasksByColumn,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
+            try await self.reloadWithContext(context)
+            self.setSuccess(Strings.t("board.task.status.moved"))
+        }
+    }
+
+    func reorderTasks(orderedTasksByColumn: [KanbanTaskColumnOrder]) async {
+        let expectedColumnIDs = Set(columns.map(\.id))
+        let providedColumnIDs = Set(orderedTasksByColumn.map(\.columnID))
+        guard expectedColumnIDs == providedColumnIDs else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        let existingTaskIDs = tasksByColumnID.values.flatMap { $0.map(\.id) }
+        let providedTaskIDs = orderedTasksByColumn.flatMap(\.taskIDs)
+        guard
+            existingTaskIDs.count == providedTaskIDs.count,
+            Set(existingTaskIDs) == Set(providedTaskIDs),
+            Set(providedTaskIDs).count == providedTaskIDs.count
+        else {
+            setError(Strings.t("board.error.invalid_response"))
+            return
+        }
+
+        for orderedColumn in orderedTasksByColumn {
+            guard Set(orderedColumn.taskIDs).count == orderedColumn.taskIDs.count else {
+                setError(Strings.t("board.error.invalid_response"))
+                return
+            }
+        }
 
         _ = await runMutation {
             let context = try await self.resolveContext(requireBoard: true)

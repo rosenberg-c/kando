@@ -38,6 +38,66 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
+func (r *MemoryRepository) RunInTransaction(ctx context.Context, fn func(repo Repository) error) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	txRepo := &MemoryRepository{
+		boards:       cloneBoardMap(r.boards),
+		columns:      cloneColumnMap(r.columns),
+		tasks:        cloneTaskMap(r.tasks),
+		ownerBoards:  cloneStringSliceMap(r.ownerBoards),
+		boardColumns: cloneStringSliceMap(r.boardColumns),
+		columnTasks:  cloneStringSliceMap(r.columnTasks),
+		now:          r.now,
+	}
+
+	if err := fn(txRepo); err != nil {
+		return err
+	}
+
+	r.boards = txRepo.boards
+	r.columns = txRepo.columns
+	r.tasks = txRepo.tasks
+	r.ownerBoards = txRepo.ownerBoards
+	r.boardColumns = txRepo.boardColumns
+	r.columnTasks = txRepo.columnTasks
+
+	return nil
+}
+
+func cloneBoardMap(src map[string]Board) map[string]Board {
+	dst := make(map[string]Board, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func cloneColumnMap(src map[string]Column) map[string]Column {
+	dst := make(map[string]Column, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func cloneTaskMap(src map[string]Task) map[string]Task {
+	dst := make(map[string]Task, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func cloneStringSliceMap(src map[string][]string) map[string][]string {
+	dst := make(map[string][]string, len(src))
+	for key, value := range src {
+		dst[key] = append([]string(nil), value...)
+	}
+	return dst
+}
+
 func (r *MemoryRepository) ListBoardsByOwner(_ context.Context, ownerUserID string) ([]Board, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

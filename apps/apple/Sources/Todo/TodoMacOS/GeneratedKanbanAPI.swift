@@ -278,15 +278,58 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws {
-        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let payload = Components.Schemas.ReorderTasksRequest(
-            columns: orderedTasksByColumn.map {
-                Components.Schemas.TaskColumnOrderRequest(columnId: $0.columnID, taskIds: $0.taskIDs)
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent(boardID)
+            .appendingPathComponent("tasks")
+            .appendingPathComponent("order")
+
+        struct ReorderTasksRequestDTO: Encodable {
+            struct ColumnOrder: Encodable {
+                let columnId: String
+                let taskIds: [String]
             }
+
+            let columns: [ColumnOrder]
+        }
+
+        let (data, httpResponse) = try await OpenAPITransportShims.performJSONRequest(
+            url: requestURL,
+            method: "PUT",
+            accessToken: accessToken,
+            body:
+            ReorderTasksRequestDTO(
+                columns: orderedTasksByColumn.map {
+                    ReorderTasksRequestDTO.ColumnOrder(columnId: $0.columnID, taskIds: $0.taskIDs)
+                }
+            )
         )
-        let output = try await client.reorderTasks(path: .init(boardId: boardID), body: .json(payload))
-        if case let .default(statusCode, payload) = output {
-            throw mapStatus(statusCode, operation: "reorderTasks", model: problem(from: payload.body))
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "reorderTasks", data: data)
+        }
+    }
+
+    func applyTaskBatchMutation(boardID: String, request: TaskBatchMutationRequest, accessToken: String, baseURL: URL) async throws {
+        let requestURL = baseURL
+            .appendingPathComponent("boards")
+            .appendingPathComponent(boardID)
+            .appendingPathComponent("tasks")
+            .appendingPathComponent("actions")
+
+        struct TaskBatchMutationRequestDTO: Encodable {
+            let action: String
+            let taskIds: [String]
+        }
+
+        let (data, httpResponse) = try await OpenAPITransportShims.performJSONRequest(
+            url: requestURL,
+            method: "POST",
+            accessToken: accessToken,
+            body:
+            TaskBatchMutationRequestDTO(action: request.action.rawValue, taskIds: request.taskIDs)
+        )
+        guard httpResponse.statusCode == 200 else {
+            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "applyTaskBatchMutation", data: data)
         }
     }
 

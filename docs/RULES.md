@@ -494,3 +494,23 @@ Rationale:
 * makes temporary workarounds easier to audit and retire
 
 ---
+
+## 30. Model batch mutations as explicit action-list contracts
+
+For collection-level batch mutations (for example delete/archive/restore multiple tasks), use a single request payload that carries explicit action intent and item membership.
+
+Rules:
+
+* represent batch intent with an explicit action field (for example `action`) plus item IDs (for example `taskIds[]`)
+* prefer one list-based batch request over client-side loops of N single-item calls
+* validate membership/duplicates/shape at the boundary before mutation
+* apply batch mutations atomically when feasible; if partial behavior is unavoidable, expose it explicitly in contract/response
+* keep client logic declarative (build intent payload), not imperative retry loops per item
+
+Rationale:
+
+* reduces partial-update risk from sequential client loops
+* makes API intent explicit and testable
+* aligns multi-select UX with predictable backend mutation semantics
+
+---

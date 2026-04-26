@@ -136,6 +136,15 @@ struct TaskImportBundleResult: Sendable, Equatable {
     let totalImportedTaskCount: Int
 }
 
+enum TaskBatchAction: String, Sendable, Equatable {
+    case delete
+}
+
+struct TaskBatchMutationRequest: Sendable, Equatable {
+    let action: TaskBatchAction
+    let taskIDs: [String]
+}
+
 enum KanbanAPIError: LocalizedError {
     case unauthorized
     case unexpectedStatus(code: Int, operation: String, title: String?, detail: String?)
@@ -198,6 +207,7 @@ protocol KanbanAPI: Sendable {
     func createTask(boardID: String, columnID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func updateTask(boardID: String, taskID: String, title: String, description: String, accessToken: String, baseURL: URL) async throws
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws
+    func applyTaskBatchMutation(boardID: String, request: TaskBatchMutationRequest, accessToken: String, baseURL: URL) async throws
     func deleteTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws
     func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle
     func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult

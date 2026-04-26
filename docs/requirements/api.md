@@ -32,3 +32,4 @@
 - `API-030`: Backend API exposes archived-task restore endpoint at `POST /boards/{boardId}/tasks/{taskId}/restore` and restores only archived tasks owned by the caller.
 - `API-031`: Backend API exposes archived-task delete endpoint at `DELETE /boards/{boardId}/tasks/{taskId}/archived` and permanently removes only archived tasks owned by the caller.
 - `API-032`: Archived-task restore/delete endpoints return stable conflict/not-found behavior for invalid task state transitions (for example restoring active tasks or deleting non-archived tasks).
+- `API-033`: Backend API exposes list-based task batch action contracts where each request carries explicit action intent and task membership (`action`, `taskIds[]`) rather than client-side sequential single-task mutation loops.

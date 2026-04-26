@@ -119,6 +119,11 @@ type ReorderTasksRequest struct {
 	Columns []TaskColumnOrderRequest `json:"columns" minItems:"1" nullable:"false"`
 }
 
+type TaskBatchMutationRequest struct {
+	Action  string   `json:"action" enum:"delete"`
+	TaskIDs []string `json:"taskIds" minItems:"1" nullable:"false"`
+}
+
 type TaskExportPayload struct {
 	FormatVersion int                `json:"formatVersion" minimum:"1"`
 	BoardTitle    string             `json:"boardTitle" minLength:"1" maxLength:"120"`

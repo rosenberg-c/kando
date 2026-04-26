@@ -19,6 +19,20 @@ type taskArchiveRepo interface {
 	TaskArchiveCapableRepository
 }
 
+// TaskBatchAction identifies which collection-level mutation to apply.
+type TaskBatchAction string
+
+const (
+	// TaskBatchActionDelete permanently deletes the requested task IDs.
+	TaskBatchActionDelete TaskBatchAction = "delete"
+)
+
+// TaskBatchMutationRequest describes one explicit batch action request.
+type TaskBatchMutationRequest struct {
+	Action  TaskBatchAction
+	TaskIDs []string
+}
+
 // NewService returns a Repository that applies shared kanban domain rules.
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
@@ -165,6 +179,67 @@ func (s *Service) ReorderTasks(ctx context.Context, ownerUserID, boardID string,
 
 func (s *Service) DeleteTask(ctx context.Context, ownerUserID, boardID, taskID string) (Board, error) {
 	return s.repo.DeleteTask(ctx, ownerUserID, boardID, taskID)
+}
+
+// ApplyTaskBatchMutation validates and executes a list-based task batch action.
+func (s *Service) ApplyTaskBatchMutation(ctx context.Context, ownerUserID, boardID string, request TaskBatchMutationRequest) (Board, error) {
+	taskIDs, err := normalizeUniqueNonEmptyIDs(request.TaskIDs)
+	if err != nil {
+		return Board{}, err
+	}
+
+	switch request.Action {
+	case TaskBatchActionDelete:
+		return s.deleteTasksBatch(ctx, ownerUserID, boardID, taskIDs)
+	default:
+		return Board{}, ErrInvalidInput
+	}
+}
+
+func (s *Service) deleteTasksBatch(ctx context.Context, ownerUserID, boardID string, taskIDs []string) (Board, error) {
+	txRepo, ok := s.repo.(TransactionalRepository)
+	if !ok {
+		return Board{}, ErrNotImplemented
+	}
+
+	if err := txRepo.RunInTransaction(ctx, func(repo Repository) error {
+		for _, taskID := range taskIDs {
+			if _, err := repo.DeleteTask(ctx, ownerUserID, boardID, taskID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return Board{}, err
+	}
+
+	details, err := s.repo.GetBoard(ctx, ownerUserID, boardID)
+	if err != nil {
+		return Board{}, err
+	}
+	return details.Board, nil
+}
+
+func normalizeUniqueNonEmptyIDs(ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, ErrInvalidInput
+	}
+
+	seen := make(map[string]struct{}, len(ids))
+	normalized := make([]string, 0, len(ids))
+	for _, rawID := range ids {
+		id := strings.TrimSpace(rawID)
+		if id == "" {
+			return nil, ErrInvalidInput
+		}
+		if _, exists := seen[id]; exists {
+			return nil, ErrInvalidInput
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+
+	return normalized, nil
 }
 
 // ArchiveTasksInColumn archives all active tasks in the provided column.

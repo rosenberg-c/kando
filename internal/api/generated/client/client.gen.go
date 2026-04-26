@@ -28,6 +28,11 @@ const (
 	Original RestoreBoardRequestTitleMode = "original"
 )
 
+// Defines values for TaskBatchMutationRequestAction.
+const (
+	Delete TaskBatchMutationRequestAction = "delete"
+)
+
 // ArchiveColumnTasksResponse defines model for ArchiveColumnTasksResponse.
 type ArchiveColumnTasksResponse struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -212,6 +217,17 @@ type Task struct {
 	UpdatedAt   time.Time          `json:"updatedAt"`
 }
 
+// TaskBatchMutationRequest defines model for TaskBatchMutationRequest.
+type TaskBatchMutationRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema  *string                        `json:"$schema,omitempty"`
+	Action  TaskBatchMutationRequestAction `json:"action"`
+	TaskIds []string                       `json:"taskIds"`
+}
+
+// TaskBatchMutationRequestAction defines model for TaskBatchMutationRequest.Action.
+type TaskBatchMutationRequestAction string
+
 // TaskColumnOrderRequest defines model for TaskColumnOrderRequest.
 type TaskColumnOrderRequest struct {
 	ColumnId openapi_types.UUID `json:"columnId"`
@@ -395,6 +411,11 @@ type CreateTaskParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
+// ApplyTaskBatchMutationParams defines parameters for ApplyTaskBatchMutation.
+type ApplyTaskBatchMutationParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
 // ListArchivedTasksByBoardParams defines parameters for ListArchivedTasksByBoard.
 type ListArchivedTasksByBoardParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -465,6 +486,9 @@ type RestoreBoardJSONRequestBody = RestoreBoardRequest
 
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CreateTaskRequest
+
+// ApplyTaskBatchMutationJSONRequestBody defines body for ApplyTaskBatchMutation for application/json ContentType.
+type ApplyTaskBatchMutationJSONRequestBody = TaskBatchMutationRequest
 
 // ReorderTasksJSONRequestBody defines body for ReorderTasks for application/json ContentType.
 type ReorderTasksJSONRequestBody = ReorderTasksRequest
@@ -628,6 +652,11 @@ type ClientInterface interface {
 	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ApplyTaskBatchMutationWithBody request with any body
+	ApplyTaskBatchMutationWithBody(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ApplyTaskBatchMutation(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, body ApplyTaskBatchMutationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListArchivedTasksByBoard request
 	ListArchivedTasksByBoard(ctx context.Context, boardId string, params *ListArchivedTasksByBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1032,6 +1061,30 @@ func (c *Client) CreateTaskWithBody(ctx context.Context, boardId string, params 
 
 func (c *Client) CreateTask(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateTaskRequest(c.Server, boardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ApplyTaskBatchMutationWithBody(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyTaskBatchMutationRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ApplyTaskBatchMutation(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, body ApplyTaskBatchMutationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyTaskBatchMutationRequest(c.Server, boardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2218,6 +2271,68 @@ func NewCreateTaskRequestWithBody(server string, boardId string, params *CreateT
 	return req, nil
 }
 
+// NewApplyTaskBatchMutationRequest calls the generic ApplyTaskBatchMutation builder with application/json body
+func NewApplyTaskBatchMutationRequest(server string, boardId string, params *ApplyTaskBatchMutationParams, body ApplyTaskBatchMutationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewApplyTaskBatchMutationRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewApplyTaskBatchMutationRequestWithBody generates requests for ApplyTaskBatchMutation with any type of body
+func NewApplyTaskBatchMutationRequestWithBody(server string, boardId string, params *ApplyTaskBatchMutationParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boardId", runtime.ParamLocationPath, boardId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards/%s/tasks/actions", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.Authorization != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Authorization", runtime.ParamLocationHeader, *params.Authorization)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Authorization", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListArchivedTasksByBoardRequest generates requests for ListArchivedTasksByBoard
 func NewListArchivedTasksByBoardRequest(server string, boardId string, params *ListArchivedTasksByBoardParams) (*http.Request, error) {
 	var err error
@@ -2762,6 +2877,11 @@ type ClientWithResponsesInterface interface {
 
 	CreateTaskWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, body CreateTaskJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
 
+	// ApplyTaskBatchMutationWithBodyWithResponse request with any body
+	ApplyTaskBatchMutationWithBodyWithResponse(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyTaskBatchMutationResponse, error)
+
+	ApplyTaskBatchMutationWithResponse(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, body ApplyTaskBatchMutationJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyTaskBatchMutationResponse, error)
+
 	// ListArchivedTasksByBoardWithResponse request
 	ListArchivedTasksByBoardWithResponse(ctx context.Context, boardId string, params *ListArchivedTasksByBoardParams, reqEditors ...RequestEditorFn) (*ListArchivedTasksByBoardResponse, error)
 
@@ -3247,6 +3367,29 @@ func (r CreateTaskResponse) StatusCode() int {
 	return 0
 }
 
+type ApplyTaskBatchMutationResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]Task
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplyTaskBatchMutationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplyTaskBatchMutationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListArchivedTasksByBoardResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -3702,6 +3845,23 @@ func (c *ClientWithResponses) CreateTaskWithResponse(ctx context.Context, boardI
 		return nil, err
 	}
 	return ParseCreateTaskResponse(rsp)
+}
+
+// ApplyTaskBatchMutationWithBodyWithResponse request with arbitrary body returning *ApplyTaskBatchMutationResponse
+func (c *ClientWithResponses) ApplyTaskBatchMutationWithBodyWithResponse(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyTaskBatchMutationResponse, error) {
+	rsp, err := c.ApplyTaskBatchMutationWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyTaskBatchMutationResponse(rsp)
+}
+
+func (c *ClientWithResponses) ApplyTaskBatchMutationWithResponse(ctx context.Context, boardId string, params *ApplyTaskBatchMutationParams, body ApplyTaskBatchMutationJSONRequestBody, reqEditors ...RequestEditorFn) (*ApplyTaskBatchMutationResponse, error) {
+	rsp, err := c.ApplyTaskBatchMutation(ctx, boardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyTaskBatchMutationResponse(rsp)
 }
 
 // ListArchivedTasksByBoardWithResponse request returning *ListArchivedTasksByBoardResponse
@@ -4407,6 +4567,39 @@ func ParseCreateTaskResponse(rsp *http.Response) (*CreateTaskResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Task
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApplyTaskBatchMutationResponse parses an HTTP response from a ApplyTaskBatchMutationWithResponse call
+func ParseApplyTaskBatchMutationResponse(rsp *http.Response) (*ApplyTaskBatchMutationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplyTaskBatchMutationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Task
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
