@@ -54,6 +54,7 @@ func KanbanAppwriteDatabase() AppwriteDatabase {
 				Columns: []AppwriteColumn{
 					{Kind: "string", Key: "ownerUserId", Required: true, Size: 64},
 					{Kind: "string", Key: "title", Required: true, Size: 120},
+					{Kind: "string", Key: "archivedOriginalTitle", Required: false, Size: 120},
 					{Kind: "boolean", Key: "isArchived", Required: true},
 					{Kind: "integer", Key: "boardVersion", Required: true},
 					{Kind: "datetime", Key: "createdAt", Required: true},

@@ -23,7 +23,7 @@ type Repository interface {
 type ArchiveCapableRepository interface {
 	ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error)
 	ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (Board, error)
-	RestoreBoard(ctx context.Context, ownerUserID, boardID string) (Board, error)
+	RestoreBoard(ctx context.Context, ownerUserID, boardID string, mode RestoreBoardTitleMode) (Board, error)
 	DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error
 }
 

@@ -5,8 +5,9 @@ import "errors"
 type ConflictCode string
 
 const (
-	ConflictBoardHasTasks  ConflictCode = "board_has_tasks"
-	ConflictColumnHasTasks ConflictCode = "column_has_tasks"
+	ConflictBoardHasTasks    ConflictCode = "board_has_tasks"
+	ConflictColumnHasTasks   ConflictCode = "column_has_tasks"
+	ConflictBoardTitleExists ConflictCode = "board_title_exists"
 )
 
 type ConflictError struct {

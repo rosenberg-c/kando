@@ -175,12 +175,14 @@ func (r *MemoryRepository) ArchiveBoard(_ context.Context, ownerUserID, boardID 
 	}
 
 	board.IsArchived = true
+	board.ArchivedOriginalTitle = board.Title
+	board.Title = ArchivedBoardTitle(board.Title, r.now())
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
 	return board, nil
 }
 
-func (r *MemoryRepository) RestoreBoard(_ context.Context, ownerUserID, boardID string) (Board, error) {
+func (r *MemoryRepository) RestoreBoard(_ context.Context, ownerUserID, boardID string, mode RestoreBoardTitleMode) (Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -191,11 +193,37 @@ func (r *MemoryRepository) RestoreBoard(_ context.Context, ownerUserID, boardID 
 	if !board.IsArchived {
 		return board, nil
 	}
+	desiredTitle := board.Title
+	if mode == RestoreBoardTitleModeOriginal && board.ArchivedOriginalTitle != "" {
+		desiredTitle = board.ArchivedOriginalTitle
+	}
+	if mode == RestoreBoardTitleModeOriginal && r.hasActiveBoardWithTitle(ownerUserID, board.ID, desiredTitle) {
+		return Board{}, NewConflictError(ConflictBoardTitleExists, "board title already exists")
+	}
 
 	board.IsArchived = false
+	board.Title = desiredTitle
+	board.ArchivedOriginalTitle = ""
 	board = bumpBoard(board)
 	r.boards[board.ID] = board
 	return board, nil
+}
+
+func (r *MemoryRepository) hasActiveBoardWithTitle(ownerUserID, ignoreBoardID, title string) bool {
+	for _, id := range r.ownerBoards[ownerUserID] {
+		if id == ignoreBoardID {
+			continue
+		}
+		board, ok := r.boards[id]
+		if !ok || board.IsArchived {
+			continue
+		}
+		if board.Title == title {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r *MemoryRepository) DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error {

@@ -435,6 +435,7 @@ private struct LoggedInWorkspaceView: View {
         ) {
             WorkspaceSettingsSheet(
                 canRefresh: board.canMutateBoardActions,
+                activeBoards: board.boards,
                 archivedBoards: board.archivedBoards,
                 onRefresh: {
                     isSettingsSheetPresented = false
@@ -454,8 +455,8 @@ private struct LoggedInWorkspaceView: View {
                     isSettingsSheetPresented = false
                     onSignOut()
                 },
-                onRestoreArchivedBoard: { boardID in
-                    Task { await board.restoreArchivedBoard(boardID: boardID) }
+                onRestoreArchivedBoard: { boardID, titleMode in
+                    Task { await board.restoreArchivedBoard(boardID: boardID, titleMode: titleMode) }
                 },
                 onDeleteArchivedBoard: { boardID in
                     Task { await board.deleteArchivedBoard(boardID: boardID) }
@@ -826,17 +827,19 @@ private struct BlockingLoadingOverlay: View {
 
 private struct WorkspaceSettingsSheet: View {
     let canRefresh: Bool
+    let activeBoards: [KanbanBoard]
     let archivedBoards: [KanbanBoard]
     let onRefresh: () -> Void
     let onExport: () -> Void
     let onImport: () -> Void
     let onSignOut: () -> Void
-    let onRestoreArchivedBoard: (String) -> Void
+    let onRestoreArchivedBoard: (String, RestoreBoardTitleMode) -> Void
     let onDeleteArchivedBoard: (String) -> Void
     let taskControlVisibility: TaskControlVisibilityBindings
 
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDeleteArchivedBoard: KanbanBoard?
+    @State private var restoreSheetState: RestoreArchivedBoardSheetState?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -940,12 +943,13 @@ private struct WorkspaceSettingsSheet: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(Array(archivedBoards.enumerated()), id: \.element.id) { index, archivedBoard in
-                        HStack {
+                        HStack(alignment: .firstTextBaseline) {
                             Text(archivedBoard.title)
                                 .lineLimit(1)
+                                .layoutPriority(1)
                             Spacer()
                             Button("board.restore") {
-                                onRestoreArchivedBoard(archivedBoard.id)
+                                restoreSheetState = RestoreArchivedBoardSheetState(board: archivedBoard)
                             }
                             .buttonStyle(.bordered)
                             .disabled(!canRefresh)
@@ -971,7 +975,7 @@ private struct WorkspaceSettingsSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(minWidth: 520, idealWidth: 560)
         .accessibilityIdentifier("board-settings-sheet")
         .confirmationDialog(
             Strings.t("board.archived.delete.confirm.title"),
@@ -1000,6 +1004,100 @@ private struct WorkspaceSettingsSheet: View {
                 Text(Strings.f("board.archived.delete.confirm.message", board.title))
             }
         }
+        .sheet(item: $restoreSheetState) { state in
+            ArchivedBoardRestoreSheet(
+                board: state.board,
+                activeBoards: activeBoards,
+                onSubmit: { mode in
+                    onRestoreArchivedBoard(state.board.id, mode)
+                }
+            )
+        }
+    }
+}
+
+private struct RestoreArchivedBoardSheetState: Identifiable {
+    let id = UUID()
+    let board: KanbanBoard
+}
+
+private struct ArchivedBoardRestoreSheet: View {
+    let board: KanbanBoard
+    let activeBoards: [KanbanBoard]
+    let onSubmit: (RestoreBoardTitleMode) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var titleMode: RestoreBoardTitleMode = .archived
+
+    private var originalTitle: String? {
+        let value = board.archivedOriginalTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let value, !value.isEmpty {
+            return value
+        }
+        return nil
+    }
+
+    private var hasOriginalTitleConflict: Bool {
+        guard titleMode == .original, let originalTitle else {
+            return false
+        }
+        return activeBoards.contains { $0.title == originalTitle }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("board.restore.title")
+                .font(.title3.weight(.semibold))
+
+            Text(Strings.f("board.restore.message", board.title))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Picker(Strings.t("board.restore.title_mode.label"), selection: $titleMode) {
+                Text("board.restore.title_mode.archived")
+                    .tag(RestoreBoardTitleMode.archived)
+                    .accessibilityIdentifier("board-restore-title-mode-archived")
+                Text("board.restore.title_mode.original")
+                    .tag(RestoreBoardTitleMode.original)
+                    .accessibilityIdentifier("board-restore-title-mode-original")
+            }
+            .pickerStyle(.radioGroup)
+            .accessibilityIdentifier("board-restore-title-mode-picker")
+
+            if titleMode == .original {
+                Text(Strings.f("board.restore.original.preview", originalTitle ?? Strings.t("board.restore.original.unavailable")))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if hasOriginalTitleConflict {
+                Text("board.restore.original.conflict")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("board-restore-original-conflict")
+            }
+
+            HStack {
+                Button("common.cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("board-restore-cancel-button")
+
+                Spacer()
+
+                Button("board.restore") {
+                    onSubmit(titleMode)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(hasOriginalTitleConflict)
+                .accessibilityIdentifier("board-restore-submit-button")
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .accessibilityIdentifier("board-restore-sheet")
     }
 }
 

@@ -718,7 +718,7 @@ struct BoardViewModelTests {
     }
 
     @Test func restoreArchivedBoardReturnsItToActiveList() async {
-        // Requirements: BOARD-015, BOARD-016, UX-021
+        // Requirements: BOARD-015, BOARD-016, BOARD-023, UX-021
         let boardA = KanbanBoard(id: "board-a", title: "Board A")
         let active = MutableBoardList(initial: [KanbanBoard(id: "board-b", title: "Board B")])
         let archived = MutableBoardList(initial: [boardA])
@@ -726,7 +726,8 @@ struct BoardViewModelTests {
         let api = MockKanbanAPI(
             listBoardsHandler: { _, _ in await active.current() },
             listArchivedBoardsHandler: { _, _ in await archived.current() },
-            restoreBoardHandler: { boardID, _, _ in
+            restoreBoardHandler: { boardID, mode, _, _ in
+                #expect(mode == .archived)
                 guard let board = (await archived.current()).first(where: { $0.id == boardID }) else {
                     throw KanbanAPIError.invalidResponse
                 }
@@ -747,11 +748,52 @@ struct BoardViewModelTests {
         )
 
         await viewModel.reloadBoard()
-        let didRestore = await viewModel.restoreArchivedBoard(boardID: boardA.id)
+        let didRestore = await viewModel.restoreArchivedBoard(boardID: boardA.id, titleMode: .archived)
 
         #expect(didRestore)
         #expect(viewModel.archivedBoards.contains(where: { $0.id == boardA.id }) == false)
         #expect(viewModel.boards.contains(where: { $0.id == boardA.id }))
+    }
+
+    @Test func restoreArchivedBoardOriginalConflictSurfacesStatusDetails() async {
+        // Requirements: BOARD-024, UX-028
+        let boardA = KanbanBoard(id: "board-a", title: "Board A (archived)", archivedOriginalTitle: "Board A")
+        let active = MutableBoardList(initial: [KanbanBoard(id: "board-b", title: "Board A")])
+        let archived = MutableBoardList(initial: [boardA])
+
+        let api = MockKanbanAPI(
+            listBoardsHandler: { _, _ in await active.current() },
+            listArchivedBoardsHandler: { _, _ in await archived.current() },
+            restoreBoardHandler: { boardID, mode, _, _ in
+                #expect(boardID == boardA.id)
+                #expect(mode == .original)
+                throw KanbanAPIError.unexpectedStatus(
+                    code: 409,
+                    operation: "restoreBoard",
+                    title: "Conflict",
+                    detail: "board title already exists"
+                )
+            },
+            getBoardHandler: { boardID, _, _ in
+                let board = (await active.current()).first(where: { $0.id == boardID }) ?? boardA
+                return KanbanBoardDetails(board: board, columns: [], tasks: [])
+            }
+        )
+
+        let viewModel = BoardViewModel(
+            api: api,
+            accessTokenProvider: { "token-1" },
+            baseURLProvider: { URL(string: "http://localhost:8080") }
+        )
+
+        await viewModel.reloadBoard()
+        let didRestore = await viewModel.restoreArchivedBoard(boardID: boardA.id, titleMode: .original)
+
+        #expect(didRestore == false)
+        #expect(viewModel.statusIsError)
+        #expect(viewModel.statusMessage.contains("409"))
+        #expect(viewModel.debugMessage.contains("operation=restoreBoard"))
+        #expect(viewModel.debugMessage.contains("detail=board title already exists"))
     }
 }
 

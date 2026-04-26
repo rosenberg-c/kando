@@ -19,6 +19,12 @@
           "size": 120
         },
         {
+          "kind": "string",
+          "key": "archivedOriginalTitle",
+          "required": false,
+          "size": 120
+        },
+        {
           "kind": "boolean",
           "key": "isArchived",
           "required": true

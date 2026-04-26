@@ -3,6 +3,18 @@ import Foundation
 struct KanbanBoard: Sendable, Equatable {
     let id: String
     let title: String
+    let archivedOriginalTitle: String?
+
+    init(id: String, title: String, archivedOriginalTitle: String? = nil) {
+        self.id = id
+        self.title = title
+        self.archivedOriginalTitle = archivedOriginalTitle
+    }
+}
+
+enum RestoreBoardTitleMode: String, Sendable, Equatable {
+    case original
+    case archived
 }
 
 struct KanbanColumn: Sendable, Equatable, Identifiable {
@@ -131,7 +143,7 @@ protocol KanbanAPI: Sendable {
     func updateBoard(boardID: String, title: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard
     func deleteBoard(boardID: String, accessToken: String, baseURL: URL) async throws
     func archiveBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard
-    func restoreBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard
+    func restoreBoard(boardID: String, titleMode: RestoreBoardTitleMode, accessToken: String, baseURL: URL) async throws -> KanbanBoard
     func deleteArchivedBoard(boardID: String, accessToken: String, baseURL: URL) async throws
     func getBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoardDetails
     func createColumn(boardID: String, title: String, accessToken: String, baseURL: URL) async throws

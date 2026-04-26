@@ -69,9 +69,10 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
-    func restoreBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+    func restoreBoard(boardID: String, titleMode: RestoreBoardTitleMode, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
-        let output = try await client.restoreBoard(path: .init(boardId: boardID))
+        let payload = Components.Schemas.RestoreBoardRequest(titleMode: mapRestoreTitleMode(titleMode))
+        let output = try await client.restoreBoard(path: .init(boardId: boardID), body: .json(payload))
         switch output {
         case let .ok(ok):
             return mapBoard(try ok.body.json)
@@ -374,7 +375,16 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     private func mapBoard(_ board: Components.Schemas.Board) -> KanbanBoard {
-        KanbanBoard(id: board.id, title: board.title)
+        KanbanBoard(id: board.id, title: board.title, archivedOriginalTitle: board.archivedOriginalTitle)
+    }
+
+    private func mapRestoreTitleMode(_ mode: RestoreBoardTitleMode) -> Components.Schemas.RestoreBoardRequest.TitleModePayload {
+        switch mode {
+        case .original:
+            return .original
+        case .archived:
+            return .archived
+        }
     }
 
     private func mapColumn(_ column: Components.Schemas.Column) -> KanbanColumn {

@@ -20,7 +20,7 @@ type queryer interface {
 func getOwnedBoard(ctx context.Context, q queryRower, ownerUserID, boardID string) (Board, error) {
 	board, err := scanBoard(q.QueryRowContext(
 		ctx,
-		`SELECT id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms
+		`SELECT id, owner_user_id, title, archived_original_title, is_archived, board_version, created_at_ms, updated_at_ms
 		 FROM boards
 		 WHERE id = ?`,
 		boardID,
@@ -90,6 +90,7 @@ type scannerFunc func(dest ...any) error
 
 func scanBoard(scan scannerFunc) (Board, error) {
 	var board Board
+	var archivedOriginalTitle sql.NullString
 	var createdAtMS int64
 	var updatedAtMS int64
 
@@ -97,12 +98,17 @@ func scanBoard(scan scannerFunc) (Board, error) {
 		&board.ID,
 		&board.OwnerUserID,
 		&board.Title,
+		&archivedOriginalTitle,
 		&board.IsArchived,
 		&board.BoardVersion,
 		&createdAtMS,
 		&updatedAtMS,
 	); err != nil {
 		return Board{}, err
+	}
+
+	if archivedOriginalTitle.Valid {
+		board.ArchivedOriginalTitle = archivedOriginalTitle.String
 	}
 
 	board.CreatedAt = fromUnixMillis(createdAtMS)

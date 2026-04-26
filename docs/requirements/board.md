@@ -20,6 +20,10 @@
 - `BOARD-018`: Task export supports selecting one or more owned boards and includes only checked boards in the exported JSON.
 - `BOARD-019`: Task import supports selecting one or more boards discovered in the import file and imports only checked boards.
 - `BOARD-020`: Multi-board export/import preserves board boundaries so columns and tasks remain associated with the correct board snapshot.
+- `BOARD-021`: Archiving a board renames the board title to include an archive timestamp so archived board names are date-time qualified.
+- `BOARD-022`: Archiving stores the pre-archive board title separately so restore can choose between original title and archived title.
+- `BOARD-023`: Restoring an archived board supports selecting the restored title mode (`original` or `archived`) per restore action.
+- `BOARD-024`: When restore title mode is `original`, the restore flow warns and blocks submission if that original title conflicts with an existing active board title.
 
 ## Platform Applicability
 
@@ -43,3 +47,7 @@
 - `BOARD-018`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-019`: macOS (required), iOS (planned), TUI (N/A).
 - `BOARD-020`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-021`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-022`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-023`: macOS (required), iOS (planned), TUI (N/A).
+- `BOARD-024`: macOS (required), iOS (planned), TUI (N/A).

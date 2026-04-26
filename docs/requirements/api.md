@@ -19,3 +19,7 @@
 - `API-017`: Backend API supports multi-board task export/import so clients can transfer selected board snapshots in one operation.
 - `API-018`: Multi-board task import applies atomically per selected destination board; failure for one selected board does not partially mutate that board.
 - `API-019`: Multi-board task transfer payload includes stable source board identity metadata and keeps columns/tasks nested under their board snapshot.
+- `API-020`: Archiving a board rewrites the board title with an archive timestamp suffix and returns the updated title in the archive response.
+- `API-021`: Backend archive persistence stores the pre-archive board title separately from the display `title` so restore behavior does not depend on string parsing.
+- `API-022`: `POST /boards/{boardId}/restore` accepts an explicit restore title mode (`original` or `archived`) and returns the restored board with the selected title.
+- `API-023`: Restore requests using title mode `original` fail with a stable conflict error when the original title matches an existing active board title for the same owner.

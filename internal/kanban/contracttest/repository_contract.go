@@ -3,6 +3,7 @@ package contracttest
 import (
 	"context"
 	"errors"
+	"regexp"
 	"sync"
 	"testing"
 
@@ -10,6 +11,12 @@ import (
 
 	"go_macos_todo/internal/kanban"
 )
+
+type archiveCapable interface {
+	ArchiveBoard(ctx context.Context, ownerUserID, boardID string) (kanban.Board, error)
+	RestoreBoard(ctx context.Context, ownerUserID, boardID string, mode kanban.RestoreBoardTitleMode) (kanban.Board, error)
+	ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]kanban.Board, error)
+}
 
 // RunRepositoryContractTests verifies shared repository behavior for any implementation.
 func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository) {
@@ -360,6 +367,106 @@ func RunRepositoryContractTests(t *testing.T, makeRepo func() kanban.Repository)
 
 		if err := repo.DeleteBoard(ctx, ownerUserID, board.ID); err != nil {
 			t.Fatalf("cleanup board: %v", err)
+		}
+	})
+
+	t.Run("ArchiveBoardAddsTimestampToTitle", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		archiver, ok := repo.(archiveCapable)
+		if !ok {
+			t.Skip("archive operations not implemented")
+		}
+
+		ownerUserID := "user-" + uuid.NewString()
+		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+
+		archived, err := archiver.ArchiveBoard(ctx, ownerUserID, board.ID)
+		if err != nil {
+			t.Fatalf("archive board: %v", err)
+		}
+		if !archived.IsArchived {
+			t.Fatalf("isArchived = %v, want true", archived.IsArchived)
+		}
+		if archived.ArchivedOriginalTitle != "Main" {
+			t.Fatalf("archived original title = %q, want %q", archived.ArchivedOriginalTitle, "Main")
+		}
+
+		pattern := regexp.MustCompile(`^Main \(archived \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z\)$`)
+		if !pattern.MatchString(archived.Title) {
+			t.Fatalf("archived title = %q, want timestamped archived suffix", archived.Title)
+		}
+
+		archivedBoards, err := archiver.ListArchivedBoardsByOwner(ctx, ownerUserID)
+		if err != nil {
+			t.Fatalf("list archived boards: %v", err)
+		}
+		if len(archivedBoards) != 1 {
+			t.Fatalf("archived board count = %d, want 1", len(archivedBoards))
+		}
+		if archivedBoards[0].Title != archived.Title {
+			t.Fatalf("archived list title = %q, want %q", archivedBoards[0].Title, archived.Title)
+		}
+		if archivedBoards[0].ArchivedOriginalTitle != "Main" {
+			t.Fatalf("archived list original title = %q, want %q", archivedBoards[0].ArchivedOriginalTitle, "Main")
+		}
+	})
+
+	t.Run("RestoreBoardOriginalModeUsesOriginalTitle", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		archiver, ok := repo.(archiveCapable)
+		if !ok {
+			t.Skip("archive operations not implemented")
+		}
+
+		ownerUserID := "user-" + uuid.NewString()
+		board, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+		if _, err := archiver.ArchiveBoard(ctx, ownerUserID, board.ID); err != nil {
+			t.Fatalf("archive board: %v", err)
+		}
+
+		restored, err := archiver.RestoreBoard(ctx, ownerUserID, board.ID, kanban.RestoreBoardTitleModeOriginal)
+		if err != nil {
+			t.Fatalf("restore board: %v", err)
+		}
+		if restored.Title != "Main" {
+			t.Fatalf("restored title = %q, want %q", restored.Title, "Main")
+		}
+		if restored.ArchivedOriginalTitle != "" {
+			t.Fatalf("restored archived original title = %q, want empty", restored.ArchivedOriginalTitle)
+		}
+	})
+
+	t.Run("RestoreBoardOriginalModeRejectsConflictingActiveTitle", func(t *testing.T) {
+		ctx := context.Background()
+		repo := makeRepo()
+		archiver, ok := repo.(archiveCapable)
+		if !ok {
+			t.Skip("archive operations not implemented")
+		}
+
+		ownerUserID := "user-" + uuid.NewString()
+		archivedBoard, err := repo.CreateBoard(ctx, ownerUserID, "Main")
+		if err != nil {
+			t.Fatalf("create board: %v", err)
+		}
+		if _, err := archiver.ArchiveBoard(ctx, ownerUserID, archivedBoard.ID); err != nil {
+			t.Fatalf("archive board: %v", err)
+		}
+		if _, err := repo.CreateBoard(ctx, ownerUserID, "Main"); err != nil {
+			t.Fatalf("create conflicting board: %v", err)
+		}
+
+		_, err = archiver.RestoreBoard(ctx, ownerUserID, archivedBoard.ID, kanban.RestoreBoardTitleModeOriginal)
+		if !errors.Is(err, kanban.ErrConflict) {
+			t.Fatalf("restore conflict error = %v, want %v", err, kanban.ErrConflict)
 		}
 	})
 }

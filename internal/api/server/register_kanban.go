@@ -39,6 +39,12 @@ type boardPathInput struct {
 	BoardID       string `path:"boardId"`
 }
 
+type restoreBoardInput struct {
+	Authorization string `header:"Authorization"`
+	BoardID       string `path:"boardId"`
+	Body          contracts.RestoreBoardRequest
+}
+
 type updateBoardInput struct {
 	Authorization string `header:"Authorization"`
 	BoardID       string `path:"boardId"`
@@ -312,13 +318,18 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/restore",
 		Summary:     "Restore an archived board",
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
-	}, func(ctx context.Context, input *boardPathInput) (*boardOutput, error) {
+	}, func(ctx context.Context, input *restoreBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
 		if err != nil {
 			return nil, err
 		}
 
-		board, err := repo.RestoreBoard(ctx, identity.UserID, input.BoardID)
+		titleMode, err := kanban.NormalizeRestoreBoardTitleMode(input.Body.TitleMode)
+		if err != nil {
+			return nil, mapKanbanError(err)
+		}
+
+		board, err := repo.RestoreBoard(ctx, identity.UserID, input.BoardID, titleMode)
 		if err != nil {
 			return nil, mapKanbanError(err)
 		}
@@ -623,13 +634,20 @@ func mapKanbanError(err error) error {
 }
 
 func toContractBoard(board kanban.Board) contracts.Board {
+	var archivedOriginalTitle *string
+	if strings.TrimSpace(board.ArchivedOriginalTitle) != "" {
+		title := board.ArchivedOriginalTitle
+		archivedOriginalTitle = &title
+	}
+
 	return contracts.Board{
-		ID:           board.ID,
-		OwnerUserID:  board.OwnerUserID,
-		Title:        board.Title,
-		BoardVersion: board.BoardVersion,
-		CreatedAt:    board.CreatedAt,
-		UpdatedAt:    board.UpdatedAt,
+		ID:                    board.ID,
+		OwnerUserID:           board.OwnerUserID,
+		Title:                 board.Title,
+		ArchivedOriginalTitle: archivedOriginalTitle,
+		BoardVersion:          board.BoardVersion,
+		CreatedAt:             board.CreatedAt,
+		UpdatedAt:             board.UpdatedAt,
 	}
 }
 

@@ -543,6 +543,19 @@ func TestOpenAPIDefinesTaskBundleImportContract(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDefinesRestoreBoardTitleModeContract(t *testing.T) {
+	// Requirement: PUBLIC-010
+	t.Parallel()
+
+	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/{boardId}/restore")
+	if requestRef != "#/components/schemas/RestoreBoardRequest" {
+		t.Fatalf("request schema ref = %q, want %q", requestRef, "#/components/schemas/RestoreBoardRequest")
+	}
+	if responseRef != "#/components/schemas/Board" {
+		t.Fatalf("response schema ref = %q, want %q", responseRef, "#/components/schemas/Board")
+	}
+}
+
 func requireOpenAPIPostJSONSchemaRefs(t *testing.T, pathKey string) (string, string) {
 	t.Helper()
 
@@ -750,7 +763,7 @@ func TestKanbanDeleteBoardWithTasksReturnsConflict(t *testing.T) {
 }
 
 func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
-	// Requirements: BOARD-014, BOARD-015, BOARD-016, BOARD-017, API-014, API-015, API-016
+	// Requirements: BOARD-014, BOARD-015, BOARD-016, BOARD-017, BOARD-021, BOARD-022, BOARD-023, API-014, API-015, API-016, API-020, API-021, API-022
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -768,6 +781,15 @@ func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
 	mux.ServeHTTP(archiveRec, archiveReq)
 	if archiveRec.Code != http.StatusOK {
 		t.Fatalf("archive status = %d, want %d body=%s", archiveRec.Code, http.StatusOK, archiveRec.Body.String())
+	}
+	var archivedBoard struct {
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal(archiveRec.Body.Bytes(), &archivedBoard); err != nil {
+		t.Fatalf("decode archive response: %v", err)
+	}
+	if !strings.HasPrefix(archivedBoard.Title, "Main Board (archived ") || !strings.HasSuffix(archivedBoard.Title, "Z)") {
+		t.Fatalf("archived title = %q, want timestamped archive suffix", archivedBoard.Title)
 	}
 
 	listReq := httptest.NewRequest(http.MethodGet, "/boards", nil)
@@ -804,7 +826,8 @@ func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
 		t.Fatalf("archived boards = %+v, want [%s]", archived, boardID)
 	}
 
-	restoreReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/restore", nil)
+	restoreReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/restore", strings.NewReader(`{"titleMode":"archived"}`))
+	restoreReq.Header.Set("Content-Type", "application/json")
 	restoreReq.Header.Set("Authorization", "Bearer token")
 	restoreRec := httptest.NewRecorder()
 	mux.ServeHTTP(restoreRec, restoreReq)
@@ -826,6 +849,45 @@ func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
 	mux.ServeHTTP(deleteArchivedRec, deleteArchivedReq)
 	if deleteArchivedRec.Code != http.StatusNoContent {
 		t.Fatalf("delete archived status = %d, want %d body=%s", deleteArchivedRec.Code, http.StatusNoContent, deleteArchivedRec.Body.String())
+	}
+}
+
+func TestKanbanRestoreBoardOriginalTitleConflictReturns409(t *testing.T) {
+	// Requirements: BOARD-024, API-023, PUBLIC-011
+	t.Parallel()
+
+	repo := kanban.NewService(kanban.NewMemoryRepository())
+	mux := newKanbanMuxForUser(repo, "user-1")
+
+	boardID := createBoard(t, mux)
+	archiveReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/archive", nil)
+	archiveReq.Header.Set("Authorization", "Bearer token")
+	archiveRec := httptest.NewRecorder()
+	mux.ServeHTTP(archiveRec, archiveReq)
+	if archiveRec.Code != http.StatusOK {
+		t.Fatalf("archive status = %d, want %d body=%s", archiveRec.Code, http.StatusOK, archiveRec.Body.String())
+	}
+
+	_ = createBoard(t, mux)
+
+	restoreReq := httptest.NewRequest(http.MethodPost, "/boards/"+boardID+"/restore", strings.NewReader(`{"titleMode":"original"}`))
+	restoreReq.Header.Set("Authorization", "Bearer token")
+	restoreReq.Header.Set("Content-Type", "application/json")
+	restoreRec := httptest.NewRecorder()
+	mux.ServeHTTP(restoreRec, restoreReq)
+
+	if restoreRec.Code != http.StatusConflict {
+		t.Fatalf("restore status = %d, want %d body=%s", restoreRec.Code, http.StatusConflict, restoreRec.Body.String())
+	}
+
+	var problem struct {
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal(restoreRec.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("decode conflict response: %v", err)
+	}
+	if problem.Detail != "board title already exists" {
+		t.Fatalf("problem detail = %q, want %q", problem.Detail, "board title already exists")
 	}
 }
 

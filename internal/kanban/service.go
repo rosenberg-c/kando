@@ -71,12 +71,12 @@ func (s *Service) ArchiveBoard(ctx context.Context, ownerUserID, boardID string)
 	return ar.ArchiveBoard(ctx, ownerUserID, boardID)
 }
 
-func (s *Service) RestoreBoard(ctx context.Context, ownerUserID, boardID string) (Board, error) {
+func (s *Service) RestoreBoard(ctx context.Context, ownerUserID, boardID string, mode RestoreBoardTitleMode) (Board, error) {
 	ar, ok := s.repo.(archiveRepo)
 	if !ok {
 		return Board{}, ErrNotImplemented
 	}
-	return ar.RestoreBoard(ctx, ownerUserID, boardID)
+	return ar.RestoreBoard(ctx, ownerUserID, boardID, mode)
 }
 
 func (s *Service) DeleteArchivedBoard(ctx context.Context, ownerUserID, boardID string) error {

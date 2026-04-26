@@ -9,3 +9,5 @@
 - `PUBLIC-007`: OpenAPI contract defines `POST /boards/tasks/import` as the collection import endpoint with JSON request/response bodies.
 - `PUBLIC-008`: OpenAPI contract defines bundle export schemas (`TaskExportBundle`, `TaskExportBundleBoard`) so board snapshots are represented as a collection with nested per-board payloads.
 - `PUBLIC-009`: OpenAPI contract defines selective import/export bundle request/response schemas (`TaskExportBundleRequest`, `TaskImportBundleRequest`, `TaskImportBundleResponse`) including stable source/destination board identity fields.
+- `PUBLIC-010`: OpenAPI contract defines restore title-mode request schema for `POST /boards/{boardId}/restore` with explicit `titleMode` values (`original`, `archived`).
+- `PUBLIC-011`: OpenAPI contract defines restore conflict response semantics for `titleMode=original` when an active board title collision exists.

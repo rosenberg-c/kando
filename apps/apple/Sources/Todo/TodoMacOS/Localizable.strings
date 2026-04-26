@@ -39,6 +39,14 @@
 "board.rename.submit" = "Save";
 "board.archive" = "Archive board";
 "board.restore" = "Restore";
+"board.restore.title" = "Restore archived board";
+"board.restore.message" = "Choose how to restore \"%@\".";
+"board.restore.title_mode.label" = "Restored title";
+"board.restore.title_mode.archived" = "Keep archived title";
+"board.restore.title_mode.original" = "Use original title";
+"board.restore.original.preview" = "Original title: %@";
+"board.restore.original.unavailable" = "Unavailable";
+"board.restore.original.conflict" = "Cannot restore with original title because an active board already uses it.";
 "board.delete" = "Delete board";
 "board.delete.disabled.has_tasks" = "Delete is available only when the board has no tasks. To permanently remove a board with tasks, archive it first, then delete it from Archived boards.";
 "board.delete.confirm.title" = "Delete board";

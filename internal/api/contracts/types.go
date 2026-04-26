@@ -23,12 +23,13 @@ type MeResponse struct {
 }
 
 type Board struct {
-	ID           string    `json:"id" format:"uuid"`
-	OwnerUserID  string    `json:"ownerUserId"`
-	Title        string    `json:"title" minLength:"1" maxLength:"120"`
-	BoardVersion int       `json:"boardVersion" minimum:"1"`
-	CreatedAt    time.Time `json:"createdAt" format:"date-time"`
-	UpdatedAt    time.Time `json:"updatedAt" format:"date-time"`
+	ID                    string    `json:"id" format:"uuid"`
+	OwnerUserID           string    `json:"ownerUserId"`
+	Title                 string    `json:"title" minLength:"1" maxLength:"120"`
+	ArchivedOriginalTitle *string   `json:"archivedOriginalTitle,omitempty" maxLength:"120"`
+	BoardVersion          int       `json:"boardVersion" minimum:"1"`
+	CreatedAt             time.Time `json:"createdAt" format:"date-time"`
+	UpdatedAt             time.Time `json:"updatedAt" format:"date-time"`
 }
 
 type Column struct {
@@ -57,6 +58,10 @@ type CreateBoardRequest struct {
 
 type UpdateBoardRequest struct {
 	Title string `json:"title" minLength:"1" maxLength:"120"`
+}
+
+type RestoreBoardRequest struct {
+	TitleMode string `json:"titleMode" enum:"original,archived"`
 }
 
 type BoardDetailsResponse struct {

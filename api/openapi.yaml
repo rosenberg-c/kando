@@ -61,6 +61,9 @@ components:
           format: uri
           readOnly: true
           type: string
+        archivedOriginalTitle:
+          maxLength: 120
+          type: string
         boardVersion:
           format: int64
           minimum: 1
@@ -309,6 +312,23 @@ components:
           type: array
       required:
         - columns
+      type: object
+    RestoreBoardRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/RestoreBoardRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        titleMode:
+          enum:
+            - original
+            - archived
+          type: string
+      required:
+        - titleMode
       type: object
     Task:
       additionalProperties: false
@@ -1116,6 +1136,12 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreBoardRequest"
+        required: true
       responses:
         "200":
           content:

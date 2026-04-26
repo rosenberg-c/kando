@@ -3,13 +3,14 @@ package kanban
 import "time"
 
 type Board struct {
-	ID           string
-	OwnerUserID  string
-	Title        string
-	IsArchived   bool
-	BoardVersion int
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID                    string
+	OwnerUserID           string
+	Title                 string
+	ArchivedOriginalTitle string
+	IsArchived            bool
+	BoardVersion          int
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 type Column struct {

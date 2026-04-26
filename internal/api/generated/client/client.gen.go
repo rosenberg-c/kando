@@ -22,6 +22,12 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for RestoreBoardRequestTitleMode.
+const (
+	Archived RestoreBoardRequestTitleMode = "archived"
+	Original RestoreBoardRequestTitleMode = "original"
+)
+
 // AuthLoginRequest defines model for AuthLoginRequest.
 type AuthLoginRequest struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -49,13 +55,14 @@ type AuthTokens struct {
 // Board defines model for Board.
 type Board struct {
 	// Schema A URL to the JSON Schema for this object.
-	Schema       *string            `json:"$schema,omitempty"`
-	BoardVersion int64              `json:"boardVersion"`
-	CreatedAt    time.Time          `json:"createdAt"`
-	Id           openapi_types.UUID `json:"id"`
-	OwnerUserId  string             `json:"ownerUserId"`
-	Title        string             `json:"title"`
-	UpdatedAt    time.Time          `json:"updatedAt"`
+	Schema                *string            `json:"$schema,omitempty"`
+	ArchivedOriginalTitle *string            `json:"archivedOriginalTitle,omitempty"`
+	BoardVersion          int64              `json:"boardVersion"`
+	CreatedAt             time.Time          `json:"createdAt"`
+	Id                    openapi_types.UUID `json:"id"`
+	OwnerUserId           string             `json:"ownerUserId"`
+	Title                 string             `json:"title"`
+	UpdatedAt             time.Time          `json:"updatedAt"`
 }
 
 // BoardDetailsResponse defines model for BoardDetailsResponse.
@@ -159,6 +166,16 @@ type ReorderTasksRequest struct {
 	Schema  *string                  `json:"$schema,omitempty"`
 	Columns []TaskColumnOrderRequest `json:"columns"`
 }
+
+// RestoreBoardRequest defines model for RestoreBoardRequest.
+type RestoreBoardRequest struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema    *string                      `json:"$schema,omitempty"`
+	TitleMode RestoreBoardRequestTitleMode `json:"titleMode"`
+}
+
+// RestoreBoardRequestTitleMode defines model for RestoreBoardRequest.TitleMode.
+type RestoreBoardRequestTitleMode string
 
 // Task defines model for Task.
 type Task struct {
@@ -400,6 +417,9 @@ type ReorderColumnsJSONRequestBody = ReorderColumnsRequest
 // UpdateColumnJSONRequestBody defines body for UpdateColumn for application/json ContentType.
 type UpdateColumnJSONRequestBody = UpdateColumnRequest
 
+// RestoreBoardJSONRequestBody defines body for RestoreBoard for application/json ContentType.
+type RestoreBoardJSONRequestBody = RestoreBoardRequest
+
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CreateTaskRequest
 
@@ -553,8 +573,10 @@ type ClientInterface interface {
 
 	UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RestoreBoard request
-	RestoreBoard(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// RestoreBoardWithBody request with any body
+	RestoreBoardWithBody(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RestoreBoard(ctx context.Context, boardId string, params *RestoreBoardParams, body RestoreBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateTaskWithBody request with any body
 	CreateTaskWithBody(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -905,8 +927,20 @@ func (c *Client) UpdateColumn(ctx context.Context, boardId string, columnId stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) RestoreBoard(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRestoreBoardRequest(c.Server, boardId, params)
+func (c *Client) RestoreBoardWithBody(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreBoardRequestWithBody(c.Server, boardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RestoreBoard(ctx context.Context, boardId string, params *RestoreBoardParams, body RestoreBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreBoardRequest(c.Server, boardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1901,8 +1935,19 @@ func NewUpdateColumnRequestWithBody(server string, boardId string, columnId stri
 	return req, nil
 }
 
-// NewRestoreBoardRequest generates requests for RestoreBoard
-func NewRestoreBoardRequest(server string, boardId string, params *RestoreBoardParams) (*http.Request, error) {
+// NewRestoreBoardRequest calls the generic RestoreBoard builder with application/json body
+func NewRestoreBoardRequest(server string, boardId string, params *RestoreBoardParams, body RestoreBoardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRestoreBoardRequestWithBody(server, boardId, params, "application/json", bodyReader)
+}
+
+// NewRestoreBoardRequestWithBody generates requests for RestoreBoard with any type of body
+func NewRestoreBoardRequestWithBody(server string, boardId string, params *RestoreBoardParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1927,10 +1972,12 @@ func NewRestoreBoardRequest(server string, boardId string, params *RestoreBoardP
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -2382,8 +2429,10 @@ type ClientWithResponsesInterface interface {
 
 	UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
 
-	// RestoreBoardWithResponse request
-	RestoreBoardWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error)
+	// RestoreBoardWithBodyWithResponse request with any body
+	RestoreBoardWithBodyWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error)
+
+	RestoreBoardWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, body RestoreBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error)
 
 	// CreateTaskWithBodyWithResponse request with any body
 	CreateTaskWithBodyWithResponse(ctx context.Context, boardId string, params *CreateTaskParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTaskResponse, error)
@@ -3189,9 +3238,17 @@ func (c *ClientWithResponses) UpdateColumnWithResponse(ctx context.Context, boar
 	return ParseUpdateColumnResponse(rsp)
 }
 
-// RestoreBoardWithResponse request returning *RestoreBoardResponse
-func (c *ClientWithResponses) RestoreBoardWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error) {
-	rsp, err := c.RestoreBoard(ctx, boardId, params, reqEditors...)
+// RestoreBoardWithBodyWithResponse request with arbitrary body returning *RestoreBoardResponse
+func (c *ClientWithResponses) RestoreBoardWithBodyWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error) {
+	rsp, err := c.RestoreBoardWithBody(ctx, boardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreBoardResponse(rsp)
+}
+
+func (c *ClientWithResponses) RestoreBoardWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, body RestoreBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error) {
+	rsp, err := c.RestoreBoard(ctx, boardId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

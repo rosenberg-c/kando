@@ -40,7 +40,7 @@ struct MockKanbanAPI: KanbanAPI {
     var updateBoardHandler: @Sendable (String, String, String, URL) async throws -> KanbanBoard
     var deleteBoardHandler: @Sendable (String, String, URL) async throws -> Void
     var archiveBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoard
-    var restoreBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoard
+    var restoreBoardHandler: @Sendable (String, RestoreBoardTitleMode, String, URL) async throws -> KanbanBoard
     var deleteArchivedBoardHandler: @Sendable (String, String, URL) async throws -> Void
     var getBoardHandler: @Sendable (String, String, URL) async throws -> KanbanBoardDetails
     var createColumnHandler: @Sendable (String, String, String, URL) async throws -> Void
@@ -71,7 +71,7 @@ struct MockKanbanAPI: KanbanAPI {
         archiveBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoard = { boardID, _, _ in
             KanbanBoard(id: boardID, title: "Archived")
         },
-        restoreBoardHandler: @escaping @Sendable (String, String, URL) async throws -> KanbanBoard = { boardID, _, _ in
+        restoreBoardHandler: @escaping @Sendable (String, RestoreBoardTitleMode, String, URL) async throws -> KanbanBoard = { boardID, _, _, _ in
             KanbanBoard(id: boardID, title: "Restored")
         },
         deleteArchivedBoardHandler: @escaping @Sendable (String, String, URL) async throws -> Void = { _, _, _ in },
@@ -152,8 +152,8 @@ struct MockKanbanAPI: KanbanAPI {
         try await archiveBoardHandler(boardID, accessToken, baseURL)
     }
 
-    func restoreBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
-        try await restoreBoardHandler(boardID, accessToken, baseURL)
+    func restoreBoard(boardID: String, titleMode: RestoreBoardTitleMode, accessToken: String, baseURL: URL) async throws -> KanbanBoard {
+        try await restoreBoardHandler(boardID, titleMode, accessToken, baseURL)
     }
 
     func deleteArchivedBoard(boardID: String, accessToken: String, baseURL: URL) async throws {

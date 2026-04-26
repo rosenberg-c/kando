@@ -26,6 +26,8 @@
 - `UX-024`: The export flow shows a checkbox list of owned boards so users can include/exclude each board before writing the export file.
 - `UX-025`: The import flow shows a checkbox list of boards detected in the selected import file so users can include/exclude each board before import starts.
 - `UX-026`: Export/import primary actions stay disabled until at least one board is checked.
+- `UX-027`: Restoring an archived board prompts for restore title mode so the user can choose `original` or `archived` title before restore is submitted.
+- `UX-028`: If restore title mode `original` would collide with an existing active board title, the UI shows a clear warning and disables the restore submit action.
 
 ## Platform Applicability
 
@@ -55,3 +57,5 @@
 - `UX-024`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-025`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-026`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-027`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-028`: macOS (required), iOS (planned), TUI (N/A).

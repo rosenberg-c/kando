@@ -66,7 +66,7 @@ func (r *SQLiteRepository) Close() error {
 func (r *SQLiteRepository) ListBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms
+		`SELECT id, owner_user_id, title, archived_original_title, is_archived, board_version, created_at_ms, updated_at_ms
 		 FROM boards
 		 WHERE owner_user_id = ? AND is_archived = 0
 		 ORDER BY updated_at_ms DESC`,
@@ -95,7 +95,7 @@ func (r *SQLiteRepository) ListBoardsByOwner(ctx context.Context, ownerUserID st
 func (r *SQLiteRepository) ListArchivedBoardsByOwner(ctx context.Context, ownerUserID string) ([]Board, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms
+		`SELECT id, owner_user_id, title, archived_original_title, is_archived, board_version, created_at_ms, updated_at_ms
 		 FROM boards
 		 WHERE owner_user_id = ? AND is_archived = 1
 		 ORDER BY updated_at_ms DESC`,
@@ -154,11 +154,12 @@ func (r *SQLiteRepository) CreateBoard(ctx context.Context, ownerUserID, title s
 
 	_, err := r.db.ExecContext(
 		ctx,
-		`INSERT INTO boards (id, owner_user_id, title, is_archived, board_version, created_at_ms, updated_at_ms)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO boards (id, owner_user_id, title, archived_original_title, is_archived, board_version, created_at_ms, updated_at_ms)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		board.ID,
 		board.OwnerUserID,
 		board.Title,
+		nil,
 		board.IsArchived,
 		board.BoardVersion,
 		toUnixMillis(board.CreatedAt),
@@ -248,12 +249,16 @@ func (r *SQLiteRepository) ArchiveBoard(ctx context.Context, ownerUserID, boardI
 
 	now := r.now().UTC()
 	board.IsArchived = true
+	board.ArchivedOriginalTitle = board.Title
+	board.Title = ArchivedBoardTitle(board.Title, now)
 	board.BoardVersion++
 	board.UpdatedAt = now
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE boards SET is_archived = 1, board_version = ?, updated_at_ms = ? WHERE id = ?`,
+		`UPDATE boards SET title = ?, archived_original_title = ?, is_archived = 1, board_version = ?, updated_at_ms = ? WHERE id = ?`,
+		board.Title,
+		board.ArchivedOriginalTitle,
 		board.BoardVersion,
 		toUnixMillis(board.UpdatedAt),
 		board.ID,
@@ -268,7 +273,7 @@ func (r *SQLiteRepository) ArchiveBoard(ctx context.Context, ownerUserID, boardI
 	return board, nil
 }
 
-func (r *SQLiteRepository) RestoreBoard(ctx context.Context, ownerUserID, boardID string) (Board, error) {
+func (r *SQLiteRepository) RestoreBoard(ctx context.Context, ownerUserID, boardID string, mode RestoreBoardTitleMode) (Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Board{}, fmt.Errorf("begin tx: %w", err)
@@ -286,14 +291,37 @@ func (r *SQLiteRepository) RestoreBoard(ctx context.Context, ownerUserID, boardI
 		return board, nil
 	}
 
+	desiredTitle := board.Title
+	if mode == RestoreBoardTitleModeOriginal && board.ArchivedOriginalTitle != "" {
+		desiredTitle = board.ArchivedOriginalTitle
+	}
+	if mode == RestoreBoardTitleModeOriginal {
+		var conflictCount int
+		if err := tx.QueryRowContext(
+			ctx,
+			`SELECT COUNT(*) FROM boards WHERE owner_user_id = ? AND is_archived = 0 AND title = ? AND id <> ?`,
+			ownerUserID,
+			desiredTitle,
+			board.ID,
+		).Scan(&conflictCount); err != nil {
+			return Board{}, fmt.Errorf("check restore board title conflict: %w", err)
+		}
+		if conflictCount > 0 {
+			return Board{}, NewConflictError(ConflictBoardTitleExists, "board title already exists")
+		}
+	}
+
 	now := r.now().UTC()
 	board.IsArchived = false
+	board.Title = desiredTitle
+	board.ArchivedOriginalTitle = ""
 	board.BoardVersion++
 	board.UpdatedAt = now
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`UPDATE boards SET is_archived = 0, board_version = ?, updated_at_ms = ? WHERE id = ?`,
+		`UPDATE boards SET title = ?, is_archived = 0, archived_original_title = NULL, board_version = ?, updated_at_ms = ? WHERE id = ?`,
+		board.Title,
 		board.BoardVersion,
 		toUnixMillis(board.UpdatedAt),
 		board.ID,

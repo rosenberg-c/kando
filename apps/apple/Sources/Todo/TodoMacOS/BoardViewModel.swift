@@ -81,10 +81,15 @@ final class BoardViewModel: ObservableObject {
         }
     }
 
-    func restoreArchivedBoard(boardID: String) async -> Bool {
+    func restoreArchivedBoard(boardID: String, titleMode: RestoreBoardTitleMode) async -> Bool {
         await runMutation {
             let context = try await self.resolveContext()
-            _ = try await self.api.restoreBoard(boardID: boardID, accessToken: context.accessToken, baseURL: context.baseURL)
+            _ = try await self.api.restoreBoard(
+                boardID: boardID,
+                titleMode: titleMode,
+                accessToken: context.accessToken,
+                baseURL: context.baseURL
+            )
             let availableBoards = try await self.api.listBoards(accessToken: context.accessToken, baseURL: context.baseURL)
             self.archivedBoards = try await self.api.listArchivedBoards(accessToken: context.accessToken, baseURL: context.baseURL)
             if self.board == nil, !availableBoards.isEmpty {

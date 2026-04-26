@@ -465,6 +465,79 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testRestoreArchivedBoardShowsTitleModePrompt() throws {
+        // Requirement: UX-027
+        let app = launchSignedInApp()
+
+        let createButton = app.buttons["board-create-button"]
+        let editModeToggle = app.buttons["board-edit-mode-toggle"]
+        let settingsButton = app.buttons["board-settings-button"]
+
+        XCTAssertTrue(createButton.waitForExistence(timeout: UITimeout.ready), "Expected create-board button")
+        XCTAssertTrue(editModeToggle.waitForExistence(timeout: UITimeout.ready), "Expected edit-board button")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: UITimeout.ready), "Expected settings button")
+
+        createButton.tap()
+        let boardEditorTitleInput = preferredElement(
+            primary: app.textFields["board-editor-title-input"],
+            fallback: app.textFields["Board title"],
+            waitTimeout: 3
+        )
+        let boardEditorSubmit = preferredElement(
+            primary: app.buttons["board-editor-submit"],
+            fallback: app.buttons["Create"],
+            waitTimeout: 3
+        )
+        XCTAssertTrue(boardEditorTitleInput.waitForExistence(timeout: 3), "Expected board title input")
+        boardEditorTitleInput.tap()
+        boardEditorTitleInput.typeText("Restore Me")
+        boardEditorSubmit.tap()
+        XCTAssertTrue(app.staticTexts["Restore Me"].waitForExistence(timeout: 3), "Expected created board title")
+
+        editModeToggle.tap()
+        let archiveButton = app.buttons["board-edit-archive-button"]
+        XCTAssertTrue(archiveButton.waitForExistence(timeout: 3), "Expected archive button")
+        archiveButton.tap()
+
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { app.staticTexts["UI Test Board"].exists },
+            "Expected fallback board after archive"
+        )
+
+        XCTAssertTrue(openSettingsSheet(in: app, trigger: settingsButton), "Expected settings sheet")
+        let restoreButton = preferredElement(
+            primary: app.buttons["board-archived-restore-row-0"],
+            fallback: app.buttons["Restore"],
+            waitTimeout: UITimeout.standard
+        )
+        XCTAssertTrue(restoreButton.exists, "Expected archived restore action")
+        restoreButton.tap()
+
+        let restoreSheet = preferredElement(
+            primary: app.otherElements["board-restore-sheet"],
+            fallback: app.sheets.firstMatch,
+            waitTimeout: UITimeout.standard
+        )
+        XCTAssertTrue(restoreSheet.exists, "Expected restore mode prompt")
+        XCTAssertTrue(
+            waitUntil(timeout: UITimeout.standard) {
+                app.otherElements["board-restore-title-mode-picker"].exists ||
+                    restoreSheet.descendants(matching: .radioButton)["Keep archived title"].exists ||
+                    restoreSheet.staticTexts["Restored title"].exists
+            },
+            "Expected restore title mode control"
+        )
+
+        let cancelButton = preferredElement(
+            primary: app.buttons["board-restore-cancel-button"],
+            fallback: app.buttons["Cancel"],
+            waitTimeout: UITimeout.standard
+        )
+        XCTAssertTrue(cancelButton.exists, "Expected cancel button in restore prompt")
+        cancelButton.tap()
+    }
+
+    @MainActor
     func testExportFromSettingsShowsSavePanel() throws {
         // Requirements: UX-012, UX-013, UX-024, UX-026
         let app = launchSignedInApp(extraEnvironment: [
