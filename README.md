@@ -1,5 +1,6 @@
 # go_macos_todo
 
+Good question for the agent after changes `review the staged code, are there any conserns, or refactor to be done. Compare against RULES.md also.`
 Minimal Go backend scaffold for the task app.
 
 ## API generation model
