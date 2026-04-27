@@ -514,3 +514,23 @@ Rationale:
 * aligns multi-select UX with predictable backend mutation semantics
 
 ---
+
+## 31. Client transport contracts must come from generated OpenAPI code
+
+For API clients (especially `apps/apple` and `apps/cli`), treat generated OpenAPI code as the only transport contract source of truth.
+
+Rules:
+
+* do not handwrite endpoint paths, request/response DTOs, or JSON coding keys that duplicate OpenAPI-generated contracts
+* do not handwrite API method signatures that mirror generated operations when generated operations already exist
+* if the app needs domain-friendly models, map generated transport types at a boundary adapter; keep transport shapes generated
+* when backend contracts change, regenerate artifacts first (`make generate`, then client generation) before client behavior changes
+* add/keep tests for critical contract fields at adapter boundaries so schema drift is caught early
+
+Rationale:
+
+* prevents drift between backend contract and client decoding/encoding
+* avoids key/shape mismatches from handwritten transport code
+* keeps API evolution predictable across clients
+
+---
