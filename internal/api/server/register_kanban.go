@@ -468,7 +468,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "archiveColumnTasks",
+		OperationID: "archiveTasksInColumn",
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/columns/{columnId}/archive-tasks",
 		Summary:     "Archive all active tasks in a column",

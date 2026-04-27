@@ -1217,7 +1217,7 @@ paths:
       summary: Update column title
   /boards/{boardId}/columns/{columnId}/archive-tasks:
     post:
-      operationId: archiveColumnTasks
+      operationId: archiveTasksInColumn
       parameters:
         - in: header
           name: Authorization

@@ -396,8 +396,8 @@ type UpdateColumnParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
-// ArchiveColumnTasksParams defines parameters for ArchiveColumnTasks.
-type ArchiveColumnTasksParams struct {
+// ArchiveTasksInColumnParams defines parameters for ArchiveTasksInColumn.
+type ArchiveTasksInColumnParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -640,8 +640,8 @@ type ClientInterface interface {
 
 	UpdateColumn(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ArchiveColumnTasks request
-	ArchiveColumnTasks(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// ArchiveTasksInColumn request
+	ArchiveTasksInColumn(ctx context.Context, boardId string, columnId string, params *ArchiveTasksInColumnParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RestoreBoardWithBody request with any body
 	RestoreBoardWithBody(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1011,8 +1011,8 @@ func (c *Client) UpdateColumn(ctx context.Context, boardId string, columnId stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) ArchiveColumnTasks(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewArchiveColumnTasksRequest(c.Server, boardId, columnId, params)
+func (c *Client) ArchiveTasksInColumn(ctx context.Context, boardId string, columnId string, params *ArchiveTasksInColumnParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewArchiveTasksInColumnRequest(c.Server, boardId, columnId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2091,8 +2091,8 @@ func NewUpdateColumnRequestWithBody(server string, boardId string, columnId stri
 	return req, nil
 }
 
-// NewArchiveColumnTasksRequest generates requests for ArchiveColumnTasks
-func NewArchiveColumnTasksRequest(server string, boardId string, columnId string, params *ArchiveColumnTasksParams) (*http.Request, error) {
+// NewArchiveTasksInColumnRequest generates requests for ArchiveTasksInColumn
+func NewArchiveTasksInColumnRequest(server string, boardId string, columnId string, params *ArchiveTasksInColumnParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -2864,8 +2864,8 @@ type ClientWithResponsesInterface interface {
 
 	UpdateColumnWithResponse(ctx context.Context, boardId string, columnId string, params *UpdateColumnParams, body UpdateColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateColumnResponse, error)
 
-	// ArchiveColumnTasksWithResponse request
-	ArchiveColumnTasksWithResponse(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*ArchiveColumnTasksResponse, error)
+	// ArchiveTasksInColumnWithResponse request
+	ArchiveTasksInColumnWithResponse(ctx context.Context, boardId string, columnId string, params *ArchiveTasksInColumnParams, reqEditors ...RequestEditorFn) (*ArchiveTasksInColumnResponse, error)
 
 	// RestoreBoardWithBodyWithResponse request with any body
 	RestoreBoardWithBodyWithResponse(ctx context.Context, boardId string, params *RestoreBoardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RestoreBoardResponse, error)
@@ -3298,7 +3298,7 @@ func (r UpdateColumnResponse) StatusCode() int {
 	return 0
 }
 
-type ArchiveColumnTasksResponse struct {
+type ArchiveTasksInColumnResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *ArchiveColumnTasksResponse
@@ -3306,7 +3306,7 @@ type ArchiveColumnTasksResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r ArchiveColumnTasksResponse) Status() string {
+func (r ArchiveTasksInColumnResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -3314,7 +3314,7 @@ func (r ArchiveColumnTasksResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ArchiveColumnTasksResponse) StatusCode() int {
+func (r ArchiveTasksInColumnResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3804,13 +3804,13 @@ func (c *ClientWithResponses) UpdateColumnWithResponse(ctx context.Context, boar
 	return ParseUpdateColumnResponse(rsp)
 }
 
-// ArchiveColumnTasksWithResponse request returning *ArchiveColumnTasksResponse
-func (c *ClientWithResponses) ArchiveColumnTasksWithResponse(ctx context.Context, boardId string, columnId string, params *ArchiveColumnTasksParams, reqEditors ...RequestEditorFn) (*ArchiveColumnTasksResponse, error) {
-	rsp, err := c.ArchiveColumnTasks(ctx, boardId, columnId, params, reqEditors...)
+// ArchiveTasksInColumnWithResponse request returning *ArchiveTasksInColumnResponse
+func (c *ClientWithResponses) ArchiveTasksInColumnWithResponse(ctx context.Context, boardId string, columnId string, params *ArchiveTasksInColumnParams, reqEditors ...RequestEditorFn) (*ArchiveTasksInColumnResponse, error) {
+	rsp, err := c.ArchiveTasksInColumn(ctx, boardId, columnId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseArchiveColumnTasksResponse(rsp)
+	return ParseArchiveTasksInColumnResponse(rsp)
 }
 
 // RestoreBoardWithBodyWithResponse request with arbitrary body returning *RestoreBoardResponse
@@ -4485,15 +4485,15 @@ func ParseUpdateColumnResponse(rsp *http.Response) (*UpdateColumnResponse, error
 	return response, nil
 }
 
-// ParseArchiveColumnTasksResponse parses an HTTP response from a ArchiveColumnTasksWithResponse call
-func ParseArchiveColumnTasksResponse(rsp *http.Response) (*ArchiveColumnTasksResponse, error) {
+// ParseArchiveTasksInColumnResponse parses an HTTP response from a ArchiveTasksInColumnWithResponse call
+func ParseArchiveTasksInColumnResponse(rsp *http.Response) (*ArchiveTasksInColumnResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ArchiveColumnTasksResponse{
+	response := &ArchiveTasksInColumnResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
