@@ -1272,6 +1272,67 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testCreateTaskDescriptionInputEnterSubmitsAndShiftEnterDoesNot() throws {
+        // Requirement: TASK-022
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
+        let addTaskButton = app.buttons["task-add-column-empty"]
+        let createSheetTitle = preferredElement(
+            primary: app.otherElements["task-editor-sheet"],
+            fallback: app.staticTexts["Create task"],
+            waitTimeout: uiTimeout
+        )
+        let taskTitleField = preferredElement(
+            primary: app.textFields["task-editor-title-input"],
+            fallback: app.textFields["Task title"],
+            waitTimeout: uiTimeout
+        )
+        let taskDescriptionInput = preferredElement(
+            primary: app.textViews["task-editor-description-input"],
+            fallback: app.textViews.firstMatch,
+            waitTimeout: uiTimeout
+        )
+        let createdTaskTitle = "Created via description enter"
+
+        XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(addTaskButton.waitForExistence(timeout: uiTimeout), "Expected add-task button for empty column")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column to start with zero tasks")
+
+        addTaskButton.tap()
+
+        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
+        XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+        XCTAssertTrue(taskDescriptionInput.waitForExistence(timeout: uiTimeout), "Expected task description input")
+
+        taskTitleField.tap()
+        taskTitleField.typeText(createdTaskTitle)
+
+        taskDescriptionInput.tap()
+        taskDescriptionInput.typeText("first line")
+        taskDescriptionInput.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [.shift])
+        taskDescriptionInput.typeText("second line")
+
+        XCTAssertTrue(createSheetTitle.exists, "Expected create-task sheet to remain open after shift-enter in description")
+        XCTAssertTrue(
+            waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 1),
+            "Expected shift-enter in description to avoid submit"
+        )
+
+        taskDescriptionInput.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        XCTAssertTrue(
+            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 3),
+            "Expected enter in description input to submit create"
+        )
+        XCTAssertTrue(
+            app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
+            "Expected task created via description enter to be visible"
+        )
+    }
+
+    @MainActor
     func testCreateTaskWithHundredExistingTasksKeepsTaskInSelectedColumn() throws {
         // Requirement: TASK-011
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "100"])

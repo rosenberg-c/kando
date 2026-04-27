@@ -1781,6 +1781,94 @@ private struct WorkspaceKeyMonitor: NSViewRepresentable {
     }
 }
 
+// SwiftUI TextEditor on macOS does not expose return-key submit hooks.
+// This bridge keeps task-description behavior aligned with title input:
+// Enter submits, Shift+Enter inserts a newline.
+private struct SubmitAwareTextEditor: NSViewRepresentable {
+    private static let textContainerMaxHeight: CGFloat = 10_000_000
+    private static let submitDisallowedModifiers: NSEvent.ModifierFlags = [
+        .shift,
+        .control,
+        .option,
+        .command,
+        .function,
+    ]
+
+    @Binding var text: String
+    let accessibilityID: String
+    let onSubmit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let textView = SubmitAwareNSTextView()
+        textView.delegate = context.coordinator
+        textView.string = text
+        textView.drawsBackground = false
+        textView.font = NSFont.preferredFont(forTextStyle: .body)
+        textView.isRichText = false
+        textView.isAutomaticTextCompletionEnabled = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.textContainerInset = NSSize(width: 4, height: 6)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: 0, height: Self.textContainerMaxHeight)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.onSubmit = onSubmit
+        textView.setAccessibilityIdentifier(accessibilityID)
+
+        let scrollView = NSScrollView()
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = textView
+
+        return scrollView
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let textView = nsView.documentView as? SubmitAwareNSTextView else { return }
+        textView.onSubmit = onSubmit
+        textView.setAccessibilityIdentifier(accessibilityID)
+        if textView.string != text {
+            textView.string = text
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        @Binding private var text: String
+
+        init(text: Binding<String>) {
+            _text = text
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            text = textView.string
+        }
+    }
+
+    final class SubmitAwareNSTextView: NSTextView {
+        var onSubmit: (() -> Void)?
+
+        override func keyDown(with event: NSEvent) {
+            let isReturnKey = event.keyCode == 36 || event.keyCode == 76
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let submitModifiers = modifiers.intersection(SubmitAwareTextEditor.submitDisallowedModifiers)
+            if isReturnKey, submitModifiers.isEmpty, !hasMarkedText() {
+                onSubmit?()
+                return
+            }
+            super.keyDown(with: event)
+        }
+    }
+}
+
 private struct ColumnCard: View {
     let column: KanbanColumn
     let tasks: [KanbanTask]
@@ -2458,10 +2546,12 @@ private struct TaskEditorSheet: View {
                     submitAndDismiss()
                 }
 
-            TextEditor(text: $inputDescription)
-                .font(.body)
+            SubmitAwareTextEditor(
+                text: $inputDescription,
+                accessibilityID: "task-editor-description-input",
+                onSubmit: submitAndDismiss
+            )
                 .frame(height: 110)
-                .accessibilityIdentifier("task-editor-description-input")
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
