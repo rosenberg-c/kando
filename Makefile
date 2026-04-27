@@ -10,7 +10,7 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build run run-sqlite run-cli run-macos open-macos open test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli appwrite-bootstrap appwrite-prune appwrite-prune-apply
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply
 
 generate:
 	go run ./cmd/gen_openapi
@@ -30,6 +30,9 @@ build:
 	mkdir -p $(BIN_DIR)
 	go build -o $(BIN_SERVER) $(APP_SERVER)
 	go build -o $(BIN_CLI) $(APP_CLI)
+
+build-macos:
+	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build
 
 run:
 	go run $(APP_SERVER)
@@ -64,6 +67,18 @@ cli-install:
 
 install-cli: cli-install
 
+install-go:
+	@if command -v go >/dev/null 2>&1; then \
+		echo "Go is already installed: $$(go version)"; \
+	elif command -v brew >/dev/null 2>&1; then \
+		brew install go; \
+		echo "Installed Go: $$(go version)"; \
+	else \
+		echo "Go is not installed and Homebrew was not found."; \
+		echo "Install Homebrew from https://brew.sh and run 'make install-go' again."; \
+		exit 1; \
+	fi
+
 test:
 	go test ./...
 	$(MAKE) verify-generate
@@ -74,7 +89,7 @@ test-macos-unit:
 	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_UNIT_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 test-macos-ui:
-	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) -only-testing:TodoMacOSUITests test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) -only-testing:TodoMacOSUITests test
 
 test-appwrite-integration:
 	if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "warning: .env.server not found; using existing environment"; fi; RUN_APPWRITE_INTEGRATION=1 go test ./internal/kanban -run Appwrite
