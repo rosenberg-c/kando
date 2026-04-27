@@ -334,54 +334,34 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     func exportTasksBundle(boardIDs: [String], accessToken: String, baseURL: URL) async throws -> TaskExportBundle {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent("tasks")
-            .appendingPathComponent("export")
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["boardIds": boardIDs])
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KanbanAPIError.invalidResponse
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.TaskExportBundleRequest(boardIds: boardIDs)
+        let output = try await client.exportTasksBundle(body: .json(payload))
+        switch output {
+        case let .ok(ok):
+            return try mapTaskExportBundle(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "exportTasksBundle", model: problem(from: payload.body))
         }
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "exportTasksBundle", data: data)
-        }
-
-        return try JSONDecoder().decode(TaskExportBundle.self, from: data)
     }
 
     func importTasksBundle(sourceBoardIDs: [String], bundle: TaskExportBundle, accessToken: String, baseURL: URL) async throws -> TaskImportBundleResult {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent("tasks")
-            .appendingPathComponent("import")
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let importRequest = TaskImportBundleRequestDTO(sourceBoardIds: sourceBoardIDs, bundle: bundle)
-        request.httpBody = try JSONEncoder().encode(importRequest)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KanbanAPIError.invalidResponse
-        }
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "importTasksBundle", data: data)
-        }
-
-        let decoded = try JSONDecoder().decode(TaskImportBundleResponseDTO.self, from: data)
-        return TaskImportBundleResult(
-            totalCreatedColumnCount: decoded.totalCreatedColumnCount,
-            totalImportedTaskCount: decoded.totalImportedTaskCount
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.TaskImportBundleRequest(
+            bundle: try mapTaskExportBundle(bundle),
+            sourceBoardIds: sourceBoardIDs
         )
+        let output = try await client.importTasksBundle(body: .json(payload))
+        switch output {
+        case let .ok(ok):
+            let response = try ok.body.json
+            return TaskImportBundleResult(
+                totalCreatedColumnCount: Int(response.totalCreatedColumnCount),
+                totalImportedTaskCount: Int(response.totalImportedTaskCount)
+            )
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "importTasksBundle", model: problem(from: payload.body))
+        }
     }
 
     private func authenticatedClient(baseURL: URL, accessToken: String) -> Client {
@@ -607,16 +587,6 @@ private struct TaskDTO: Decodable {
         case description
         case position
     }
-}
-
-private struct TaskImportBundleResponseDTO: Decodable {
-    let totalCreatedColumnCount: Int
-    let totalImportedTaskCount: Int
-}
-
-private struct TaskImportBundleRequestDTO: Encodable {
-    let sourceBoardIds: [String]
-    let bundle: TaskExportBundle
 }
 
 private struct ProblemDTO: Decodable {

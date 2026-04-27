@@ -100,6 +100,34 @@ struct TaskExportBundleBoard: Codable, Sendable, Equatable, Identifiable {
     let payload: TaskExportPayload
 
     var id: String { sourceBoardID }
+
+    private enum CodingKeys: String, CodingKey {
+        case sourceBoardID = "sourceBoardId"
+        case sourceBoardTitle
+        case payload
+    }
+
+    private enum LegacyCodingKeys: String, CodingKey {
+        case sourceBoardID
+    }
+
+    init(sourceBoardID: String, sourceBoardTitle: String, payload: TaskExportPayload) {
+        self.sourceBoardID = sourceBoardID
+        self.sourceBoardTitle = sourceBoardTitle
+        self.payload = payload
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let boardID = try container.decodeIfPresent(String.self, forKey: .sourceBoardID) {
+            sourceBoardID = boardID
+        } else {
+            let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
+            sourceBoardID = try legacyContainer.decode(String.self, forKey: .sourceBoardID)
+        }
+        sourceBoardTitle = try container.decode(String.self, forKey: .sourceBoardTitle)
+        payload = try container.decode(TaskExportPayload.self, forKey: .payload)
+    }
 }
 
 struct TaskExportColumn: Codable, Sendable, Equatable {

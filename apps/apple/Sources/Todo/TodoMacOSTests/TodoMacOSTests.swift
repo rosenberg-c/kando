@@ -182,6 +182,44 @@ struct TodoMacOSTests {
         #expect(viewModel.canRetryRestore == false)
         #expect(viewModel.isSignedIn)
     }
+
+    @Test func taskExportBundleBoardDecodesSourceBoardIdFromServerPayload() throws {
+        let json = """
+        {
+          "sourceBoardId": "c8bb0279-aa18-4055-b88f-2f73455efeb3",
+          "sourceBoardTitle": "Main",
+          "payload": {
+            "formatVersion": 2,
+            "boardTitle": "Main",
+            "exportedAt": "2026-04-28T10:00:00Z",
+            "columns": []
+          }
+        }
+        """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(TaskExportBundleBoard.self, from: json)
+
+        #expect(snapshot.sourceBoardID == "c8bb0279-aa18-4055-b88f-2f73455efeb3")
+    }
+
+    @Test func taskExportBundleBoardDecodesLegacySourceBoardIDKey() throws {
+        let json = """
+        {
+          "sourceBoardID": "c8bb0279-aa18-4055-b88f-2f73455efeb3",
+          "sourceBoardTitle": "Main",
+          "payload": {
+            "formatVersion": 2,
+            "boardTitle": "Main",
+            "exportedAt": "2026-04-28T10:00:00Z",
+            "columns": []
+          }
+        }
+        """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(TaskExportBundleBoard.self, from: json)
+
+        #expect(snapshot.sourceBoardID == "c8bb0279-aa18-4055-b88f-2f73455efeb3")
+    }
 }
 
 private let fixedNow = Date(timeIntervalSince1970: 1_700_000_000)
