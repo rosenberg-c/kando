@@ -141,6 +141,33 @@ private struct TaskControlVisibilityBindings {
     let showsArchivedActions: Binding<Bool>
 }
 
+private struct ColumnShortcutEntry: Identifiable {
+    let key: String
+    let columnID: String
+    let columnTitle: String
+
+    var id: String { columnID }
+}
+
+private enum WorkspaceColumnShortcutKeys {
+    static let all = Array("asdfghjkl").map(String.init)
+}
+
+private enum WorkspaceShortcutKeyModifiers {
+    static let disallowed: NSEvent.ModifierFlags = [
+        .shift,
+        .control,
+        .option,
+        .command,
+        .function,
+    ]
+
+    static func allows(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return modifiers.intersection(disallowed).isEmpty
+    }
+}
+
 private struct ColumnTaskActionHandlers {
     let onMoveTaskToTop: (String, String) -> Void
     let onMoveTaskToBottom: (String, String) -> Void
@@ -189,6 +216,8 @@ private struct LoggedInWorkspaceView: View {
     @State private var selectedTaskIDs: Set<String> = []
     @State private var taskSelectionAnchorTaskID: String?
     @State private var selectedArchivedTaskID: String?
+    @State private var isColumnShortcutPickerPresented = false
+    @State private var shortcutTargetColumnID: String?
     @State private var showsArchivedTasks = false
     @AppStorage(WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons) private var showsTopBottomTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showUpDownTaskButtons) private var showsUpDownTaskButtons = true
@@ -298,6 +327,19 @@ private struct LoggedInWorkspaceView: View {
 
             if let taskSelectionAnchorTaskID, !selectedTaskIDs.contains(taskSelectionAnchorTaskID) {
                 self.taskSelectionAnchorTaskID = nil
+            }
+
+            if let shortcutTargetColumnID,
+                !board.columns.contains(where: { $0.id == shortcutTargetColumnID })
+            {
+                self.shortcutTargetColumnID = nil
+            }
+
+            if shortcutTargetColumnID == nil {
+                shortcutTargetColumnID = board.columns
+                    .sorted { $0.position < $1.position }
+                    .first?
+                    .id
             }
         })
         .onChange(of: board.archivedTasksByColumnID, perform: { _ in
@@ -414,6 +456,18 @@ private struct LoggedInWorkspaceView: View {
                     Task { @MainActor in
                         await board.importTasks(from: sheet.fileURL, includedSourceBoardIDs: selectedBoardIDs)
                     }
+                }
+            )
+        }
+        .sheet(isPresented: $isColumnShortcutPickerPresented) {
+            ColumnShortcutPickerSheet(
+                entries: columnShortcutEntries,
+                initialSelectionColumnID: resolvedShortcutTargetColumnID(),
+                onSelectColumn: { columnID in
+                    shortcutTargetColumnID = columnID
+                },
+                onCreateTask: { columnID in
+                    openCreateTaskFromShortcutPicker(columnID: columnID)
                 }
             )
         }
@@ -805,7 +859,16 @@ private struct LoggedInWorkspaceView: View {
         let task: KanbanTask
     }
 
+    private var columnShortcutEntries: [ColumnShortcutEntry] {
+        let orderedColumns = board.columns.sorted { $0.position < $1.position }
+        return zip(WorkspaceColumnShortcutKeys.all, orderedColumns)
+            .map { key, column in
+                ColumnShortcutEntry(key: key, columnID: column.id, columnTitle: column.title)
+            }
+    }
+
     private enum TaskShortcutAction {
+        case openColumnShortcutPicker
         case clearSelection
         case moveTop
         case moveBottom
@@ -817,8 +880,7 @@ private struct LoggedInWorkspaceView: View {
         case delete
 
         init?(event: NSEvent) {
-            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard modifiers.isEmpty else { return nil }
+            guard WorkspaceShortcutKeyModifiers.allows(event) else { return nil }
 
             if event.charactersIgnoringModifiers == "\u{1B}" {
                 self = .clearSelection
@@ -827,6 +889,7 @@ private struct LoggedInWorkspaceView: View {
 
             guard let key = event.charactersIgnoringModifiers?.lowercased() else { return nil }
             switch key {
+            case "a": self = .openColumnShortcutPicker
             case "t": self = .moveTop
             case "b": self = .moveBottom
             case "u": self = .moveUp
@@ -1213,10 +1276,45 @@ private struct LoggedInWorkspaceView: View {
         }
     }
 
+    private func resolvedShortcutTargetColumnID() -> String? {
+        let entries = columnShortcutEntries
+        guard !entries.isEmpty else { return nil }
+
+        if let shortcutTargetColumnID,
+            entries.contains(where: { $0.columnID == shortcutTargetColumnID })
+        {
+            return shortcutTargetColumnID
+        }
+        return entries.first?.columnID
+    }
+
+    private func presentColumnShortcutPicker() -> Bool {
+        guard board.canMutateBoardActions else { return false }
+        guard let targetColumnID = resolvedShortcutTargetColumnID() else { return false }
+        shortcutTargetColumnID = targetColumnID
+        isColumnShortcutPickerPresented = true
+        return true
+    }
+
+    private func openCreateTaskFromShortcutPicker(columnID: String) {
+        guard board.canMutateBoardActions else {
+            isColumnShortcutPickerPresented = false
+            return
+        }
+        guard creatingTaskInColumn == nil else { return }
+        guard columnShortcutEntries.contains(where: { $0.columnID == columnID }) else { return }
+
+        shortcutTargetColumnID = columnID
+        isColumnShortcutPickerPresented = false
+        creatingTaskInColumn = CreateTaskTarget(columnID: columnID)
+    }
+
     private func handleTaskShortcutKey(event: NSEvent) -> Bool {
         guard let action = TaskShortcutAction(event: event) else { return false }
 
         switch action {
+        case .openColumnShortcutPicker:
+            return presentColumnShortcutPicker()
         case .clearSelection:
             guard !selectedTaskIDs.isEmpty || selectedArchivedTaskID != nil else { return false }
             selectedTaskID = nil
@@ -1418,6 +1516,16 @@ private struct WorkspaceSettingsSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("board-settings-shortcuts-clear")
+
+                Text("board.settings.shortcuts.column_picker")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-column-picker")
+
+                Text("board.settings.shortcuts.create_shortcut")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("board-settings-shortcuts-create")
 
                 Text("board.settings.shortcuts.top_bottom")
                     .font(.caption)
@@ -1726,6 +1834,120 @@ private struct BoardTransferSelectionSheet: View {
     }
 }
 
+private struct ColumnShortcutPickerSheet: View {
+    let entries: [ColumnShortcutEntry]
+    let initialSelectionColumnID: String?
+    let onSelectColumn: (String) -> Void
+    let onCreateTask: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedColumnID: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("board.column.shortcut_picker.title")
+                .font(.title3.weight(.semibold))
+
+            Text("board.column.shortcut_picker.subtitle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(entries) { entry in
+                        Button {
+                            selectedColumnID = entry.columnID
+                            onSelectColumn(entry.columnID)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Text(entry.key.uppercased())
+                                    .font(.caption.monospaced().weight(.semibold))
+                                    .frame(width: 20, alignment: .leading)
+                                Text(entry.columnTitle)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                if selectedColumnID == entry.columnID {
+                                    Text("common.selected")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityIdentifier("column-shortcut-picker-selected-\(entry.columnID)")
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                        .focusable(false)
+                        .accessibilityIdentifier("column-shortcut-picker-row-\(entry.columnID)")
+                    }
+                }
+            }
+            .frame(maxHeight: 240)
+            .accessibilityIdentifier("column-shortcut-picker-list")
+
+            HStack {
+                Button("common.cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("column-shortcut-picker-cancel")
+
+                Spacer()
+
+                Button("board.column.shortcut_picker.create") {
+                    guard let selectedColumnID else { return }
+                    onCreateTask(selectedColumnID)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedColumnID == nil)
+                .accessibilityIdentifier("column-shortcut-picker-create")
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .accessibilityIdentifier("column-shortcut-picker-sheet")
+        .background(WorkspaceKeyMonitor(onKeyDown: handleKeyDown(event:)))
+        .onAppear {
+            guard !entries.isEmpty else {
+                dismiss()
+                return
+            }
+
+            if let initialSelectionColumnID,
+                entries.contains(where: { $0.columnID == initialSelectionColumnID })
+            {
+                selectedColumnID = initialSelectionColumnID
+            } else {
+                selectedColumnID = entries.first?.columnID
+            }
+
+            if let selectedColumnID {
+                onSelectColumn(selectedColumnID)
+            }
+        }
+    }
+
+    private func handleKeyDown(event: NSEvent) -> Bool {
+        guard WorkspaceShortcutKeyModifiers.allows(event) else { return false }
+
+        if event.charactersIgnoringModifiers == "\u{1B}" {
+            dismiss()
+            return true
+        }
+
+        let isReturnKey = event.keyCode == 36 || event.keyCode == 76
+        if isReturnKey {
+            guard let selectedColumnID else { return false }
+            onCreateTask(selectedColumnID)
+            return true
+        }
+
+        guard let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
+        guard let entry = entries.first(where: { $0.key == key }) else { return false }
+        selectedColumnID = entry.columnID
+        onSelectColumn(entry.columnID)
+        return true
+    }
+}
+
 private struct WorkspaceKeyMonitor: NSViewRepresentable {
     let onKeyDown: (NSEvent) -> Bool
 
@@ -1769,7 +1991,13 @@ private struct WorkspaceKeyMonitor: NSViewRepresentable {
 
         private func isTextInputResponder(_ responder: NSResponder?) -> Bool {
             guard let responder else { return false }
-            return responder is NSTextView || responder is NSTextField
+            if let textView = responder as? NSTextView {
+                return textView.isEditable
+            }
+            if let textField = responder as? NSTextField {
+                return textField.isEditable
+            }
+            return false
         }
 
         private func removeMonitor() {

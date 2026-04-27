@@ -41,6 +41,8 @@
 - `TASK-039`: On macOS, when multiple active tasks are selected within a column, task-row `Delete` action and `x` shortcut apply to the selected set with one confirmation flow.
 - `TASK-040`: On macOS, dragging a selected active task to another column moves the full selected set from that source column to the drop destination while preserving selected-task relative order.
 - `TASK-041`: Task batch actions use a list-shaped action request (`action` + `taskIds[]`) so clients submit one explicit intent payload for multi-task operations.
+- `TASK-042`: On macOS, pressing `a` opens a column shortcut picker that lists up to the first nine visible columns with home-row shortcut letters (`a`, `s`, `d`, `f`, `g`, `h`, `j`, `k`, `l`) for quick target selection.
+- `TASK-043`: On macOS, inside the column shortcut picker, pressing `Enter` opens the create-task sheet for the currently selected shortcut column target, and saving creates the task in that target column.
 
 ## Delete Task Confirmation
 
@@ -85,6 +87,8 @@
 - `TASK-039`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-040`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-041`: macOS (required), iOS (planned), TUI (planned).
+- `TASK-042`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-043`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).

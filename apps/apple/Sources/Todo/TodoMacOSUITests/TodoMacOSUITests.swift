@@ -186,6 +186,8 @@ final class TodoMacOSUITests: XCTestCase {
         let shortcutsTitle = app.staticTexts["board-settings-shortcuts-title"]
         let shortcutsSelect = app.staticTexts["board-settings-shortcuts-select"]
         let shortcutsClear = app.staticTexts["board-settings-shortcuts-clear"]
+        let shortcutsColumnPicker = app.staticTexts["board-settings-shortcuts-column-picker"]
+        let shortcutsCreate = app.staticTexts["board-settings-shortcuts-create"]
         let shortcutsTopBottom = app.staticTexts["board-settings-shortcuts-top-bottom"]
         let shortcutsUpDown = app.staticTexts["board-settings-shortcuts-up-down"]
         let shortcutsEditDelete = app.staticTexts["board-settings-shortcuts-edit-delete"]
@@ -203,6 +205,8 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(shortcutsTitle.exists, "Expected shortcuts title in settings")
         XCTAssertTrue(shortcutsSelect.exists, "Expected shortcuts select guidance")
         XCTAssertTrue(shortcutsClear.exists, "Expected shortcuts clear-selection guidance")
+        XCTAssertTrue(shortcutsColumnPicker.exists, "Expected shortcuts column-picker guidance")
+        XCTAssertTrue(shortcutsCreate.exists, "Expected shortcuts create guidance")
         XCTAssertTrue(shortcutsTopBottom.exists, "Expected shortcuts top/bottom guidance")
         XCTAssertTrue(shortcutsUpDown.exists, "Expected shortcuts up/down guidance")
         XCTAssertTrue(shortcutsEditDelete.exists, "Expected shortcuts edit/delete guidance")
@@ -1229,6 +1233,80 @@ final class TodoMacOSUITests: XCTestCase {
     }
 
     @MainActor
+    func testColumnShortcutPickerSelectsSecondColumnForKeyboardCreate() throws {
+        // Requirements: TASK-011, TASK-042, TASK-043
+        let app = launchSignedInApp()
+        let uiTimeout = UITimeout.extended
+
+        let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
+        let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
+        let taskOneCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: uiTimeout)
+        let appWindow = app.windows.firstMatch
+        let shortcutPicker = app.otherElements["column-shortcut-picker-sheet"]
+        let createSheetTitle = preferredElement(
+            primary: app.otherElements["task-editor-sheet"],
+            fallback: app.staticTexts["Create task"],
+            waitTimeout: uiTimeout
+        )
+        let taskTitleField = preferredElement(
+            primary: app.textFields["task-editor-title-input"],
+            fallback: app.textFields["Task title"],
+            waitTimeout: uiTimeout
+        )
+        let createdTaskTitle = "Created with shortcut target"
+
+        XCTAssertTrue(workColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected work column task count")
+        XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(taskOneCard.waitForExistence(timeout: uiTimeout), "Expected task card for keyboard focus")
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 1, timeout: 3), "Expected work column initial count")
+        XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column initial count")
+
+        selectTaskForKeyboardShortcuts(taskID: "task-1", card: taskOneCard, app: app)
+        appWindow.click()
+        sendKeyboardInputWithFallback("a", to: appWindow) {
+            shortcutPicker.waitForExistence(timeout: 1.2)
+        }
+
+        XCTAssertTrue(shortcutPicker.waitForExistence(timeout: uiTimeout), "Expected column shortcut picker after pressing a")
+        appWindow.typeKey("s", modifierFlags: [])
+        XCTAssertTrue(
+            app.staticTexts["column-shortcut-picker-selected-column-empty"].waitForExistence(timeout: uiTimeout),
+            "Expected second column selected in shortcut picker"
+        )
+
+        sendKeyboardInputWithFallback(XCUIKeyboardKey.return.rawValue, to: appWindow) {
+            createSheetTitle.waitForExistence(timeout: 1.2)
+        }
+
+        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet from shortcut picker")
+        XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+        let createButtonQuery = app.buttons.matching(
+            NSPredicate(format: "identifier == %@ OR label == %@", "task-editor-submit", "Create")
+        )
+        guard let createButton = firstHittableElement(in: createButtonQuery, timeout: uiTimeout) else {
+            XCTFail("Expected create-task submit button")
+            return
+        }
+
+        taskTitleField.tap()
+        taskTitleField.typeText(createdTaskTitle)
+        createButton.tap()
+
+        XCTAssertTrue(
+            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 3),
+            "Expected task created in second column selected via keyboard picker"
+        )
+        XCTAssertTrue(
+            waitForCountValue(element: workColumnTaskCount, equals: 1, timeout: 3),
+            "Expected first column count unchanged when keyboard target is second column"
+        )
+        XCTAssertTrue(
+            app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
+            "Expected shortcut-created task title visible"
+        )
+    }
+
+    @MainActor
     func testCreateTaskTitleInputEnterSubmitsCreate() throws {
         // Requirement: TASK-022
         let app = launchSignedInApp()
@@ -1792,6 +1870,24 @@ final class TodoMacOSUITests: XCTestCase {
             return value.intValue != 0
         }
         return nil
+    }
+
+    private func sendKeyboardInputWithFallback(
+        _ key: String,
+        to window: XCUIElement,
+        attempts: Int = 3,
+        reachedCondition: () -> Bool
+    ) {
+        for _ in 0..<attempts {
+            window.typeKey(key, modifierFlags: [])
+            if reachedCondition() {
+                return
+            }
+            window.typeText(key)
+            if reachedCondition() {
+                return
+            }
+        }
     }
 
     private func selectTaskForKeyboardShortcuts(taskID: String, card: XCUIElement, app: XCUIApplication) {

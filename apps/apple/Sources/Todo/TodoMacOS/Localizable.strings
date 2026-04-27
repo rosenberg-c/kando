@@ -71,6 +71,8 @@
 "board.settings.shortcuts.title" = "Keyboard shortcuts";
 "board.settings.shortcuts.select" = "Select tasks: click (single), Ctrl-click (toggle), Shift-click (range)";
 "board.settings.shortcuts.clear" = "Clear selection: Esc";
+"board.settings.shortcuts.column_picker" = "Column quick target: a (then choose asdfghjkl)";
+"board.settings.shortcuts.create_shortcut" = "Create task from quick target picker: Enter";
 "board.settings.shortcuts.top_bottom" = "Move top/bottom: t / b (acts on current selection in column)";
 "board.settings.shortcuts.up_down" = "Move up/down: u / d";
 "board.settings.shortcuts.edit_delete" = "Edit/Delete: e / x";
@@ -139,6 +141,9 @@
 "board.column.delete.confirm.title" = "Delete column?";
 "board.column.delete.confirm.message" = "This will permanently delete the column \"%@\".";
 "board.column.delete.confirm.action" = "Delete column";
+"board.column.shortcut_picker.title" = "Quick task column";
+"board.column.shortcut_picker.subtitle" = "Choose one of the first nine visible columns with keys asdfghjkl, then press Enter to create a task.";
+"board.column.shortcut_picker.create" = "Create task";
 
 "board.task.add" = "Add task";
 "board.task.move_top" = "Top";
@@ -175,3 +180,4 @@
 "board.archived_task.delete.confirm.title" = "Delete archived task?";
 "board.archived_task.delete.confirm.message" = "This will permanently delete archived task \"%@\".";
 "board.archived_task.delete.confirm.action" = "Delete archived task";
+"common.selected" = "Selected";
