@@ -10,7 +10,7 @@ BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply
 
 generate:
 	go run ./cmd/gen_openapi
@@ -60,6 +60,9 @@ open-macos:
 	open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
 
 open: open-macos
+
+ready:
+	$(MAKE) generate && $(MAKE) sync-test-matrix && $(MAKE) test && $(MAKE) test-macos-unit && $(MAKE) test-macos-ui
 
 cli-install:
 	mkdir -p $(LOCAL_BIN_DIR)
