@@ -1,4 +1,6 @@
 import Foundation
+import HTTPTypes
+import OpenAPIRuntime
 import Testing
 @testable import TodoMacOS
 
@@ -220,6 +222,121 @@ struct TodoMacOSTests {
 
         #expect(snapshot.sourceBoardID == "c8bb0279-aa18-4055-b88f-2f73455efeb3")
     }
+
+    @Test func applyTaskBatchMutationEncodesGeneratedContractShape() async throws {
+        let transport = StubClientTransport { request, body, _, operationID in
+            #expect(operationID == "applyTaskBatchMutation")
+            #expect(request.method == .post)
+            #expect(request.path == "/boards/board-1/tasks/actions")
+
+            let requestBody = try #require(body)
+            let payloadData = try await Data(collecting: requestBody, upTo: 8_192)
+            let payloadObject = try #require(JSONSerialization.jsonObject(with: payloadData) as? [String: Any])
+            #expect(payloadObject["action"] as? String == "delete")
+            #expect(payloadObject["taskIds"] as? [String] == ["task-1", "task-2"])
+
+            let response = HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"])
+            return (response, HTTPBody(Data("[]".utf8)))
+        }
+        let api = makeGeneratedKanbanAPI(transport: transport)
+
+        try await api.applyTaskBatchMutation(
+            boardID: "board-1",
+            request: TaskBatchMutationRequest(action: .delete, taskIDs: ["task-1", "task-2"]),
+            accessToken: "token",
+            baseURL: URL(string: "https://example.com")!
+        )
+    }
+
+    @Test func listArchivedTasksByBoardHandlesEmptyGeneratedPayload() async throws {
+        let transport = StubClientTransport { _, _, _, operationID in
+            #expect(operationID == "listArchivedTasksByBoard")
+            let response = HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"])
+            return (response, HTTPBody(Data("[]".utf8)))
+        }
+        let api = makeGeneratedKanbanAPI(transport: transport)
+
+        let tasks = try await api.listArchivedTasksByBoard(
+            boardID: "board-1",
+            accessToken: "token",
+            baseURL: URL(string: "https://example.com")!
+        )
+
+        #expect(tasks.isEmpty)
+    }
+
+    @Test func listArchivedTasksByBoardMapsGeneratedArchivedTaskFields() async throws {
+        let responseJSON = """
+        [
+          {
+            "id": "task-1",
+            "boardId": "board-1",
+            "columnId": "column-a",
+            "title": "Archived",
+            "description": "done",
+            "position": 7,
+            "createdAt": "2026-04-28T09:00:00Z",
+            "updatedAt": "2026-04-28T09:30:00Z",
+            "archivedAt": "2026-04-28T10:00:00Z"
+          }
+        ]
+        """
+        let transport = StubClientTransport { _, _, _, operationID in
+            #expect(operationID == "listArchivedTasksByBoard")
+            let response = HTTPResponse(status: .ok, headerFields: [.contentType: "application/json"])
+            return (response, HTTPBody(Data(responseJSON.utf8)))
+        }
+        let api = makeGeneratedKanbanAPI(transport: transport)
+
+        let tasks = try await api.listArchivedTasksByBoard(
+            boardID: "board-1",
+            accessToken: "token",
+            baseURL: URL(string: "https://example.com")!
+        )
+
+        #expect(tasks.count == 1)
+        #expect(tasks.first?.id == "task-1")
+        #expect(tasks.first?.columnID == "column-a")
+        #expect(tasks.first?.title == "Archived")
+        #expect(tasks.first?.description == "done")
+        #expect(tasks.first?.position == 7)
+        #expect(tasks.first?.isArchived == true)
+    }
+
+    @Test func restoreArchivedTaskMapsProblemDetailsFromDefaultResponse() async {
+        let problemJSON = """
+        {
+          "title": "Conflict",
+          "detail": "task cannot be restored"
+        }
+        """
+        let transport = StubClientTransport { request, _, _, operationID in
+            #expect(operationID == "restoreArchivedTask")
+            #expect(request.method == .post)
+            #expect(request.path == "/boards/board-1/tasks/task-1/restore")
+            let response = HTTPResponse(status: .init(code: 409), headerFields: [.contentType: "application/problem+json"])
+            return (response, HTTPBody(Data(problemJSON.utf8)))
+        }
+        let api = makeGeneratedKanbanAPI(transport: transport)
+
+        do {
+            _ = try await api.restoreArchivedTask(
+                boardID: "board-1",
+                taskID: "task-1",
+                accessToken: "token",
+                baseURL: URL(string: "https://example.com")!
+            )
+            Issue.record("Expected restoreArchivedTask to throw")
+        } catch let KanbanAPIError.unexpectedStatus(code, operation, title, detail) {
+            #expect(code == 409)
+            #expect(operation == "restoreArchivedTask")
+            #expect(title == "Conflict")
+            #expect(detail == "task cannot be restored")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
 }
 
 private let fixedNow = Date(timeIntervalSince1970: 1_700_000_000)

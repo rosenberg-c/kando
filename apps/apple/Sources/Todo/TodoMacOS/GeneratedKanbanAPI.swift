@@ -4,6 +4,14 @@ import OpenAPIRuntime
 import TodoAPIClient
 
 struct GeneratedKanbanAPI: KanbanAPI {
+    private let makeClient: @Sendable (URL, String) -> Client
+
+    init(makeClient: @escaping @Sendable (URL, String) -> Client = { baseURL, accessToken in
+        TodoAPIClientFactory.makeClient(baseURL: baseURL, middlewares: [BearerAuthMiddleware(accessToken: accessToken)])
+    }) {
+        self.makeClient = makeClient
+    }
+
     func listBoards(accessToken: String, baseURL: URL) async throws -> [KanbanBoard] {
         let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
         let output = try await client.listBoards()
@@ -141,113 +149,60 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     func archiveColumnTasks(boardID: String, columnID: String, accessToken: String, baseURL: URL) async throws -> ColumnTaskArchiveResult {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent(boardID)
-            .appendingPathComponent("columns")
-            .appendingPathComponent(columnID)
-            .appendingPathComponent("archive-tasks")
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KanbanAPIError.invalidResponse
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.archiveTasksInColumn(path: .init(boardId: boardID, columnId: columnID))
+        switch output {
+        case let .ok(ok):
+            let response = try ok.body.json
+            return ColumnTaskArchiveResult(
+                archivedTaskCount: Int(response.archivedTaskCount),
+                archivedAt: ExportDateFormatters.plain.string(from: response.archivedAt)
+            )
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "archiveColumnTasks", model: problem(from: payload.body))
         }
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "archiveColumnTasks", data: data)
-        }
-
-        let decoded = try JSONDecoder().decode(ArchiveColumnTasksDTO.self, from: data)
-        return ColumnTaskArchiveResult(
-            archivedTaskCount: decoded.archivedTaskCount,
-            archivedAt: decoded.archivedAt
-        )
     }
 
     func listArchivedTasksByBoard(boardID: String, accessToken: String, baseURL: URL) async throws -> [KanbanTask] {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent(boardID)
-            .appendingPathComponent("tasks")
-            .appendingPathComponent("archived")
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KanbanAPIError.invalidResponse
-        }
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "listArchivedTasksByBoard", data: data)
-        }
-
-        let decoded = try JSONDecoder().decode([ArchivedTaskDTO].self, from: data)
-        return decoded.map {
-            KanbanTask(
-                id: $0.id,
-                columnID: $0.columnID,
-                title: $0.title,
-                description: $0.description,
-                position: $0.position,
-                isArchived: true,
-                archivedAt: $0.archivedAt
-            )
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.listArchivedTasksByBoard(path: .init(boardId: boardID))
+        switch output {
+        case let .ok(ok):
+            guard let archivedTasks = try ok.body.json else {
+                throw KanbanAPIError.invalidResponse
+            }
+            return archivedTasks.map {
+                KanbanTask(
+                    id: $0.id,
+                    columnID: $0.columnId,
+                    title: $0.title,
+                    description: $0.description,
+                    position: Int($0.position),
+                    isArchived: true,
+                    archivedAt: ExportDateFormatters.plain.string(from: $0.archivedAt)
+                )
+            }
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "listArchivedTasksByBoard", model: problem(from: payload.body))
         }
     }
 
     func restoreArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws -> KanbanTask {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent(boardID)
-            .appendingPathComponent("tasks")
-            .appendingPathComponent(taskID)
-            .appendingPathComponent("restore")
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KanbanAPIError.invalidResponse
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.restoreArchivedTask(path: .init(boardId: boardID, taskId: taskID))
+        switch output {
+        case let .ok(ok):
+            return mapTask(try ok.body.json)
+        case let .default(statusCode, payload):
+            throw mapStatus(statusCode, operation: "restoreArchivedTask", model: problem(from: payload.body))
         }
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "restoreArchivedTask", data: data)
-        }
-
-        let task = try JSONDecoder().decode(TaskDTO.self, from: data)
-        return KanbanTask(
-            id: task.id,
-            columnID: task.columnID,
-            title: task.title,
-            description: task.description,
-            position: task.position
-        )
     }
 
     func deleteArchivedTask(boardID: String, taskID: String, accessToken: String, baseURL: URL) async throws {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent(boardID)
-            .appendingPathComponent("tasks")
-            .appendingPathComponent(taskID)
-            .appendingPathComponent("archived")
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = "DELETE"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KanbanAPIError.invalidResponse
-        }
-        guard httpResponse.statusCode == 204 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "deleteArchivedTask", data: data)
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let output = try await client.deleteArchivedTask(path: .init(boardId: boardID, taskId: taskID))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "deleteArchivedTask", model: problem(from: payload.body))
         }
     }
 
@@ -278,58 +233,27 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     func reorderTasks(boardID: String, orderedTasksByColumn: [KanbanTaskColumnOrder], accessToken: String, baseURL: URL) async throws {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent(boardID)
-            .appendingPathComponent("tasks")
-            .appendingPathComponent("order")
-
-        struct ReorderTasksRequestDTO: Encodable {
-            struct ColumnOrder: Encodable {
-                let columnId: String
-                let taskIds: [String]
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.ReorderTasksRequest(
+            columns: orderedTasksByColumn.map {
+                Components.Schemas.TaskColumnOrderRequest(columnId: $0.columnID, taskIds: $0.taskIDs)
             }
-
-            let columns: [ColumnOrder]
-        }
-
-        let (data, httpResponse) = try await OpenAPITransportShims.performJSONRequest(
-            url: requestURL,
-            method: "PUT",
-            accessToken: accessToken,
-            body:
-            ReorderTasksRequestDTO(
-                columns: orderedTasksByColumn.map {
-                    ReorderTasksRequestDTO.ColumnOrder(columnId: $0.columnID, taskIds: $0.taskIDs)
-                }
-            )
         )
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "reorderTasks", data: data)
+        let output = try await client.reorderTasks(path: .init(boardId: boardID), body: .json(payload))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "reorderTasks", model: problem(from: payload.body))
         }
     }
 
     func applyTaskBatchMutation(boardID: String, request: TaskBatchMutationRequest, accessToken: String, baseURL: URL) async throws {
-        let requestURL = baseURL
-            .appendingPathComponent("boards")
-            .appendingPathComponent(boardID)
-            .appendingPathComponent("tasks")
-            .appendingPathComponent("actions")
-
-        struct TaskBatchMutationRequestDTO: Encodable {
-            let action: String
-            let taskIds: [String]
-        }
-
-        let (data, httpResponse) = try await OpenAPITransportShims.performJSONRequest(
-            url: requestURL,
-            method: "POST",
-            accessToken: accessToken,
-            body:
-            TaskBatchMutationRequestDTO(action: request.action.rawValue, taskIds: request.taskIDs)
+        let client = authenticatedClient(baseURL: baseURL, accessToken: accessToken)
+        let payload = Components.Schemas.TaskBatchMutationRequest(
+            action: mapTaskBatchMutationAction(request.action),
+            taskIds: request.taskIDs
         )
-        guard httpResponse.statusCode == 200 else {
-            throw mapJSONProblemStatus(httpResponse.statusCode, operation: "applyTaskBatchMutation", data: data)
+        let output = try await client.applyTaskBatchMutation(path: .init(boardId: boardID), body: .json(payload))
+        if case let .default(statusCode, payload) = output {
+            throw mapStatus(statusCode, operation: "applyTaskBatchMutation", model: problem(from: payload.body))
         }
     }
 
@@ -365,7 +289,7 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     private func authenticatedClient(baseURL: URL, accessToken: String) -> Client {
-        TodoAPIClientFactory.makeClient(baseURL: baseURL, middlewares: [BearerAuthMiddleware(accessToken: accessToken)])
+        makeClient(baseURL, accessToken)
     }
 
     private func mapStatus(_ statusCode: Int, operation: String, model: Components.Schemas.ErrorModel?) -> Error {
@@ -377,83 +301,7 @@ struct GeneratedKanbanAPI: KanbanAPI {
     }
 
     private func problem(from body: any Sendable) -> Components.Schemas.ErrorModel? {
-        if let body = body as? Operations.ListBoards.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.ListArchivedBoards.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.CreateBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.UpdateBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.DeleteBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.ArchiveBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.RestoreBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.DeleteArchivedBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.GetBoard.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.CreateColumn.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.UpdateColumn.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.DeleteColumn.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.ReorderColumns.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.CreateTask.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.UpdateTask.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.DeleteTask.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.ReorderTasks.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.ExportTasksBundle.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        if let body = body as? Operations.ImportTasksBundle.Output.Default.Body,
-           case let .applicationProblemJson(model) = body {
-            return model
-        }
-        return nil
+        (body as? any ProblemJSONBodyReadable)?.problemModel
     }
 
     private func mapTaskExportPayload(_ payload: Components.Schemas.TaskExportPayload) -> TaskExportPayload {
@@ -541,6 +389,13 @@ struct GeneratedKanbanAPI: KanbanAPI {
         }
     }
 
+    private func mapTaskBatchMutationAction(_ action: TaskBatchAction) -> Components.Schemas.TaskBatchMutationRequest.ActionPayload {
+        switch action {
+        case .delete:
+            return .delete
+        }
+    }
+
     private func mapColumn(_ column: Components.Schemas.Column) -> KanbanColumn {
         KanbanColumn(id: column.id, title: column.title, position: Int(column.position))
     }
@@ -548,64 +403,6 @@ struct GeneratedKanbanAPI: KanbanAPI {
     private func mapTask(_ task: Components.Schemas.Task) -> KanbanTask {
         KanbanTask(id: task.id, columnID: task.columnId, title: task.title, description: task.description, position: Int(task.position))
     }
-}
-
-private struct ArchiveColumnTasksDTO: Decodable {
-    let archivedTaskCount: Int
-    let archivedAt: String
-}
-
-private struct ArchivedTaskDTO: Decodable {
-    let id: String
-    let columnID: String
-    let title: String
-    let description: String
-    let position: Int
-    let archivedAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case columnID = "columnId"
-        case title
-        case description
-        case position
-        case archivedAt
-    }
-}
-
-private struct TaskDTO: Decodable {
-    let id: String
-    let columnID: String
-    let title: String
-    let description: String
-    let position: Int
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case columnID = "columnId"
-        case title
-        case description
-        case position
-    }
-}
-
-private struct ProblemDTO: Decodable {
-    let title: String?
-    let detail: String?
-}
-
-private func mapJSONProblemStatus(_ statusCode: Int, operation: String, data: Data) -> Error {
-    if statusCode == 401 || statusCode == 403 {
-        return KanbanAPIError.unauthorized
-    }
-
-    let problem = try? JSONDecoder().decode(ProblemDTO.self, from: data)
-    return KanbanAPIError.unexpectedStatus(
-        code: statusCode,
-        operation: operation,
-        title: problem?.title,
-        detail: problem?.detail
-    )
 }
 
 private enum ExportDateFormatters {
@@ -619,6 +416,43 @@ private enum ExportDateFormatters {
         return formatter
     }()
 }
+
+private protocol ProblemJSONBodyReadable: Sendable {
+    var applicationProblemJson: Components.Schemas.ErrorModel { get throws }
+}
+
+private extension ProblemJSONBodyReadable {
+    var problemModel: Components.Schemas.ErrorModel? {
+        try? applicationProblemJson
+    }
+}
+
+// Keep this list in sync with generated operations that expose
+// `Output.Default.Body.applicationProblemJson`.
+extension Operations.ListBoards.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ListArchivedBoards.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.CreateBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.UpdateBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.DeleteBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ArchiveBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.RestoreBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.DeleteArchivedBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.GetBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.CreateColumn.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.UpdateColumn.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.DeleteColumn.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ArchiveTasksInColumn.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ListArchivedTasksByBoard.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.RestoreArchivedTask.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.DeleteArchivedTask.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ReorderColumns.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.CreateTask.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.UpdateTask.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.DeleteTask.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ReorderTasks.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ApplyTaskBatchMutation.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ExportTasksBundle.Output.Default.Body: ProblemJSONBodyReadable {}
+extension Operations.ImportTasksBundle.Output.Default.Body: ProblemJSONBodyReadable {}
 
 private struct BearerAuthMiddleware: ClientMiddleware {
     let accessToken: String
