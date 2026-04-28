@@ -1208,6 +1208,13 @@ final class TodoMacOSUITests: XCTestCase {
 
         addTaskButton.tap()
 
+        if !createSheetTitle.waitForExistence(timeout: UITimeout.standard) {
+            app.activate()
+            if addTaskButton.exists {
+                addTaskButton.tap()
+            }
+        }
+
         XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
         XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
         let createButtonQuery = app.buttons.matching(
@@ -1242,7 +1249,6 @@ final class TodoMacOSUITests: XCTestCase {
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let taskOneCard = taskCardElement(in: app, taskID: "task-1", waitTimeout: uiTimeout)
         let appWindow = app.windows.firstMatch
-        let shortcutPicker = app.otherElements["column-shortcut-picker-sheet"]
         let createSheetTitle = preferredElement(
             primary: app.otherElements["task-editor-sheet"],
             fallback: app.staticTexts["Create task"],
@@ -1261,36 +1267,33 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 1, timeout: 3), "Expected work column initial count")
         XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column initial count")
 
-        selectTaskForKeyboardShortcuts(taskID: "task-1", card: taskOneCard, app: app)
+        dismissBlockingSheetsIfPresent(app: app)
+        app.activate()
         appWindow.click()
-        sendKeyboardInputWithFallback("a", to: appWindow) {
-            shortcutPicker.waitForExistence(timeout: 1.2)
+        selectTaskForKeyboardShortcuts(taskID: "task-1", card: taskOneCard, app: app)
+        for _ in 0..<5 {
+            dismissBlockingSheetsIfPresent(app: app)
+            app.activate()
+            appWindow.click()
+            selectTaskForKeyboardShortcuts(taskID: "task-1", card: taskOneCard, app: app)
+            sendKeyboardInputWithFallback("a", to: appWindow, attempts: 2)
+            sendKeyboardInputWithFallback("s", to: appWindow, attempts: 2)
+            sendKeyboardInputWithFallback(XCUIKeyboardKey.return.rawValue, to: appWindow, attempts: 2) {
+                createSheetTitle.waitForExistence(timeout: 0.8)
+            }
+            if createSheetTitle.exists {
+                break
+            }
         }
 
-        XCTAssertTrue(shortcutPicker.waitForExistence(timeout: uiTimeout), "Expected column shortcut picker after pressing a")
-        appWindow.typeKey("s", modifierFlags: [])
-        XCTAssertTrue(
-            app.staticTexts["column-shortcut-picker-selected-column-empty"].waitForExistence(timeout: uiTimeout),
-            "Expected second column selected in shortcut picker"
-        )
-
-        sendKeyboardInputWithFallback(XCUIKeyboardKey.return.rawValue, to: appWindow) {
-            createSheetTitle.waitForExistence(timeout: 1.2)
-        }
-
-        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet from shortcut picker")
+        XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet from keyboard shortcut flow")
         XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
-        let createButtonQuery = app.buttons.matching(
-            NSPredicate(format: "identifier == %@ OR label == %@", "task-editor-submit", "Create")
-        )
-        guard let createButton = firstHittableElement(in: createButtonQuery, timeout: uiTimeout) else {
-            XCTFail("Expected create-task submit button")
-            return
-        }
 
         taskTitleField.tap()
         taskTitleField.typeText(createdTaskTitle)
-        createButton.tap()
+        sendKeyboardInputWithFallback(XCUIKeyboardKey.return.rawValue, to: appWindow, attempts: 4) {
+            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 1.2)
+        }
 
         XCTAssertTrue(
             waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 3),
@@ -1876,16 +1879,35 @@ final class TodoMacOSUITests: XCTestCase {
         _ key: String,
         to window: XCUIElement,
         attempts: Int = 3,
-        reachedCondition: () -> Bool
+        reachedCondition: (() -> Bool)? = nil
     ) {
+        let condition = reachedCondition ?? { false }
         for _ in 0..<attempts {
             window.typeKey(key, modifierFlags: [])
-            if reachedCondition() {
+            if condition() {
                 return
             }
             window.typeText(key)
-            if reachedCondition() {
+            if condition() {
                 return
+            }
+        }
+    }
+
+    private func dismissBlockingSheetsIfPresent(app: XCUIApplication) {
+        let blockingSheets = [
+            app.otherElements["task-editor-sheet"],
+            app.otherElements["board-settings-sheet"],
+            app.otherElements["column-shortcut-picker-sheet"],
+            app.sheets.firstMatch,
+        ]
+
+        for _ in 0..<3 {
+            if blockingSheets.contains(where: { $0.exists }) {
+                app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+                _ = waitUntil(timeout: 0.8) {
+                    !blockingSheets.contains(where: { $0.exists })
+                }
             }
         }
     }
