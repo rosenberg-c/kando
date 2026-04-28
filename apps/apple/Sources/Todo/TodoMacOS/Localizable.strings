@@ -114,6 +114,17 @@
 "board.dev.copy" = "Copy details";
 "board.dev.base_url" = "baseURL=%@";
 "board.dev.board_id" = "boardID=%@";
+"board.dev.status.loading" = "loading";
+"board.dev.status.error" = "error";
+"board.dev.status.connected" = "connected";
+"board.dev.status.idle" = "idle";
+"board.dev.panel.title" = "Developer panel";
+"board.dev.panel.backend" = "backend=%@";
+"board.dev.panel.status" = "status=%@";
+"board.dev.panel.base_url" = "baseURL=%@";
+"board.dev.panel.last_status" = "lastStatus=%@";
+"board.dev.panel.dev_users" = "Dev users";
+"board.dev.panel.sign_in_as" = "Sign in as %@";
 
 "board.column.add.placeholder" = "Column title";
 "board.column.add.submit" = "Add column";

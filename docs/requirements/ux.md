@@ -40,6 +40,8 @@
 - `UX-038`: Multi-selected task rows have a clear selected visual state so users can distinguish selected and unselected rows before running batch actions.
 - `UX-039`: Keyboard shortcuts/help text documents task multi-selection behavior (`Ctrl`-click toggle, `Shift`-click range select) and clarifies that ordering actions run against the current selection.
 - `UX-040`: Drag-and-drop behavior keeps multi-selection intent: dragging a selected task moves the selected set rather than unexpectedly moving only one task.
+- `UX-041`: Workspace exposes a hidden top-left edge activation area (pointer/click target) that opens a developer status modal.
+- `UX-042`: The developer status modal displays backend connectivity status and the backend implementation currently in use.
 
 ## Platform Applicability
 
@@ -83,3 +85,5 @@
 - `UX-038`: macOS (required), iOS (planned), TUI (planned).
 - `UX-039`: macOS (required), iOS (planned), TUI (planned).
 - `UX-040`: macOS (required), iOS (planned), TUI (planned).
+- `UX-041`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-042`: macOS (required), iOS (planned), TUI (N/A).

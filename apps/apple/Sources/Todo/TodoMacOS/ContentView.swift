@@ -13,7 +13,11 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var auth = AuthSessionViewModel()
     @AppStorage("signin.keepSignedIn") private var keepSignedIn = true
+    @State private var isSignedOutDevPanelPresented = false
     private let processEnvironment = ProcessInfo.processInfo.environment
+    private var configuredDevUsers: [RuntimeFlags.DevUser] {
+        RuntimeFlags.devUsers(environment: processEnvironment)
+    }
 
     private var canSubmit: Bool {
         !auth.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !auth.password.isEmpty && !auth.isSigningIn
@@ -101,6 +105,35 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .topLeading) {
+            if !auth.isSignedIn {
+                Color.clear
+                    .frame(width: 64, height: 40)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        isSignedOutDevPanelPresented = true
+                    }
+                    .accessibilityIdentifier("workspace-dev-panel-hit-area")
+            }
+        }
+        .sheet(isPresented: $isSignedOutDevPanelPresented) {
+            DevPanelSheet(
+                backendStorage: RuntimeFlags.resolvedBackendStorage(environment: processEnvironment),
+                connectionStatusText: auth.isSigningIn ? Strings.t("board.dev.status.loading") : Strings.t("board.dev.status.idle"),
+                baseURLText: auth.currentAPIBaseURL()?.absoluteString ?? "(nil)",
+                statusMessageText: auth.statusMessage,
+                devUsers: configuredDevUsers,
+                isSigningIn: auth.isSigningIn,
+                onDevLogin: { user in
+                    isSignedOutDevPanelPresented = false
+                    auth.email = user.email
+                    auth.password = user.password
+                    Task {
+                        await auth.signIn(keepSignedIn: keepSignedIn)
+                    }
+                }
+            )
+        }
         .task {
             if processEnvironment[AppEnvironmentKey.signedIn] == "1" {
                 auth.applyUITestSignedInSession(email: processEnvironment[AppEnvironmentKey.email] ?? "ui-test@example.com")
@@ -217,12 +250,14 @@ private struct LoggedInWorkspaceView: View {
     @State private var taskSelectionAnchorTaskID: String?
     @State private var selectedArchivedTaskID: String?
     @State private var isColumnShortcutPickerPresented = false
+    @State private var isDevPanelPresented = false
     @State private var shortcutTargetColumnID: String?
     @State private var showsArchivedTasks = false
     @AppStorage(WorkspaceSettingsDefaultsKey.showTopBottomTaskButtons) private var showsTopBottomTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showUpDownTaskButtons) private var showsUpDownTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showEditDeleteTaskButtons) private var showsEditDeleteTaskButtons = true
     @AppStorage(WorkspaceSettingsDefaultsKey.showArchivedTaskActionButtons) private var showsArchivedTaskActionButtons = true
+    private let backendStorage: String
 
     private var taskControlVisibility: TaskControlVisibility {
         TaskControlVisibility(
@@ -262,6 +297,7 @@ private struct LoggedInWorkspaceView: View {
         } else {
             api = GeneratedKanbanAPI()
         }
+        backendStorage = RuntimeFlags.resolvedBackendStorage(environment: env)
         _board = StateObject(wrappedValue: BoardViewModel(
             api: api,
             accessTokenProvider: { await auth.validAccessToken() },
@@ -295,6 +331,9 @@ private struct LoggedInWorkspaceView: View {
         .padding(24)
         .frame(minWidth: 980, minHeight: 620)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .topLeading) {
+            devPanelActivationArea
+        }
         .background(
             WorkspaceKeyMonitor { event in
                 handleTaskShortcutKey(event: event)
@@ -429,6 +468,17 @@ private struct LoggedInWorkspaceView: View {
                     Task { await board.deleteArchivedBoard(boardID: boardID) }
                 },
                 taskControlVisibility: taskControlVisibilityBindings
+            )
+        }
+        .sheet(isPresented: $isDevPanelPresented) {
+            DevPanelSheet(
+                backendStorage: backendStorage,
+                connectionStatusText: devPanelConnectionStatusText,
+                baseURLText: auth.currentAPIBaseURL()?.absoluteString ?? "(nil)",
+                statusMessageText: board.statusMessage,
+                devUsers: [],
+                isSigningIn: false,
+                onDevLogin: nil
             )
         }
         .sheet(item: $exportSelectionSheet) { sheet in
@@ -660,6 +710,29 @@ private struct LoggedInWorkspaceView: View {
             .buttonStyle(.bordered)
             .accessibilityIdentifier("board-settings-button")
         }
+    }
+
+    private var devPanelActivationArea: some View {
+        Color.clear
+            .frame(width: 64, height: 40)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isDevPanelPresented = true
+            }
+            .accessibilityIdentifier("workspace-dev-panel-hit-area")
+    }
+
+    private var devPanelConnectionStatusText: String {
+        if board.isLoading {
+            return Strings.t("board.dev.status.loading")
+        }
+        if board.statusIsError {
+            return Strings.t("board.dev.status.error")
+        }
+        if board.board != nil {
+            return Strings.t("board.dev.status.connected")
+        }
+        return Strings.t("board.dev.status.idle")
     }
 
     private var addColumnControls: some View {
@@ -3015,6 +3088,74 @@ private enum ColumnDragPayload {
     static let sessionToken = UUID().uuidString.lowercased()
     static let payloadPrefix = "\(prefix):\(sessionToken):"
     static let type = UTType(exportedAs: "com.todo.column-id", conformingTo: .data)
+}
+
+private struct DevPanelSheet: View {
+    let backendStorage: String
+    let connectionStatusText: String
+    let baseURLText: String
+    let statusMessageText: String
+    let devUsers: [RuntimeFlags.DevUser]
+    let isSigningIn: Bool
+    let onDevLogin: ((RuntimeFlags.DevUser) -> Void)?
+
+    init(
+        backendStorage: String,
+        connectionStatusText: String,
+        baseURLText: String,
+        statusMessageText: String,
+        devUsers: [RuntimeFlags.DevUser] = [],
+        isSigningIn: Bool = false,
+        onDevLogin: ((RuntimeFlags.DevUser) -> Void)? = nil
+    ) {
+        self.backendStorage = backendStorage
+        self.connectionStatusText = connectionStatusText
+        self.baseURLText = baseURLText
+        self.statusMessageText = statusMessageText
+        self.devUsers = devUsers
+        self.isSigningIn = isSigningIn
+        self.onDevLogin = onDevLogin
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("board.dev.panel.title")
+                .font(.title3.weight(.semibold))
+                .accessibilityIdentifier("dev-panel-title")
+
+            Group {
+                Text(Strings.f("board.dev.panel.backend", backendStorage))
+                Text(Strings.f("board.dev.panel.status", connectionStatusText))
+                Text(Strings.f("board.dev.panel.base_url", baseURLText))
+
+                if !statusMessageText.isEmpty {
+                    Text(Strings.f("board.dev.panel.last_status", statusMessageText))
+                }
+            }
+            .font(.caption.monospaced())
+            .textSelection(.enabled)
+
+            if let onDevLogin, !devUsers.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("board.dev.panel.dev_users")
+                        .font(.caption.weight(.semibold))
+                    ForEach(Array(devUsers.enumerated()), id: \.offset) { index, user in
+                        Button(Strings.f("board.dev.panel.sign_in_as", user.email)) {
+                            onDevLogin(user)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isSigningIn)
+                        .accessibilityIdentifier("dev-panel-login-\(index)")
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(minWidth: 420, minHeight: 220, alignment: .topLeading)
+        .padding(20)
+        .accessibilityIdentifier("dev-panel-sheet")
+    }
 }
 
 #Preview {
