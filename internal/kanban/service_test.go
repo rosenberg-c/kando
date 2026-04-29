@@ -13,15 +13,18 @@ type serviceRepoStub struct {
 	deleteBoardErr      error
 	reorderTasksBoard   Board
 	reorderColumnsBoard Board
+	deleteTaskBoard     Board
 	createBoardCalls    int
 	getBoardCalls       int
 	deleteBoardCalls    int
 	deleteColumnCalls   int
+	deleteTaskCalls     int
 	reorderTasksCalls   int
 	reorderColumnsCalls int
 	createBoardErr      error
 	getBoardErr         error
 	deleteColumnErr     error
+	deleteTaskErr       error
 	reorderTasksErr     error
 	reorderColumnsErr   error
 }
@@ -99,7 +102,11 @@ func (s *serviceRepoStub) ReorderTasks(context.Context, string, string, []TaskCo
 }
 
 func (s *serviceRepoStub) DeleteTask(context.Context, string, string, string) (Board, error) {
-	panic("unexpected call")
+	s.deleteTaskCalls++
+	if s.deleteTaskErr != nil {
+		return Board{}, s.deleteTaskErr
+	}
+	return s.deleteTaskBoard, nil
 }
 
 func TestServiceDeleteColumnWithTasksReturnsConflict(t *testing.T) {
@@ -337,18 +344,24 @@ func TestServiceApplyTaskBatchMutationDeleteRemovesAllRequestedTasks(t *testing.
 	}
 }
 
-func TestServiceApplyTaskBatchMutationRequiresTransactionalRepository(t *testing.T) {
+func TestServiceApplyTaskBatchMutationFallsBackWithoutTransactions(t *testing.T) {
 	// Requirement: API-033
 	t.Parallel()
 
-	stub := &serviceRepoStub{}
+	stub := &serviceRepoStub{details: BoardDetails{Board: Board{ID: "board-1"}}}
 	svc := NewService(stub)
 
-	_, err := svc.ApplyTaskBatchMutation(context.Background(), "user-1", "board-1", TaskBatchMutationRequest{
+	board, err := svc.ApplyTaskBatchMutation(context.Background(), "user-1", "board-1", TaskBatchMutationRequest{
 		Action:  TaskBatchActionDelete,
 		TaskIDs: []string{"task-1"},
 	})
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Fatalf("apply batch err = %v, want ErrNotImplemented", err)
+	if err != nil {
+		t.Fatalf("apply batch err = %v, want nil", err)
+	}
+	if board.ID != "board-1" {
+		t.Fatalf("board id = %q, want %q", board.ID, "board-1")
+	}
+	if stub.deleteTaskCalls != 1 {
+		t.Fatalf("delete task calls = %d, want 1", stub.deleteTaskCalls)
 	}
 }

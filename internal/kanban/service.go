@@ -2,6 +2,7 @@ package kanban
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 )
@@ -198,19 +199,31 @@ func (s *Service) ApplyTaskBatchMutation(ctx context.Context, ownerUserID, board
 
 func (s *Service) deleteTasksBatch(ctx context.Context, ownerUserID, boardID string, taskIDs []string) (Board, error) {
 	txRepo, ok := s.repo.(TransactionalRepository)
-	if !ok {
-		return Board{}, ErrNotImplemented
+	if ok {
+		if err := txRepo.RunInTransaction(ctx, func(repo Repository) error {
+			for _, taskID := range taskIDs {
+				if _, err := repo.DeleteTask(ctx, ownerUserID, boardID, taskID); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			if !errors.Is(err, ErrNotImplemented) {
+				return Board{}, err
+			}
+		} else {
+			details, err := s.repo.GetBoard(ctx, ownerUserID, boardID)
+			if err != nil {
+				return Board{}, err
+			}
+			return details.Board, nil
+		}
 	}
 
-	if err := txRepo.RunInTransaction(ctx, func(repo Repository) error {
-		for _, taskID := range taskIDs {
-			if _, err := repo.DeleteTask(ctx, ownerUserID, boardID, taskID); err != nil {
-				return err
-			}
+	for _, taskID := range taskIDs {
+		if _, err := s.repo.DeleteTask(ctx, ownerUserID, boardID, taskID); err != nil {
+			return Board{}, err
 		}
-		return nil
-	}); err != nil {
-		return Board{}, err
 	}
 
 	details, err := s.repo.GetBoard(ctx, ownerUserID, boardID)

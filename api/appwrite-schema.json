@@ -150,6 +150,16 @@
           "size": 4000
         },
         {
+          "kind": "boolean",
+          "key": "isArchived",
+          "required": true
+        },
+        {
+          "kind": "datetime",
+          "key": "archivedAt",
+          "required": false
+        },
+        {
           "kind": "integer",
           "key": "position",
           "required": true
@@ -175,6 +185,24 @@
             "position"
           ],
           "orders": [
+            "ASC",
+            "ASC",
+            "ASC"
+          ]
+        },
+        {
+          "key": "tasks_archived_order",
+          "type": "key",
+          "columns": [
+            "boardId",
+            "isArchived",
+            "columnId",
+            "archivedAt",
+            "position"
+          ],
+          "orders": [
+            "ASC",
+            "ASC",
             "ASC",
             "ASC",
             "ASC"
