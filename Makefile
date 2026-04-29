@@ -9,8 +9,10 @@ BIN_DIR := ./bin
 BIN_SERVER := $(BIN_DIR)/server
 BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
+SERVER_PORT := 8080
+SERVER_PID_FILE := .server.pid
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server
 
 generate:
 	go run ./cmd/gen_openapi
@@ -34,11 +36,25 @@ build:
 build-macos:
 	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build
 
-run:
-	go run $(APP_SERVER)
+kill-server:
+	@PID=""; \
+	if [ -f "$(SERVER_PID_FILE)" ]; then \
+		PID="$$(cat "$(SERVER_PID_FILE)" 2>/dev/null || true)"; \
+		if [ -n "$$PID" ] && kill -0 "$$PID" 2>/dev/null; then \
+			kill "$$PID"; \
+		fi; \
+		rm -f "$(SERVER_PID_FILE)"; \
+	fi; \
+	PIDS="$$(lsof -t -nP -iTCP:$(SERVER_PORT) -sTCP:LISTEN 2>/dev/null || true)"; \
+	if [ -n "$$PIDS" ]; then \
+		kill $$PIDS; \
+	fi
 
-run-sqlite:
-	KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER)
+run: kill-server
+	@sh -c 'KANBAN_REPOSITORY=appwrite go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
+
+run-sqlite: kill-server
+	@sh -c 'KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
 appwrite-bootstrap:
 	go run ./cmd/bootstrap_appwrite
@@ -48,6 +64,9 @@ appwrite-prune:
 
 appwrite-prune-apply:
 	go run ./cmd/prune_appwrite_schema --apply
+
+verify-appwrite-schema:
+	go run ./cmd/verify_appwrite_schema
 
 run-cli:
 	go run $(APP_CLI)
@@ -92,4 +111,8 @@ test-macos-ui:
 	@. ./scripts/test_summary.sh; run_with_test_summary xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) -only-testing:TodoMacOSUITests test
 
 test-appwrite-integration:
-	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "warning: .env.server not found; using existing environment"; fi; RUN_APPWRITE_INTEGRATION=1 go test ./internal/kanban -run Appwrite'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "warning: .env.server not found; using existing environment"; fi; $(MAKE) verify-appwrite-schema && RUN_APPWRITE_INTEGRATION=1 go test ./internal/kanban -run Appwrite'
+
+test-api-backends:
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'API_TEST_BACKEND=sqlite go test ./internal/api/server -run BackendMatrix'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ "$${RUN_APPWRITE_MATRIX:-0}" = "1" ]; then if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "missing .env.server for appwrite backend matrix"; exit 1; fi; $(MAKE) appwrite-bootstrap && $(MAKE) verify-appwrite-schema && API_TEST_BACKEND=appwrite go test ./internal/api/server -run BackendMatrix; else echo "skipping appwrite matrix (set RUN_APPWRITE_MATRIX=1 to enable)"; fi'

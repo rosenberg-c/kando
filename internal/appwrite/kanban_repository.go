@@ -57,6 +57,8 @@ type taskRow struct {
 	OwnerUserID string    `json:"ownerUserId"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
+	IsArchived  bool      `json:"isArchived"`
+	ArchivedAt  time.Time `json:"archivedAt"`
 	Position    int       `json:"position"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -70,6 +72,7 @@ type listRowsResponse[T any] struct {
 const kanbanListRowsPageLimit = 100
 const transactionTTLSec = 60
 const rollbackTimeout = 5 * time.Second
+const reorderConflictRetryLimit = 3
 
 // NewKanbanRepository creates an Appwrite-backed kanban repository using configured table IDs.
 func NewKanbanRepository(client *Client, cfg KanbanRepositoryConfig) *KanbanRepository {
@@ -162,7 +165,7 @@ func (r *KanbanRepository) GetBoard(ctx context.Context, ownerUserID, boardID st
 
 	taskRows := make([]taskRow, 0)
 	for _, td := range tasks {
-		if td.BoardID == boardID {
+		if td.BoardID == boardID && !td.IsArchived {
 			taskRows = append(taskRows, td)
 		}
 	}
@@ -222,11 +225,11 @@ func (r *KanbanRepository) UpdateBoardTitle(ctx context.Context, ownerUserID, bo
 	}
 
 	now := time.Now().UTC()
-	payload := map[string]any{"data": map[string]any{
+	payload := boardPatchPayload(row, map[string]any{
 		"title":        title,
 		"boardVersion": row.BoardVersion + 1,
 		"updatedAt":    now.Format(time.RFC3339),
-	}}
+	}, "")
 	if err := r.updateRow(ctx, r.boards, boardID, payload, nil); err != nil {
 		return kanban.Board{}, err
 	}
@@ -279,13 +282,13 @@ func (r *KanbanRepository) ArchiveBoard(ctx context.Context, ownerUserID, boardI
 	}
 
 	now := time.Now().UTC()
-	payload := map[string]any{"data": map[string]any{
+	payload := boardPatchPayload(row, map[string]any{
 		"archivedOriginalTitle": row.Title,
 		"title":                 kanban.ArchivedBoardTitle(row.Title, now),
 		"isArchived":            true,
 		"boardVersion":          row.BoardVersion + 1,
 		"updatedAt":             now.Format(time.RFC3339),
-	}}
+	}, "")
 	if err := r.updateRow(ctx, r.boards, boardID, payload, nil); err != nil {
 		return kanban.Board{}, err
 	}
@@ -322,13 +325,13 @@ func (r *KanbanRepository) RestoreBoard(ctx context.Context, ownerUserID, boardI
 	}
 
 	now := time.Now().UTC()
-	payload := map[string]any{"data": map[string]any{
+	payload := boardPatchPayload(row, map[string]any{
 		"title":                 desiredTitle,
 		"archivedOriginalTitle": nil,
 		"isArchived":            false,
 		"boardVersion":          row.BoardVersion + 1,
 		"updatedAt":             now.Format(time.RFC3339),
-	}}
+	}, "")
 	if err := r.updateRow(ctx, r.boards, boardID, payload, nil); err != nil {
 		return kanban.Board{}, err
 	}
@@ -422,55 +425,74 @@ func (r *KanbanRepository) UpdateColumnTitle(ctx context.Context, ownerUserID, b
 }
 
 func (r *KanbanRepository) ReorderColumns(ctx context.Context, ownerUserID, boardID string, orderedColumnIDs []string) (kanban.Board, error) {
-	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
-	if err != nil {
-		return kanban.Board{}, err
-	}
-
-	columns, err := r.listColumns(ctx)
-	if err != nil {
-		return kanban.Board{}, err
-	}
-	currentIDs := orderedColumnIDsByBoard(columns, boardID)
-	if err := kanban.ValidateExactOrder(currentIDs, orderedColumnIDs); err != nil {
-		return kanban.Board{}, err
-	}
-
-	transactionID, err := r.client.createTransaction(ctx, transactionTTLSec)
-	if err != nil {
-		return kanban.Board{}, mapAppwriteError(err)
-	}
-	committed := false
-	defer func() {
-		if committed {
-			return
+	var lastErr error
+	attemptReorder := func() (kanban.Board, error) {
+		board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
+		if err != nil {
+			return kanban.Board{}, err
 		}
-		rollbackCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
-		defer cancel()
-		_ = r.client.rollbackTransaction(rollbackCtx, transactionID)
-	}()
 
-	now := time.Now().UTC().Format(time.RFC3339)
-	if err := r.applyColumnOrder(ctx, orderedColumnIDs, now, transactionID); err != nil {
-		return kanban.Board{}, err
+		columns, err := r.listColumns(ctx)
+		if err != nil {
+			return kanban.Board{}, err
+		}
+		currentIDs := orderedColumnIDsByBoard(columns, boardID)
+		if err := kanban.ValidateExactOrder(currentIDs, orderedColumnIDs); err != nil {
+			return kanban.Board{}, err
+		}
+
+		transactionID, err := r.client.createTransaction(ctx, transactionTTLSec)
+		if err != nil {
+			return kanban.Board{}, mapAppwriteError(err)
+		}
+		committed := false
+		defer func() {
+			if committed {
+				return
+			}
+			rollbackCtx, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
+			defer cancel()
+			_ = r.client.rollbackTransaction(rollbackCtx, transactionID)
+		}()
+
+		now := time.Now().UTC().Format(time.RFC3339)
+		if err := r.applyColumnOrder(ctx, orderedColumnIDs, now, transactionID); err != nil {
+			return kanban.Board{}, err
+		}
+
+		boardUpdate := boardPatchPayload(board, map[string]any{"boardVersion": board.BoardVersion + 1, "updatedAt": now}, transactionID)
+		if err := r.updateRow(ctx, r.boards, board.ID, boardUpdate, nil); err != nil {
+			return kanban.Board{}, err
+		}
+
+		if err := r.client.commitTransaction(ctx, transactionID); err != nil {
+			return kanban.Board{}, mapAppwriteError(err)
+		}
+		committed = true
+
+		board, err = r.getBoardRow(ctx, board.ID)
+		if err != nil {
+			return kanban.Board{}, err
+		}
+
+		return mapBoardRow(board), nil
 	}
 
-	boardUpdate := map[string]any{"data": map[string]any{"boardVersion": board.BoardVersion + 1, "updatedAt": now}, "transactionId": transactionID}
-	if err := r.updateRow(ctx, r.boards, board.ID, boardUpdate, nil); err != nil {
-		return kanban.Board{}, err
+	for attempt := 0; attempt < reorderConflictRetryLimit; attempt++ {
+		board, err := attemptReorder()
+		if err == nil {
+			return board, nil
+		}
+		if err != kanban.ErrConflict {
+			return kanban.Board{}, err
+		}
+		lastErr = err
 	}
 
-	if err := r.client.commitTransaction(ctx, transactionID); err != nil {
-		return kanban.Board{}, mapAppwriteError(err)
+	if lastErr != nil {
+		return kanban.Board{}, lastErr
 	}
-	committed = true
-
-	board, err = r.getBoardRow(ctx, board.ID)
-	if err != nil {
-		return kanban.Board{}, err
-	}
-
-	return mapBoardRow(board), nil
+	return kanban.Board{}, kanban.ErrConflict
 }
 
 func (r *KanbanRepository) DeleteColumn(ctx context.Context, ownerUserID, boardID, columnID string) (kanban.Board, error) {
@@ -498,50 +520,7 @@ func (r *KanbanRepository) DeleteColumn(ctx context.Context, ownerUserID, boardI
 }
 
 func (r *KanbanRepository) CreateTask(ctx context.Context, ownerUserID, boardID, columnID, title, description string) (kanban.Task, kanban.Board, error) {
-	board, err := r.getOwnedBoard(ctx, ownerUserID, boardID)
-	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-	if _, err := r.getOwnedColumn(ctx, ownerUserID, boardID, columnID); err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-
-	tasks, err := r.listTasks(ctx)
-	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-	position := 0
-	for _, td := range tasks {
-		if td.ColumnID == columnID && td.Position >= position {
-			position = td.Position + 1
-		}
-	}
-
-	now := time.Now().UTC()
-	rowID := uuid.NewString()
-	payload := map[string]any{"rowId": rowID, "data": map[string]any{
-		"boardId":     boardID,
-		"columnId":    columnID,
-		"ownerUserId": ownerUserID,
-		"title":       title,
-		"description": description,
-		"position":    position,
-		"createdAt":   now.Format(time.RFC3339),
-		"updatedAt":   now.Format(time.RFC3339),
-	}}
-	if err := r.createRow(ctx, r.tasks, payload, nil); err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-
-	board, err = r.bumpBoard(ctx, board)
-	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-	task, err := r.getTaskRow(ctx, rowID)
-	if err != nil {
-		return kanban.Task{}, kanban.Board{}, err
-	}
-	return mapTaskRow(task), mapBoardRow(board), nil
+	return r.CreateTaskWithArchivedAt(ctx, ownerUserID, boardID, columnID, title, description, nil)
 }
 
 func (r *KanbanRepository) UpdateTask(ctx context.Context, ownerUserID, boardID, taskID, title, description string) (kanban.Task, kanban.Board, error) {
@@ -549,15 +528,17 @@ func (r *KanbanRepository) UpdateTask(ctx context.Context, ownerUserID, boardID,
 	if err != nil {
 		return kanban.Task{}, kanban.Board{}, err
 	}
-	if _, err := r.getOwnedTask(ctx, ownerUserID, boardID, taskID); err != nil {
+	task, err := r.getOwnedTask(ctx, ownerUserID, boardID, taskID)
+	if err != nil {
 		return kanban.Task{}, kanban.Board{}, err
 	}
 
-	payload := map[string]any{"data": map[string]any{
+	now := time.Now().UTC()
+	payload := taskPatchPayload(task, map[string]any{
 		"title":       title,
 		"description": description,
-		"updatedAt":   time.Now().UTC().Format(time.RFC3339),
-	}}
+		"updatedAt":   now.Format(time.RFC3339),
+	}, "")
 	if err := r.updateRow(ctx, r.tasks, taskID, payload, nil); err != nil {
 		return kanban.Task{}, kanban.Board{}, err
 	}
@@ -565,7 +546,7 @@ func (r *KanbanRepository) UpdateTask(ctx context.Context, ownerUserID, boardID,
 	if err != nil {
 		return kanban.Task{}, kanban.Board{}, err
 	}
-	task, err := r.getTaskRow(ctx, taskID)
+	task, err = r.getTaskRow(ctx, taskID)
 	if err != nil {
 		return kanban.Task{}, kanban.Board{}, err
 	}
@@ -604,7 +585,7 @@ func (r *KanbanRepository) ReorderTasks(ctx context.Context, ownerUserID, boardI
 	currentTaskIDs := make([]string, 0)
 	boardTaskByID := map[string]taskRow{}
 	for _, task := range tasks {
-		if task.BoardID == boardID {
+		if task.BoardID == boardID && !task.IsArchived {
 			currentTaskIDs = append(currentTaskIDs, task.ID)
 			boardTaskByID[task.ID] = task
 		}
@@ -640,12 +621,12 @@ func (r *KanbanRepository) ReorderTasks(ctx context.Context, ownerUserID, boardI
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, columnOrder := range orderedTasksByColumn {
-		if err := r.applyTaskOrder(ctx, columnOrder.ColumnID, columnOrder.TaskIDs, now, transactionID); err != nil {
+		if err := r.applyTaskOrder(ctx, columnOrder.ColumnID, columnOrder.TaskIDs, boardTaskByID, now, transactionID); err != nil {
 			return kanban.Board{}, err
 		}
 	}
 
-	boardUpdate := map[string]any{"data": map[string]any{"boardVersion": board.BoardVersion + 1, "updatedAt": now}, "transactionId": transactionID}
+	boardUpdate := boardPatchPayload(board, map[string]any{"boardVersion": board.BoardVersion + 1, "updatedAt": now}, transactionID)
 	if err := r.updateRow(ctx, r.boards, board.ID, boardUpdate, nil); err != nil {
 		return kanban.Board{}, err
 	}
@@ -722,14 +703,18 @@ func (r *KanbanRepository) getOwnedTask(ctx context.Context, ownerUserID, boardI
 	if row.OwnerUserID != ownerUserID {
 		return taskRow{}, kanban.ErrForbidden
 	}
+	if row.IsArchived {
+		return taskRow{}, kanban.ErrNotFound
+	}
 	return row, nil
 }
 
 func (r *KanbanRepository) bumpBoard(ctx context.Context, board boardRow) (boardRow, error) {
-	payload := map[string]any{"data": map[string]any{
+	now := time.Now().UTC()
+	payload := boardPatchPayload(board, map[string]any{
 		"boardVersion": board.BoardVersion + 1,
-		"updatedAt":    time.Now().UTC().Format(time.RFC3339),
-	}}
+		"updatedAt":    now.Format(time.RFC3339),
+	}, "")
 	if err := r.updateRow(ctx, r.boards, board.ID, payload, nil); err != nil {
 		return boardRow{}, err
 	}
@@ -773,7 +758,7 @@ func (r *KanbanRepository) reindexTasks(ctx context.Context, columnID string) er
 	}
 	filtered := make([]taskRow, 0)
 	for _, row := range rows {
-		if row.ColumnID == columnID {
+		if row.ColumnID == columnID && !row.IsArchived {
 			filtered = append(filtered, row)
 		}
 	}
@@ -788,7 +773,7 @@ func (r *KanbanRepository) reindexTasks(ctx context.Context, columnID string) er
 		if row.Position == i {
 			continue
 		}
-		payload := map[string]any{"data": map[string]any{"position": i, "updatedAt": now}}
+		payload := taskPatchPayload(row, map[string]any{"position": i, "updatedAt": now}, "")
 		if err := r.updateRow(ctx, r.tasks, row.ID, payload, nil); err != nil {
 			return err
 		}
@@ -836,14 +821,77 @@ func (r *KanbanRepository) applyColumnOrder(ctx context.Context, columnIDs []str
 	return nil
 }
 
-func (r *KanbanRepository) applyTaskOrder(ctx context.Context, columnID string, taskIDs []string, now, transactionID string) error {
+func (r *KanbanRepository) applyTaskOrder(ctx context.Context, columnID string, taskIDs []string, rowsByID map[string]taskRow, now, transactionID string) error {
 	for i, id := range taskIDs {
-		payload := map[string]any{"data": map[string]any{"columnId": columnID, "position": i, "updatedAt": now}, "transactionId": transactionID}
+		row, ok := rowsByID[id]
+		if !ok {
+			return kanban.ErrInvalidInput
+		}
+		payload := taskPatchPayload(row, map[string]any{"columnId": columnID, "position": i, "updatedAt": now}, transactionID)
 		if err := r.updateRow(ctx, r.tasks, id, payload, nil); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func taskCreateData(row taskRow) map[string]any {
+	archivedAt := any(nil)
+	if !row.ArchivedAt.IsZero() {
+		archivedAt = row.ArchivedAt.Format(time.RFC3339)
+	}
+	return map[string]any{
+		"boardId":     row.BoardID,
+		"columnId":    row.ColumnID,
+		"ownerUserId": row.OwnerUserID,
+		"title":       row.Title,
+		"description": row.Description,
+		"isArchived":  row.IsArchived,
+		"archivedAt":  archivedAt,
+		"position":    row.Position,
+		"createdAt":   row.CreatedAt.Format(time.RFC3339),
+		"updatedAt":   row.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func taskPatchPayload(row taskRow, overrides map[string]any, transactionID string) map[string]any {
+	data := taskCreateData(row)
+	for key, value := range overrides {
+		data[key] = value
+	}
+	payload := map[string]any{"data": data}
+	if strings.TrimSpace(transactionID) != "" {
+		payload["transactionId"] = transactionID
+	}
+	return payload
+}
+
+func boardCreateData(row boardRow) map[string]any {
+	archivedOriginalTitle := any(nil)
+	if row.ArchivedOriginalTitle != "" {
+		archivedOriginalTitle = row.ArchivedOriginalTitle
+	}
+	return map[string]any{
+		"ownerUserId":           row.OwnerUserID,
+		"title":                 row.Title,
+		"archivedOriginalTitle": archivedOriginalTitle,
+		"isArchived":            row.IsArchived,
+		"boardVersion":          row.BoardVersion,
+		"createdAt":             row.CreatedAt.Format(time.RFC3339),
+		"updatedAt":             row.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func boardPatchPayload(row boardRow, overrides map[string]any, transactionID string) map[string]any {
+	data := boardCreateData(row)
+	for key, value := range overrides {
+		data[key] = value
+	}
+	payload := map[string]any{"data": data}
+	if strings.TrimSpace(transactionID) != "" {
+		payload["transactionId"] = transactionID
+	}
+	return payload
 }
 
 func (r *KanbanRepository) listBoards(ctx context.Context) ([]boardRow, error) {
@@ -978,5 +1026,5 @@ func mapColumnRow(row columnRow) kanban.Column {
 }
 
 func mapTaskRow(row taskRow) kanban.Task {
-	return kanban.Task{ID: row.ID, BoardID: row.BoardID, ColumnID: row.ColumnID, OwnerUserID: row.OwnerUserID, Title: row.Title, Description: row.Description, Position: row.Position, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
+	return kanban.Task{ID: row.ID, BoardID: row.BoardID, ColumnID: row.ColumnID, OwnerUserID: row.OwnerUserID, Title: row.Title, Description: row.Description, IsArchived: row.IsArchived, ArchivedAt: row.ArchivedAt, Position: row.Position, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt}
 }

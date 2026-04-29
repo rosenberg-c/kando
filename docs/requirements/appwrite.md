@@ -5,6 +5,7 @@
 - `APPWRITE-001`: Appwrite persistence matches kanban domain rules.
 - `APPWRITE-002`: Row listing supports pagination.
 - `APPWRITE-003`: Integration tests for Appwrite behavior are opt-in and environment-gated.
+- `APPWRITE-004`: Appwrite does not currently provide atomic guarantees for task batch delete; backend behavior is a documented sequential fallback.
 
 ## Auth Adapter
 

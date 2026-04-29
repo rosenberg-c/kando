@@ -35,7 +35,10 @@ type listColumnsResponse struct {
 }
 
 type columnInfo struct {
-	Key string `json:"key"`
+	Key      string `json:"key"`
+	Kind     string `json:"type"`
+	Required bool   `json:"required"`
+	Size     int    `json:"size"`
 }
 
 type listIndexesResponse struct {
@@ -46,7 +49,10 @@ type listIndexesResponse struct {
 const pruneListPageLimit = 100
 
 type indexInfo struct {
-	Key string `json:"key"`
+	Key     string   `json:"key"`
+	Kind    string   `json:"type"`
+	Columns []string `json:"columns"`
+	Orders  []string `json:"orders"`
 }
 
 // PruneKanbanSchema removes unmanaged tables/columns/indexes from Appwrite.

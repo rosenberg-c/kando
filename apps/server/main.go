@@ -50,7 +50,7 @@ func main() {
 		if appwriteEndpoint != "" && appwriteProjectID != "" {
 			kanbanRepositoryMode = "appwrite"
 		} else {
-			kanbanRepositoryMode = "memory"
+			kanbanRepositoryMode = "sqlite"
 		}
 	}
 
@@ -64,7 +64,7 @@ func main() {
 		}
 	}()
 
-	deps := apiserver.Dependencies{KanbanRepo: kanban.NewService(kanban.NewMemoryRepository())}
+	deps := apiserver.Dependencies{}
 	if appwriteEndpoint == "" || appwriteProjectID == "" {
 		log.Println("auth disabled: set APPWRITE_ENDPOINT and APPWRITE_PROJECT_ID to enable auth routes")
 	} else {
@@ -75,9 +75,6 @@ func main() {
 	}
 
 	switch kanbanRepositoryMode {
-	case "memory":
-		deps.KanbanRepo = kanban.NewService(kanban.NewMemoryRepository())
-		log.Println("kanban repository backend: memory")
 	case "sqlite":
 		sqlitePath := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
 		if sqlitePath == "" {
@@ -111,7 +108,7 @@ func main() {
 		}))
 		log.Println("kanban repository backend: appwrite")
 	default:
-		log.Fatalf("unsupported KANBAN_REPOSITORY=%q (valid: memory, sqlite, appwrite)", kanbanRepositoryMode)
+		log.Fatalf("unsupported KANBAN_REPOSITORY=%q (valid: sqlite, appwrite)", kanbanRepositoryMode)
 	}
 	apiserver.Register(api, deps)
 
