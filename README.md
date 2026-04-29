@@ -117,6 +117,13 @@ To run API backend-matrix tests (sqlite + appwrite):
 make test-api-backends
 ```
 
+By default this runs sqlite and skips appwrite.
+Enable appwrite matrix explicitly:
+
+```bash
+RUN_APPWRITE_MATRIX=1 make test-api-backends
+```
+
 ## Run
 
 ```bash
