@@ -369,7 +369,7 @@ Rules:
 
 * accept the intended collection result as a list payload
 * validate list semantics at the boundary (membership, duplicates, shape)
-* apply the mutation atomically (all-or-nothing)
+* apply the mutation atomically (all-or-nothing) when backend capabilities support it; if not, expose partial behavior explicitly in contract/requirements and add backend-specific tests
 * do not add parallel single-item action endpoints for the same collection behavior
 
 ---
@@ -504,7 +504,7 @@ Rules:
 * represent batch intent with an explicit action field (for example `action`) plus item IDs (for example `taskIds[]`)
 * prefer one list-based batch request over client-side loops of N single-item calls
 * validate membership/duplicates/shape at the boundary before mutation
-* apply batch mutations atomically when feasible; if partial behavior is unavoidable, expose it explicitly in contract/response
+* apply batch mutations atomically when feasible; if partial behavior is unavoidable, expose it explicitly in contract/response and cover it with backend-specific tests
 * keep client logic declarative (build intent payload), not imperative retry loops per item
 
 Rationale:
@@ -532,5 +532,24 @@ Rationale:
 * prevents drift between backend contract and client decoding/encoding
 * avoids key/shape mismatches from handwritten transport code
 * keeps API evolution predictable across clients
+
+---
+
+## 32. Feature completion requires backend parity and backend-specific tests
+
+When a feature is considered implemented, all supported backend repositories must implement the feature behavior and be covered by backend-specific tests.
+
+Rules:
+
+* implement new repository-facing feature behavior across all supported backends (`memory`, `sqlite`, `appwrite`) before marking the feature complete
+* do not ship a feature path that returns `ErrNotImplemented` on a supported backend unless the product requirement explicitly marks it unsupported
+* add or update repository contract/integration tests per backend so behavior parity is asserted
+* verify backend-specific schema/data requirements (for example Appwrite columns/indexes) as part of feature rollout
+
+Rationale:
+
+* prevents backend drift where one backend works and another returns runtime 4xx/5xx errors
+* keeps API/UI behavior consistent regardless of selected repository backend
+* catches persistence-layer incompatibilities before release
 
 ---

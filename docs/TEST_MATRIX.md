@@ -48,10 +48,11 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `API-030` | Automated | `internal/api/server/server_test.go` (`TestKanbanRestoreAndDeleteArchivedTaskLifecycle`) | Covered | - |
 | `API-031` | Automated | `internal/api/server/server_test.go` (`TestKanbanRestoreAndDeleteArchivedTaskLifecycle`) | Covered | - |
 | `API-032` | Automated | `internal/api/server/server_test.go` (`TestKanbanRestoreAndDeleteArchivedTaskLifecycle`) | Covered | - |
-| `API-033` | Automated | `internal/api/server/server_test.go` (`TestKanbanTaskBatchDeleteAppliesSelectedTaskIDs`), `internal/api/server/server_test.go` (`TestKanbanTaskBatchDeleteRejectsDuplicateTaskIDs`), `internal/api/server/server_test.go` (`TestOpenAPIDefinesTaskBatchMutationContract`), `internal/kanban/service_test.go` (`TestServiceApplyTaskBatchMutationDeleteRemovesAllRequestedTasks`), `internal/kanban/service_test.go` (`TestServiceApplyTaskBatchMutationRejectsInvalidAction`), `internal/kanban/service_test.go` (`TestServiceApplyTaskBatchMutationRequiresTransactionalRepository`) | Covered | - |
+| `API-033` | Automated | `internal/api/server/server_test.go` (`TestKanbanTaskBatchDeleteAppliesSelectedTaskIDs`), `internal/api/server/server_test.go` (`TestKanbanTaskBatchDeleteRejectsDuplicateTaskIDs`), `internal/api/server/server_test.go` (`TestOpenAPIDefinesTaskBatchMutationContract`), `internal/kanban/service_test.go` (`TestServiceApplyTaskBatchMutationDeleteRemovesAllRequestedTasks`), `internal/kanban/service_test.go` (`TestServiceApplyTaskBatchMutationFallsBackWithoutTransactions`), `internal/kanban/service_test.go` (`TestServiceApplyTaskBatchMutationRejectsInvalidAction`) | Covered | - |
 | `APPWRITE-001` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Covered | Same repository contract suite runs against Appwrite (opt-in). |
 | `APPWRITE-002` | Integration contract | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Partial | Pagination code path exercised indirectly; no targeted pagination boundary test. |
 | `APPWRITE-003` | Integration test harness | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestRepositoryContractAppwriteService`) | Covered | Env-gated and opt-in behavior is explicit. |
+| `APPWRITE-004` | Automated | `internal/kanban/repository_contract_appwrite_integration_test.go` (`TestAppwriteBatchDeleteFallbackCanBePartialOnFailure`) | Covered | - |
 | `APPWRITE-AUTH-001` | Appwrite client unit | `internal/appwrite/client_test.go` (`TestCreateEmailPasswordSession`) | Covered | Verifies endpoint path and project header. |
 | `APPWRITE-AUTH-002` | Appwrite client unit | `internal/appwrite/client_test.go` (`TestCreateEmailPasswordSessionSendsAPIKeyHeader`) | Covered | Verifies API key header propagation. |
 | `APPWRITE-AUTH-003` | Appwrite client unit | `internal/appwrite/client_test.go` (`TestCreateJWT`) | Covered | Verifies JWT creation uses current session header. |
@@ -243,6 +244,8 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-038` | Automated | - | Gap | - |
 | `UX-039` | Automated | - | Gap | - |
 | `UX-040` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`reorderTasksSupportsCrossColumnBatchMovePayload`) | Covered | - |
+| `UX-041` | Automated | - | Gap | - |
+| `UX-042` | Automated | - | Gap | - |
 
 ## Next Test Additions (Recommended)
 
