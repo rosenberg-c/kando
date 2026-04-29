@@ -49,7 +49,7 @@ cp .env.app.example .env.app
 2. Configure backend settings in `.env.server`:
 
 ```env
-KANBAN_REPOSITORY=memory
+KANBAN_REPOSITORY=sqlite
 SQLITE_PATH=./data/kanban.db
 
 APPWRITE_ENDPOINT=https://<REGION>.cloud.appwrite.io/v1
@@ -67,11 +67,12 @@ LOG_MAX_MB=10
 
 Set `KANBAN_REPOSITORY` to one of:
 
-- `memory` (default when Appwrite env is not set)
-- `sqlite` (stores data in `SQLITE_PATH`)
+- `sqlite` (default when Appwrite env is not set; stores data in `SQLITE_PATH`)
 - `appwrite` (default when Appwrite env is set)
 
 `APPWRITE_*` values are required only when using Appwrite auth/repository.
+
+Memory backend runtime mode is deprecated for the API server and no longer supported in `KANBAN_REPOSITORY`.
 
 `LOG_WARN_MB` logs a startup warning when `logs/server.log` exceeds the threshold. `LOG_MAX_MB` fails startup when exceeded.
 
@@ -108,6 +109,12 @@ Apply deletions:
 ```bash
 APPWRITE_PRUNE_CONFIRM=YES \
 make appwrite-prune-apply
+```
+
+To run API backend-matrix tests (sqlite + appwrite):
+
+```bash
+make test-api-backends
 ```
 
 ## Run
