@@ -198,7 +198,23 @@ final class AuthSessionViewModel: ObservableObject {
     }
 
     private func apiBaseURL() -> URL? {
-        URL(string: ProcessInfo.processInfo.environment["TODO_API_BASE_URL"] ?? "http://localhost:8080")
+        if let value = commandLineAPIBaseURL() {
+            return URL(string: value)
+        }
+        return URL(string: ProcessInfo.processInfo.environment["TODO_API_BASE_URL"] ?? "http://localhost:8080")
+    }
+
+    private func commandLineAPIBaseURL() -> String? {
+        let args = CommandLine.arguments
+        guard let idx = args.firstIndex(of: "--api-base-url") else {
+            return nil
+        }
+        let valueIndex = idx + 1
+        guard valueIndex < args.count else {
+            return nil
+        }
+        let value = args[valueIndex].trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
     }
 
     private func refreshSession(session: PersistedSession, baseURL: URL) async throws -> PersistedSession? {
