@@ -11,6 +11,7 @@ BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 SERVER_PORT := 8080
 SERVER_PID_FILE := .server.pid
+TEST_MATRIX_REPO ?= ../test-matrix
 
 .PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server
 
@@ -23,10 +24,12 @@ verify-generate: generate
 	git diff --exit-code -- api/openapi.yaml internal/api/generated/client/client.gen.go api/appwrite-schema.json
 
 sync-test-matrix:
-	go run ./cmd/sync_test_matrix -apply
+	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
+	cd $(TEST_MATRIX_REPO) && go run ./cmd/sync_test_matrix -config $(CURDIR)/docs/test-matrix.config.json -apply
 
 verify-test-matrix:
-	go run ./cmd/sync_test_matrix
+	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
+	cd $(TEST_MATRIX_REPO) && go run ./cmd/sync_test_matrix -config $(CURDIR)/docs/test-matrix.config.json
 
 build:
 	mkdir -p $(BIN_DIR)

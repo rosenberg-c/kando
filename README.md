@@ -28,6 +28,47 @@ make verify-test-matrix   # fail if docs/TEST_MATRIX.md is out of date
 make test                 # go tests + matrix verify + macOS unit tests
 ```
 
+### Test-matrix config and plugins
+
+- `sync-test-matrix` and `verify-test-matrix` run the shared CLI from sibling repo `../test-matrix/cmd/sync_test_matrix`.
+- CI/dev setup must include `test-matrix` as a sibling repo (or set `TEST_MATRIX_REPO` for make targets).
+- Project-specific wiring is defined in `docs/test-matrix.config.json`.
+- The config maps file extensions to parser implementations.
+
+Current parser config:
+
+- `.go` -> built-in Go parser
+- `.swift` -> SwiftSyntax parser via `cmd/sync_test_matrix/swift_parser`
+
+To add a new language parser, register a new extension in `docs/test-matrix.config.json` using either:
+
+- built-in parser kinds (when available), or
+- `command` plugin kind (external parser executable that outputs JSON symbols).
+
+Example `command` plugin entry:
+
+```json
+{
+  "parsers": {
+    ".ts": {
+      "kind": "command",
+      "command": "test-matrix-ts-parser",
+      "args": ["--mode", "tests"]
+    }
+  }
+}
+```
+
+Plugin contract: parser command receives matching file paths as argv and writes JSON to stdout:
+
+```json
+{
+  "apps/web/src/example.test.ts": [
+    { "name": "adds item", "line": 42 }
+  ]
+}
+```
+
 ## macOS test runtime flags
 
 UI tests launch the app with test-safe runtime flags so they do not require keychain access or a real backend/database:
