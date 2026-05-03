@@ -244,6 +244,8 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-038` | Automated | - | Gap | - |
 | `UX-039` | Automated | - | Gap | - |
 | `UX-040` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`reorderTasksSupportsCrossColumnBatchMovePayload`) | Covered | - |
+| `UX-041` | Automated | - | Gap | - |
+| `UX-042` | Automated | - | Gap | - |
 
 ## Next Test Additions (Recommended)
 
