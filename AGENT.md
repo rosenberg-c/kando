@@ -1,9 +1,18 @@
-# AGENTS
+# Agent Guidelines
 
-Before starting any task, read all files in `docs/` and PROJECT_NOTES.md.
-Don´t read /docs/requirements at this moment, do it if you have to.
+Before starting implementation work:
 
-A question is not a change request!!
+- Read `docs/` and any root-level project notes if they exist.
+- If documentation conflicts, follow the most specific file for that area.
+- Apply project-specific rules from `docs/PROJECT_RULES.md`.
+
+Rule ownership:
+
+- `AGENT.md` = how to work (communication, decision-making, change process)
+- `docs/RULES.md` = generic engineering defaults
+- `docs/PROJECT_RULES.md` = kando-specific policy and technical constraints
+
+A question is not a change request.
 
 ## Communication
 
@@ -48,21 +57,6 @@ If sufficient context exists:
 * proceed
 * state assumptions
 * briefly explain tradeoffs
-
----
-
-### Challenge weak or odd requests
-
-Do not accept every request at face value when it appears under-specified, risky, or likely to violate project conventions, language-specific conventions, or general programming conventions.
-
-When a request seems odd or not fully thought through:
-
-* ask targeted questions about the underlying goal
-* explain why the requested approach may be problematic
-* propose one or more convention-aligned alternatives
-* recommend a default approach and explain why it is better
-
-Be constructive and specific, not confrontational.
 
 ---
 
@@ -180,59 +174,6 @@ Separate:
 
 Avoid leaking framework or generated types across layers.
 
-For cross-request invariants (for example single-board-per-user), require atomicity:
-
-* define atomic operations in the repository contract
-* implement atomic behavior per storage backend
-* do not rely on process-local service locks as the primary guarantee
-
----
-
-## Research and documentation
-
-### Verify with official sources
-
-Before integrating or extending:
-
-* check official documentation
-* confirm supported patterns
-* prefer documented extension points
-
----
-
-### Do not rely on outdated assumptions
-
-Verify when details matter:
-
-* APIs and library behavior
-* generator capabilities
-* framework conventions
-* version-specific behavior
-
----
-
-## Command output
-
-### Keep output focused
-
-For routine commands:
-
-* summarize output
-* remove irrelevant noise
-
-Example:
-
-```bash
-go test ./... 2>&1 | tail -20
-```
-
-For failures:
-
-* include enough output to diagnose the issue
-* do not truncate critical error information
-
----
-
 ## Changes and safety
 
 ### Make the smallest effective change
@@ -261,6 +202,8 @@ Call out changes affecting:
 * migrations
 * generated code
 * authentication or security
+
+Project-specific risk handling and constraints live in `docs/PROJECT_RULES.md`.
 
 ---
 

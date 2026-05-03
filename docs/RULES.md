@@ -1,555 +1,167 @@
-# Go Engineering Rules
+# Engineering Rules
 
-## 1. Do not take addresses of range loop variables
+These rules are language-agnostic defaults for this repository.
 
-Range variables are reused across iterations.
+Project-specific rules live in `docs/PROJECT_RULES.md`.
+When a generic rule and a project rule conflict, the project rule takes precedence for this project.
 
-**Bad:**
+## 1. Follow existing conventions first
 
-```go
-for _, v := range slice {
-    return &v
-}
-```
-
-**Good:**
-
-```go
-for i := range slice {
-    return &slice[i]
-}
-```
+- match established project style and structure
+- reuse existing patterns before introducing new ones
 
 ---
 
-## 2. Build file paths with `filepath.Join`
+## 2. Keep changes small and scoped
 
-* Avoid string concatenation for paths
-* Ensures cross-platform correctness
-
-```go
-path := filepath.Join(basePath, "file.json")
-```
+- implement the smallest effective change
+- avoid unrelated refactors in feature work
+- preserve existing behavior unless change is intentional
 
 ---
 
-## 3. Choose values vs pointers based on semantics
+## 3. Keep boundaries explicit
 
-Do not default to one or the other.
+Separate and map at boundaries:
 
-Use **values** when:
+- transport/API models
+- domain models
+- persistence models
+- UI/view models
 
-* data is small and immutable
-* you want clear ownership and no shared mutation
-
-Use **pointers** when:
-
-* mutation is required
-* structs are large
-* optional fields are needed (`nil`)
-* identity matters
-
-If returning pointers:
-
-* ensure they point to stable memory (not loop variables)
+Avoid leaking framework or generated types across layers.
 
 ---
 
-## 4. Validate invariants at boundaries
+## 4. Prefer standard patterns over custom abstractions
 
-* enforce uniqueness (IDs, usernames) on create
-* validate inputs before mutating state
-* return explicit domain errors
-
-```go
-var ErrAlreadyExists = errors.New("already exists")
-```
+- use official docs and library-native patterns
+- avoid introducing abstraction before it is needed
 
 ---
 
-## 5. Treat persistence as slow and failure-prone
+## 5. Design for testability
 
-* expect I/O to fail
-* wrap errors with context
-
-```go
-return fmt.Errorf("save user: %w", err)
-```
-
-* avoid unnecessary full read–modify–write cycles
+- inject dependencies at boundaries
+- avoid hidden global state in business logic
+- keep logic deterministic where practical
 
 ---
 
-## 6. Protect shared state with synchronization
+## 6. Validate at boundaries
 
-* use `sync.Mutex` or `sync.RWMutex` when concurrent access is possible
-* file-backed storage is not concurrency-safe by default
-
----
-
-## 7. Design for testability with dependency injection
-
-Prefer dependency injection at boundaries.
-
-**Bad:**
-
-```go
-NewRepo(path string)
-```
-
-**Good:**
-
-```go
-NewRepo(store Store)
-```
-
-Guidelines:
-
-* avoid hardcoding file paths, globals, or environment access
-* inject dependencies explicitly
-* use real implementations in tests when practical
+- validate input before mutating state
+- enforce invariants close to entry points
+- return explicit, stable domain errors
 
 ---
 
-## 8. Document exported symbols meaningfully
+## 7. Treat storage and network as failure-prone
 
-* exported types and functions should generally have comments
-* comments should explain behavior, not restate names
-
-Focus on:
-
-* error conditions
-* side effects
-* concurrency guarantees
-* invariants and assumptions
-
-**Bad:**
-
-```go
-// GetByID gets by ID
-```
-
-**Good:**
-
-```go
-// GetByID returns ErrNotFound if no user with the given ID exists.
-```
+- assume I/O can fail or be slow
+- wrap errors with clear context
+- avoid unnecessary full read-modify-write cycles
 
 ---
 
-## 9. Nil slices are valid
+## 8. Be explicit about concurrency
 
-* returning `nil` slices is idiomatic
-* only return empty slices when required by JSON/API contracts
-
----
-
-## 10. Use `context.Context` at boundaries
-
-Accept `context.Context` in functions that:
-
-* perform I/O
-* may block
-* are request-scoped
-
-```go
-func (r *Repo) GetByID(ctx context.Context, id string) (User, error)
-```
-
-Rules:
-
-* do not store context in structs
-* pass it through call chains
-* use only for cancellation, deadlines, and request-scoped values
+- define ownership for background work
+- document start/stop/error behavior
+- protect shared mutable state
 
 ---
 
-## 11. Use interfaces deliberately
+## 9. Logging does not replace error handling
 
-Use interfaces only when they provide real value.
-
-Use interfaces when:
-
-* you need to decouple a consumer from an implementation
-* multiple implementations are expected
-* you want to isolate external dependencies (I/O, storage, APIs)
-
-Avoid interfaces when:
-
-* there is only one implementation
-* they are introduced “just in case”
-* they duplicate a concrete type without adding value
-
-Prefer:
-
-* defining interfaces at the point of use (consumer)
-* small, focused interfaces
-* concrete types until abstraction is needed
-
-**Bad:**
-
-```go
-type UserRepository interface {
-    Create(...)
-    Update(...)
-    Delete(...)
-    Get(...)
-}
-```
-
-**Better:**
-
-```go
-type UserGetter interface {
-    GetByID(ctx context.Context, id string) (User, error)
-}
-```
+- return errors to callers when possible
+- log at boundaries (service entrypoints)
+- never log secrets or credentials
 
 ---
 
-## 12. Separate domain, transport, and storage models
+## 10. Generated code is read-only
 
-Do not couple core domain structs to:
-
-* JSON shape
-* database schema
-* OpenAPI-generated types
-
-Use mapping at boundaries:
-
-```txt
-[Transport DTO] <-> [Domain Model] <-> [Storage Model]
-```
+- do not edit generated files manually
+- update source schema/config and regenerate
 
 ---
 
-## 13. Return errors, don’t panic
+## 11. Test behavior, not implementation details
 
-* use `error` for expected failures
-* panic only for truly unrecoverable programmer errors
-
----
-
-## 14. Keep functions small and explicit
-
-* prefer simple, readable functions over clever abstractions
-* make data flow obvious
-* avoid hidden side effects
+- test observable behavior and contracts
+- keep tests fast, deterministic, and focused
+- add integration coverage for boundary-critical flows
 
 ---
 
-## 15. Be explicit about concurrency
+## 12. Externalize user-facing copy
 
-Do not introduce goroutines without clear ownership.
-
-Always answer:
-
-* who starts it
-* who stops it
-* how errors are handled
+- avoid hardcoding UI copy in components/views
+- keep strings centralized by feature or domain
 
 ---
 
-## 16. Favor composition over inheritance-style patterns
+## 13. Project-specific rules apply
 
-* embed structs for reuse
-* avoid deep abstraction hierarchies
-
----
-
-## 17. Logging is not error handling
-
-* return errors to callers
-* log only at boundaries (HTTP layer, CLI entrypoint, etc.)
-* use explicit, structured log messages with stable keys (for example `request_id=... route=... error=...`)
-* never log credentials, bearer tokens, refresh tokens, session secrets, or API keys
-* when logging external error payloads, use redacted summaries only
+- use `docs/PROJECT_RULES.md` for project-specific requirements
+- keep this file generic; put implementation-specific policy in project rules
 
 ---
 
-## 18. Treat file-backed storage as a prototype
+## 14. Block duplicate UI mutations (single-flight actions)
 
-File storage is not suitable for:
-
-* high concurrency
-* large datasets
-* distributed systems
-
-Design so it can be replaced later.
+- disable mutation controls immediately when a mutation starts
+- keep related mutation controls disabled until the mutation resolves (success or failure)
+- do not allow repeated clicks/taps to enqueue duplicate mutation requests
+- add automated test coverage for disabled/enabled transitions where applicable
 
 ---
 
-## 19. Test behavior, not implementation
+## 15. Use list semantics for ordered and batch mutations
 
-Write tests that validate observable behavior.
-
-Prefer:
-
-* testing public APIs and behavior
-* verifying outputs, errors, and side effects
-* real implementations when fast and deterministic
-
-Avoid:
-
-* asserting on internal/private details
-* unnecessary mocking
-* tests dependent on timing, globals, or external systems
-
-Guidelines:
-
-* use table-driven tests for logic
-* test errors explicitly with `errors.Is`
-* keep tests fast and deterministic
-* if code is hard to test, simplify the design
+- when mutating ordered collections, model the intended result as a list state
+- validate list invariants at boundaries (membership, duplicates, ordering shape)
+- avoid parallel one-off mutation paths that diverge from collection-level behavior
+- keep reorder/batch behavior deterministic and covered by tests
 
 ---
 
-## 20. Authentication is a server concern
+## 16. Use stable typed error mapping at boundaries
 
-Authentication integration belongs only to the backend.
-
-Rules:
-
-* clients must authenticate through backend API endpoints only
-* clients must not call external auth providers directly
-* clients must not handle provider secrets, server API keys, or provider session management
-* backend owns token/session issuance, refresh, revocation, validation, and secret handling
-
-Forbidden examples:
-
-* `apps/cli` importing provider SDKs or `internal/appwrite`
-* `apps/apple` calling provider auth/session endpoints directly
-* any client reading `APPWRITE_*` server secrets
+- represent domain/service failure categories with stable typed codes or enums
+- map boundary responses/UI states from typed error categories, not raw error text parsing
+- keep user-facing error copy decoupled from internal error detail
+- when adding new error categories, add tests asserting both category and mapped boundary behavior
 
 ---
 
-## 21. UI text must be externalized
+## 17. Allow small adjacent maintenance, discuss broad refactors
 
-UI-facing copy must not be hardcoded in views/components.
-
-Rules:
-
-* define UI strings in resource files, grouped by feature/domain
-* use a shared lookup layer (for example `t("auth.login.title")`)
-* keep common shared labels in a small `common` namespace
-* avoid one giant global strings file and avoid per-file ad hoc string constants
-
-Suggested structure:
-
-* `ui/strings/en/common.json`
-* `ui/strings/en/auth.json`
-* `ui/strings/en/tasks.json`
+- include minor, low-risk adjacent cleanup that improves touched areas
+- keep adjacent maintenance directly related and behavior-preserving by default
+- discuss medium/large scope refactors before implementation
 
 ---
 
-## 22. Prefer `Sendable` boundaries; scope `@MainActor` to UI state
+## 18. Group repeated UI state passed through multiple layers
 
-For Swift code (especially in `apps/apple`), default to concurrency-safe service boundaries.
-
-Rules:
-
-* prefer protocol and model boundaries that are `Sendable`
-* avoid `@MainActor` on service/network/storage protocols by default
-* use `@MainActor` for UI-facing state and updates (for example SwiftUI views, `ObservableObject` UI state)
-* if a type is `@MainActor`, document why main-thread affinity is required
-
-Rationale:
-
-* keeps network/storage work off the UI actor
-* reduces accidental serialization on the main thread
-* improves testability and compatibility with strict Swift concurrency checks
+- when the same 3+ related fields are repeatedly passed through layers, prefer a small grouped value type
+- keep grouped types focused and feature-scoped
+- avoid wrapper types for one-off cases where direct parameters are clearer
 
 ---
 
-## 23. Use list-based APIs for collection-scoped mutations
+## 19. Accessibility labels and selectors for symbolic controls
 
-When an operation mutates a collection as a whole (for example reorder, batch actions, or membership updates), expose a list-based request interface.
-
-Rules:
-
-* accept the intended collection result as a list payload
-* validate list semantics at the boundary (membership, duplicates, shape)
-* apply the mutation atomically (all-or-nothing) when backend capabilities support it; if not, expose partial behavior explicitly in contract/requirements and add backend-specific tests
-* do not add parallel single-item action endpoints for the same collection behavior
+- prefer stable selectors for automated UI tests on interactive controls and key containers
+- when visible text is symbolic or abbreviated (icons/arrows), provide explicit accessibility labels
+- keep display text and accessibility text separate when needed
 
 ---
 
-## 24. Accessibility identifiers and labels are required for UI controls
-
-For UI code (especially in `apps/apple`), treat accessibility hooks as part of the contract.
-
-Rules:
-
-* assign stable accessibility identifiers to interactive controls and key containers
-* prefer identifier-based UI tests over visible text matching
-* keep identifier naming consistent and feature-scoped (for example `board-edit-close-button`)
-* when visible text is symbolic or abbreviated (for example `<`, `>`, arrows, icons), add explicit accessibility labels with clear wording
-* keep display text and accessibility text as separate localized keys when needed
-* if XCTest/macOS automation cannot reliably resolve a custom accessibility identifier for a control, use an identifier-first selector with a text fallback and document the fallback in the test
-
-Suggested string-key pattern:
-
-* `feature.action` for display text
-* `feature.action.accessibility` for accessibility label
-
-Example:
-
-* `board.column.move_left` = `<`
-* `board.column.move_left.accessibility` = `Move left`
-
----
-
-## 25. Maintenance scope while implementing features
-
-Small maintenance in adjacent code is allowed and encouraged when it improves quality without changing scope.
-
-Rules:
-
-* you may include minor adjacent maintenance (for example naming cleanup, small refactors, test selector hardening, dead-code removal, typo fixes)
-* keep adjacent maintenance low risk, reversible, and directly related to touched areas
-* if a discovered issue is medium/large scope or changes behavior beyond the requested feature, stop and discuss before editing
-* when making adjacent maintenance changes that are not the primary feature, commit them separately from the main feature changes
-* in PR/commit notes, clearly distinguish primary feature work from adjacent maintenance
-
-Examples of discuss-first work:
-
-* broad architecture refactors
-* migration or data-shape changes outside request scope
-* cross-cutting behavior changes across multiple modules
-
----
-
-## 26. Prefer grouped UI state for repeated prop drilling
-
-For UI code (especially in `apps/apple`), group tightly related view configuration/state when the same fields are passed through multiple layers.
-
-Rules:
-
-* prefer a small value type when the same 3+ read-only fields travel together
-* prefer grouped bindings only when child views must mutate parent-owned state
-* keep grouped types focused and feature-scoped (avoid "god" config structs)
-* do not add wrapper types for one-off cases where direct parameters are clearer
-* use value semantics by default for immutable UI configuration passed down the tree
-
-Rationale:
-
-* reduces repetitive parameter lists and wiring errors
-* keeps data flow explicit while improving readability
-* makes related state easier to evolve as a unit
-
----
-
-## 27. Block double-tap during UI mutations
-
-For UI code (especially in `apps/apple`), mutation actions must be single-flight from the user perspective.
-
-Rules:
-
-* disable mutation controls immediately when a mutation starts
-* keep related mutation controls disabled until the mutation resolves (success or failure)
-* do not allow repeated taps to enqueue duplicate mutation requests
-* prefer stable accessibility identifiers for mutation controls and test disabled/enabled state transitions in UI tests
-
-Examples:
-
-* board archive/delete/restore buttons become disabled while mutation is in progress
-* reorder/apply actions cannot be tapped repeatedly during apply
-
----
-
-## 28. Use typed domain errors for stable API conflict mapping
-
-For backend/domain code, model conflict/error categories as typed domain errors instead of relying on wrapped string messages.
-
-Rules:
-
-* keep a stable sentinel error category for transport mapping (for example `errors.Is(err, ErrConflict)`)
-* include typed error detail (for example code/reason/message fields) when callers need user-facing conflict context
-* map API responses from typed error data, not from parsing raw error strings
-* do not expose internal wrapped-error text directly in API `detail` payloads
-* when adding new conflict reasons, add tests at domain and API layers that assert both category and stable response detail
-
-Examples:
-
-* domain returns a typed conflict like `board_has_tasks` while still matching `ErrConflict`
-* API layer returns `409` with a stable detail like `board has tasks` derived from typed conflict data
-
----
-
-## 29. Document shim intent at declaration sites
-
-When adding compatibility shims (for example platform, framework, or concurrency shims), include a short comment at the declaration site that explains why the shim exists.
-
-Rules:
-
-* state the concrete compiler/runtime/tooling issue being worked around
-* state why the shim is used instead of changing generated or external code
-* keep the note concise and colocated with the shim declaration
-* update or remove the note when the shim is removed or no longer needed
-
-Rationale:
-
-* preserves intent for future maintainers
-* reduces accidental removal of required compatibility code
-* makes temporary workarounds easier to audit and retire
-
----
-
-## 30. Model batch mutations as explicit action-list contracts
-
-For collection-level batch mutations (for example delete/archive/restore multiple tasks), use a single request payload that carries explicit action intent and item membership.
-
-Rules:
-
-* represent batch intent with an explicit action field (for example `action`) plus item IDs (for example `taskIds[]`)
-* prefer one list-based batch request over client-side loops of N single-item calls
-* validate membership/duplicates/shape at the boundary before mutation
-* apply batch mutations atomically when feasible; if partial behavior is unavoidable, expose it explicitly in contract/response and cover it with backend-specific tests
-* keep client logic declarative (build intent payload), not imperative retry loops per item
-
-Rationale:
-
-* reduces partial-update risk from sequential client loops
-* makes API intent explicit and testable
-* aligns multi-select UX with predictable backend mutation semantics
-
----
-
-## 31. Client transport contracts must come from generated OpenAPI code
-
-For API clients (especially `apps/apple` and `apps/cli`), treat generated OpenAPI code as the only transport contract source of truth.
-
-Rules:
-
-* do not handwrite endpoint paths, request/response DTOs, or JSON coding keys that duplicate OpenAPI-generated contracts
-* do not handwrite API method signatures that mirror generated operations when generated operations already exist
-* if the app needs domain-friendly models, map generated transport types at a boundary adapter; keep transport shapes generated
-* when backend contracts change, regenerate artifacts first (`make generate`, then client generation) before client behavior changes
-* add/keep tests for critical contract fields at adapter boundaries so schema drift is caught early
-
-Rationale:
-
-* prevents drift between backend contract and client decoding/encoding
-* avoids key/shape mismatches from handwritten transport code
-* keeps API evolution predictable across clients
-
----
-
-## 32. Feature completion requires backend parity and backend-specific tests
-
-When a feature is considered implemented, all supported backend repositories must implement the feature behavior and be covered by backend-specific tests.
-
-Rules:
-
-* implement new repository-facing feature behavior across all supported backends (`memory`, `sqlite`, `appwrite`) before marking the feature complete
-* do not ship a feature path that returns `ErrNotImplemented` on a supported backend unless the product requirement explicitly marks it unsupported
-* add or update repository contract/integration tests per backend so behavior parity is asserted
-* verify backend-specific schema/data requirements (for example Appwrite columns/indexes) as part of feature rollout
-
-Rationale:
-
-* prevents backend drift where one backend works and another returns runtime 4xx/5xx errors
-* keeps API/UI behavior consistent regardless of selected repository backend
-* catches persistence-layer incompatibilities before release
-
----
+## 20. Prefer selector-first UI tests with documented fallback
+
+- write UI tests using stable selectors first, then role/text fallback only when selectors are unavailable or unreliable
+- if fallback selectors are required, document the reason in the test for maintainability
+- keep fallback usage localized and avoid broad text-only matching across repeated controls
