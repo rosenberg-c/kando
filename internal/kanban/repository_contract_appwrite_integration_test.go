@@ -174,7 +174,7 @@ func (r *trackedRepository) cleanup(ctx context.Context) {
 }
 
 func TestRepositoryContractAppwriteService(t *testing.T) {
-	// Requirements: APPWRITE-001, APPWRITE-002, APPWRITE-003
+	// @req APPWRITE-001, APPWRITE-002, APPWRITE-003
 	if strings.TrimSpace(os.Getenv("RUN_APPWRITE_INTEGRATION")) != "1" {
 		t.Skip("set RUN_APPWRITE_INTEGRATION=1 to run Appwrite integration contract tests")
 	}
@@ -284,7 +284,7 @@ func TestAppwriteTaskMutationsDoNotReturnInvalidStructure(t *testing.T) {
 }
 
 func TestAppwriteBatchDeleteFallbackCanBePartialOnFailure(t *testing.T) {
-	// Requirement: APPWRITE-004
+	// @req APPWRITE-004
 	if strings.TrimSpace(os.Getenv("RUN_APPWRITE_INTEGRATION")) != "1" {
 		t.Skip("set RUN_APPWRITE_INTEGRATION=1 to run Appwrite integration tests")
 	}

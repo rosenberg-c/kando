@@ -102,7 +102,7 @@ func (r *transactionalFailOnCreateTaskRepository) DeleteColumn(_ context.Context
 }
 
 func TestHelloReturnsTextPlain(t *testing.T) {
-	// Requirement: PUBLIC-001
+	// @req PUBLIC-001
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -160,7 +160,7 @@ func TestUnknownRouteReturnsProblemJSON(t *testing.T) {
 }
 
 func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
-	// Requirement: SEC-LOGIN-001
+	// @req SEC-LOGIN-001
 	t.Parallel()
 
 	issuer := &stubIssuer{sessionSecret: "session-1", jwt: "jwt-1", expiresAt: time.Now().Add(10 * time.Minute)}
@@ -187,7 +187,7 @@ func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
 }
 
 func TestLoginReturnsTokensOnSuccess(t *testing.T) {
-	// Requirement: AUTH-001
+	// @req AUTH-001
 	t.Parallel()
 
 	expiresAt := time.Now().UTC().Add(15 * time.Minute).Round(0)
@@ -229,7 +229,7 @@ func TestLoginReturnsTokensOnSuccess(t *testing.T) {
 }
 
 func TestOpenAPIDefinesHelloAsTextPlain(t *testing.T) {
-	// Requirement: PUBLIC-002
+	// @req PUBLIC-002
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -251,7 +251,7 @@ func TestOpenAPIDefinesHelloAsTextPlain(t *testing.T) {
 }
 
 func TestKanbanRoutesRequireBearerToken(t *testing.T) {
-	// Requirement: API-003
+	// @req API-003
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -279,7 +279,7 @@ func TestKanbanRoutesRequireBearerToken(t *testing.T) {
 }
 
 func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
-	// Requirement: API-003
+	// @req API-003
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -305,7 +305,7 @@ func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
 }
 
 func TestKanbanRouteReturnsNotFoundForMissingResources(t *testing.T) {
-	// Requirement: API-003
+	// @req API-003
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -336,7 +336,7 @@ func TestKanbanRouteReturnsNotFoundForMissingResources(t *testing.T) {
 }
 
 func TestKanbanValidationReturnsBadRequest(t *testing.T) {
-	// Requirement: API-003
+	// @req API-003
 	t.Parallel()
 
 	mux, api := NewAPI()
@@ -370,7 +370,7 @@ func TestKanbanValidationReturnsBadRequest(t *testing.T) {
 }
 
 func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
-	// Requirements: PUBLIC-003, PUBLIC-004, PUBLIC-005, PUBLIC-006, PUBLIC-007
+	// @req PUBLIC-003, PUBLIC-004, PUBLIC-005, PUBLIC-006, PUBLIC-007
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -428,7 +428,7 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 }
 
 func TestOpenAPIDefinesReorderColumnsContract(t *testing.T) {
-	// Requirement: PUBLIC-005
+	// @req PUBLIC-005
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -461,7 +461,7 @@ func TestOpenAPIDefinesReorderColumnsContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesReorderTasksContract(t *testing.T) {
-	// Requirement: PUBLIC-004
+	// @req PUBLIC-004
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -494,7 +494,7 @@ func TestOpenAPIDefinesReorderTasksContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesTaskBatchMutationContract(t *testing.T) {
-	// Requirement: API-033
+	// @req API-033
 	t.Parallel()
 
 	_, api := NewAPI()
@@ -527,7 +527,7 @@ func TestOpenAPIDefinesTaskBatchMutationContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesArchiveColumnTasksContract(t *testing.T) {
-	// Requirement: API-024
+	// @req API-024
 	t.Parallel()
 
 	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/{boardId}/columns/{columnId}/archive-tasks")
@@ -540,7 +540,7 @@ func TestOpenAPIDefinesArchiveColumnTasksContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesTaskExportContract(t *testing.T) {
-	// Requirement: PUBLIC-006
+	// @req PUBLIC-006
 	t.Parallel()
 
 	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/export")
@@ -553,7 +553,7 @@ func TestOpenAPIDefinesTaskExportContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesTaskImportContract(t *testing.T) {
-	// Requirement: PUBLIC-007
+	// @req PUBLIC-007
 	t.Parallel()
 
 	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/import")
@@ -566,7 +566,7 @@ func TestOpenAPIDefinesTaskImportContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesTaskBundleExportContract(t *testing.T) {
-	// Requirement: PUBLIC-008
+	// @req PUBLIC-008
 	t.Parallel()
 
 	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/export")
@@ -579,7 +579,7 @@ func TestOpenAPIDefinesTaskBundleExportContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesTaskBundleImportContract(t *testing.T) {
-	// Requirement: PUBLIC-009
+	// @req PUBLIC-009
 	t.Parallel()
 
 	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/tasks/import")
@@ -592,7 +592,7 @@ func TestOpenAPIDefinesTaskBundleImportContract(t *testing.T) {
 }
 
 func TestOpenAPIDefinesRestoreBoardTitleModeContract(t *testing.T) {
-	// Requirement: PUBLIC-010
+	// @req PUBLIC-010
 	t.Parallel()
 
 	requestRef, responseRef := requireOpenAPIPostJSONSchemaRefs(t, "/boards/{boardId}/restore")
@@ -638,7 +638,7 @@ func requireOpenAPIPostJSONSchemaRefs(t *testing.T, pathKey string) (string, str
 }
 
 func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
-	// Requirements: API-001, BOARD-001, BOARD-002, COL-001, TASK-001
+	// @req API-001, BOARD-001, BOARD-002, COL-001, TASK-001
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -686,7 +686,7 @@ func TestKanbanBoardColumnTaskCRUD(t *testing.T) {
 }
 
 func TestKanbanCreateAndListMultipleBoards(t *testing.T) {
-	// Requirements: API-010, API-011
+	// @req API-010, API-011
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -738,7 +738,7 @@ func TestKanbanCreateAndListMultipleBoards(t *testing.T) {
 }
 
 func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
-	// Requirements: API-003, API-004, COL-RULE-001, COL-RULE-002
+	// @req API-003, API-004, COL-RULE-001, COL-RULE-002
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -775,7 +775,7 @@ func TestKanbanDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 }
 
 func TestKanbanDeleteBoardWithTasksReturnsConflict(t *testing.T) {
-	// Requirements: API-003, API-004, API-013, BOARD-013
+	// @req API-003, API-004, API-013, BOARD-013
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -812,7 +812,7 @@ func TestKanbanDeleteBoardWithTasksReturnsConflict(t *testing.T) {
 }
 
 func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
-	// Requirements: BOARD-014, BOARD-015, BOARD-016, BOARD-017, BOARD-021, BOARD-022, BOARD-023, API-014, API-015, API-016, API-020, API-021, API-022
+	// @req BOARD-014, BOARD-015, BOARD-016, BOARD-017, BOARD-021, BOARD-022, BOARD-023, API-014, API-015, API-016, API-020, API-021, API-022
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -902,7 +902,7 @@ func TestKanbanArchiveRestoreAndDeleteArchivedBoard(t *testing.T) {
 }
 
 func TestKanbanRestoreBoardOriginalTitleConflictReturns409(t *testing.T) {
-	// Requirements: BOARD-024, API-023, PUBLIC-011
+	// @req BOARD-024, API-023, PUBLIC-011
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -941,7 +941,7 @@ func TestKanbanRestoreBoardOriginalTitleConflictReturns409(t *testing.T) {
 }
 
 func TestKanbanReorderColumnsAppliesOrderAtomically(t *testing.T) {
-	// Requirements: COL-MOVE-001, COL-MOVE-002, COL-MOVE-003, COL-MOVE-004, COL-MOVE-007, COL-MOVE-011
+	// @req COL-MOVE-001, COL-MOVE-002, COL-MOVE-003, COL-MOVE-004, COL-MOVE-007, COL-MOVE-011
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1006,7 +1006,7 @@ func TestKanbanReorderColumnsAppliesOrderAtomically(t *testing.T) {
 }
 
 func TestKanbanReorderColumnsRejectsInvalidListWithoutApplying(t *testing.T) {
-	// Requirements: COL-MOVE-003, COL-MOVE-006, COL-MOVE-011
+	// @req COL-MOVE-003, COL-MOVE-006, COL-MOVE-011
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1051,7 +1051,7 @@ func TestKanbanReorderColumnsRejectsInvalidListWithoutApplying(t *testing.T) {
 }
 
 func TestKanbanReorderColumnsRejectsEmptyOrNullList(t *testing.T) {
-	// Requirements: COL-MOVE-006, COL-MOVE-011
+	// @req COL-MOVE-006, COL-MOVE-011
 	t.Parallel()
 
 	testCases := []struct {
@@ -1111,7 +1111,7 @@ func TestKanbanReorderColumnsRejectsEmptyOrNullList(t *testing.T) {
 }
 
 func TestKanbanReorderColumnsReturnsNotFoundForMissingBoard(t *testing.T) {
-	// Requirements: COL-MOVE-006, API-003
+	// @req COL-MOVE-006, API-003
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1130,7 +1130,7 @@ func TestKanbanReorderColumnsReturnsNotFoundForMissingBoard(t *testing.T) {
 }
 
 func TestKanbanReorderColumnsReturnsForbiddenForOtherOwner(t *testing.T) {
-	// Requirements: COL-MOVE-005, COL-MOVE-006, API-003
+	// @req COL-MOVE-005, COL-MOVE-006, API-003
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1152,7 +1152,7 @@ func TestKanbanReorderColumnsReturnsForbiddenForOtherOwner(t *testing.T) {
 }
 
 func TestKanbanReorderTasksAppliesOrderAtomically(t *testing.T) {
-	// Requirements: API-005, TASK-005, TASK-006, TASK-007
+	// @req API-005, TASK-005, TASK-006, TASK-007
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1219,7 +1219,7 @@ func TestKanbanReorderTasksAppliesOrderAtomically(t *testing.T) {
 }
 
 func TestKanbanReorderTasksRejectsInvalidListWithoutApplying(t *testing.T) {
-	// Requirement: API-005
+	// @req API-005
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1285,7 +1285,7 @@ func TestKanbanReorderTasksRejectsInvalidListWithoutApplying(t *testing.T) {
 }
 
 func TestKanbanReorderTasksReturnsNotFoundForMissingBoard(t *testing.T) {
-	// Requirement: API-005
+	// @req API-005
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1304,7 +1304,7 @@ func TestKanbanReorderTasksReturnsNotFoundForMissingBoard(t *testing.T) {
 }
 
 func TestKanbanReorderTasksReturnsForbiddenForOtherOwner(t *testing.T) {
-	// Requirement: API-005
+	// @req API-005
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1331,7 +1331,7 @@ func TestKanbanReorderTasksReturnsForbiddenForOtherOwner(t *testing.T) {
 }
 
 func TestKanbanTaskBatchDeleteAppliesSelectedTaskIDs(t *testing.T) {
-	// Requirements: API-033, TASK-041
+	// @req API-033, TASK-041
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1361,7 +1361,7 @@ func TestKanbanTaskBatchDeleteAppliesSelectedTaskIDs(t *testing.T) {
 }
 
 func TestKanbanTaskBatchDeleteRejectsDuplicateTaskIDs(t *testing.T) {
-	// Requirement: API-033
+	// @req API-033
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1393,7 +1393,7 @@ func TestKanbanTaskBatchDeleteRejectsDuplicateTaskIDs(t *testing.T) {
 }
 
 func TestKanbanArchiveColumnTasksArchivesOnlySelectedColumnWithSharedArchivedAt(t *testing.T) {
-	// Requirements: API-024, COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
+	// @req API-024, COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1489,7 +1489,7 @@ func TestKanbanArchiveColumnTasksArchivesOnlySelectedColumnWithSharedArchivedAt(
 }
 
 func TestKanbanArchiveColumnTasksReturnsForbiddenForOtherOwner(t *testing.T) {
-	// Requirement: API-025
+	// @req API-025
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1509,7 +1509,7 @@ func TestKanbanArchiveColumnTasksReturnsForbiddenForOtherOwner(t *testing.T) {
 }
 
 func TestKanbanDeleteColumnReturnsConflictWhenArchivedTasksExist(t *testing.T) {
-	// Requirements: COL-RULE-004, COL-RULE-005
+	// @req COL-RULE-004, COL-RULE-005
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1541,7 +1541,7 @@ func TestKanbanDeleteColumnReturnsConflictWhenArchivedTasksExist(t *testing.T) {
 }
 
 func TestKanbanRestoreAndDeleteArchivedTaskLifecycle(t *testing.T) {
-	// Requirements: API-030, API-031, API-032, TASK-027, TASK-028, TASK-029
+	// @req API-030, API-031, API-032, TASK-027, TASK-028, TASK-029
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1613,7 +1613,7 @@ func TestKanbanRestoreAndDeleteArchivedTaskLifecycle(t *testing.T) {
 }
 
 func TestKanbanListArchivedTasksByBoardReturnsColumnScopedArchivedTasks(t *testing.T) {
-	// Requirements: API-027, API-028, API-029, TASK-023, TASK-026
+	// @req API-027, API-028, API-029, TASK-023, TASK-026
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1674,7 +1674,7 @@ func TestKanbanListArchivedTasksByBoardReturnsColumnScopedArchivedTasks(t *testi
 }
 
 func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
-	// Requirements: API-007, BOARD-005, BOARD-007
+	// @req API-007, BOARD-005, BOARD-007
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1755,7 +1755,7 @@ func TestKanbanExportTasksReturnsVersionedPayload(t *testing.T) {
 }
 
 func TestKanbanExportTasksBundleReturnsSelectedBoardSnapshots(t *testing.T) {
-	// Requirements: API-017, API-019
+	// @req API-017, API-019
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1822,7 +1822,7 @@ func TestKanbanExportTasksBundleReturnsSelectedBoardSnapshots(t *testing.T) {
 }
 
 func TestKanbanExportTasksBundleRejectsInvalidBoardID(t *testing.T) {
-	// Requirement: API-004
+	// @req API-004
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1843,7 +1843,7 @@ func TestKanbanExportTasksBundleRejectsInvalidBoardID(t *testing.T) {
 }
 
 func TestKanbanImportTasksRestoresArchivedTasksForColumn(t *testing.T) {
-	// Requirements: API-026, BOARD-026, BOARD-027, BOARD-028
+	// @req API-026, BOARD-026, BOARD-027, BOARD-028
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -1954,7 +1954,7 @@ func TestKanbanImportTasksRestoresArchivedTasksForColumn(t *testing.T) {
 }
 
 func TestKanbanImportTasksBundleImportsOnlySelectedSnapshots(t *testing.T) {
-	// Requirements: API-017, API-019
+	// @req API-017, API-019
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -2056,7 +2056,7 @@ func TestKanbanImportTasksBundleImportsOnlySelectedSnapshots(t *testing.T) {
 }
 
 func TestKanbanImportTasksBundleRejectsInvalidSourceBoardID(t *testing.T) {
-	// Requirement: API-004
+	// @req API-004
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -2095,7 +2095,7 @@ func TestKanbanImportTasksBundleRejectsInvalidSourceBoardID(t *testing.T) {
 }
 
 func TestKanbanImportTasksBundleIsAtomicPerDestinationBoard(t *testing.T) {
-	// Requirement: API-018
+	// @req API-018
 	t.Parallel()
 
 	baseRepo := kanban.NewService(kanban.NewMemoryRepository())
@@ -2164,7 +2164,7 @@ func TestKanbanImportTasksBundleIsAtomicPerDestinationBoard(t *testing.T) {
 }
 
 func TestKanbanImportTasksCreatesColumnsAndTasks(t *testing.T) {
-	// Requirements: API-007, API-008, BOARD-006, BOARD-008
+	// @req API-007, API-008, BOARD-006, BOARD-008
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -2287,7 +2287,7 @@ func TestKanbanImportTasksCreatesColumnsAndTasks(t *testing.T) {
 }
 
 func TestKanbanImportTasksRollsBackOnFailure(t *testing.T) {
-	// Requirement: API-009
+	// @req API-009
 	t.Parallel()
 
 	baseRepo := kanban.NewService(kanban.NewMemoryRepository())
@@ -2364,7 +2364,7 @@ func TestKanbanImportTasksRollsBackOnFailure(t *testing.T) {
 }
 
 func TestKanbanImportTasksRejectsUnsupportedFormatVersion(t *testing.T) {
-	// Requirement: API-008
+	// @req API-008
 	t.Parallel()
 
 	repo := kanban.NewService(kanban.NewMemoryRepository())
@@ -2384,7 +2384,7 @@ func TestKanbanImportTasksRejectsUnsupportedFormatVersion(t *testing.T) {
 }
 
 func TestKanbanImportTasksTransactionalFailureDoesNotFallbackToCompensation(t *testing.T) {
-	// Requirement: API-009
+	// @req API-009
 	t.Parallel()
 
 	baseRepo := kanban.NewService(kanban.NewMemoryRepository())

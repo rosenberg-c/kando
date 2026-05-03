@@ -9,7 +9,7 @@ import (
 )
 
 func TestFileTokenStoreSaveAndLoad(t *testing.T) {
-	// Requirement: CLI-006
+	// @req CLI-006
 	t.Parallel()
 
 	store := NewFileTokenStore(filepath.Join(t.TempDir(), "auth.json"))
@@ -34,7 +34,7 @@ func TestFileTokenStoreSaveAndLoad(t *testing.T) {
 }
 
 func TestFileTokenStoreLoadMissing(t *testing.T) {
-	// Requirement: CLI-007
+	// @req CLI-007
 	t.Parallel()
 
 	store := NewFileTokenStore(filepath.Join(t.TempDir(), "missing.json"))
@@ -45,7 +45,7 @@ func TestFileTokenStoreLoadMissing(t *testing.T) {
 }
 
 func TestFileTokenStoreClear(t *testing.T) {
-	// Requirement: CLI-008
+	// @req CLI-008
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "auth.json")

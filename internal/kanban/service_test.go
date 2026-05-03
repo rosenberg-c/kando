@@ -110,7 +110,7 @@ func (s *serviceRepoStub) DeleteTask(context.Context, string, string, string) (B
 }
 
 func TestServiceDeleteColumnWithTasksReturnsConflict(t *testing.T) {
-	// Requirement: COL-RULE-001
+	// @req COL-RULE-001
 	t.Parallel()
 
 	stub := &serviceRepoStub{
@@ -131,7 +131,7 @@ func TestServiceDeleteColumnWithTasksReturnsConflict(t *testing.T) {
 }
 
 func TestServiceDeleteBoardWithTasksReturnsConflict(t *testing.T) {
-	// Requirement: BOARD-013
+	// @req BOARD-013
 	t.Parallel()
 
 	stub := &serviceRepoStub{
@@ -152,7 +152,7 @@ func TestServiceDeleteBoardWithTasksReturnsConflict(t *testing.T) {
 }
 
 func TestServiceDeleteBoardWithoutTasksDelegates(t *testing.T) {
-	// Requirement: BOARD-013
+	// @req BOARD-013
 	t.Parallel()
 
 	stub := &serviceRepoStub{details: BoardDetails{Tasks: nil}}
@@ -171,7 +171,7 @@ func TestServiceDeleteBoardWithoutTasksDelegates(t *testing.T) {
 }
 
 func TestServiceDeleteColumnWithoutTasksDelegates(t *testing.T) {
-	// Requirement: COL-003
+	// @req COL-003
 	t.Parallel()
 
 	stub := &serviceRepoStub{
@@ -213,7 +213,7 @@ func TestServiceCreateBoardDelegatesAtomicConflict(t *testing.T) {
 }
 
 func TestServiceReorderTasksRejectsEmptyList(t *testing.T) {
-	// Requirement: API-005
+	// @req API-005
 	t.Parallel()
 
 	stub := &serviceRepoStub{}
@@ -229,7 +229,7 @@ func TestServiceReorderTasksRejectsEmptyList(t *testing.T) {
 }
 
 func TestServiceReorderColumnsRejectsEmptyList(t *testing.T) {
-	// Requirement: COL-MOVE-006
+	// @req COL-MOVE-006
 	t.Parallel()
 
 	stub := &serviceRepoStub{}
@@ -245,7 +245,7 @@ func TestServiceReorderColumnsRejectsEmptyList(t *testing.T) {
 }
 
 func TestServiceReorderColumnsDelegates(t *testing.T) {
-	// Requirement: COL-MOVE-001
+	// @req COL-MOVE-001
 	t.Parallel()
 
 	stub := &serviceRepoStub{reorderColumnsBoard: Board{ID: "board-1"}}
@@ -264,7 +264,7 @@ func TestServiceReorderColumnsDelegates(t *testing.T) {
 }
 
 func TestServiceReorderTasksDelegates(t *testing.T) {
-	// Requirement: TASK-005
+	// @req TASK-005
 	t.Parallel()
 
 	stub := &serviceRepoStub{
@@ -285,7 +285,7 @@ func TestServiceReorderTasksDelegates(t *testing.T) {
 }
 
 func TestServiceApplyTaskBatchMutationRejectsInvalidAction(t *testing.T) {
-	// Requirement: API-033
+	// @req API-033
 	t.Parallel()
 
 	stub := &serviceRepoStub{}
@@ -301,7 +301,7 @@ func TestServiceApplyTaskBatchMutationRejectsInvalidAction(t *testing.T) {
 }
 
 func TestServiceApplyTaskBatchMutationDeleteRemovesAllRequestedTasks(t *testing.T) {
-	// Requirements: API-033, TASK-041
+	// @req API-033, TASK-041
 	t.Parallel()
 
 	repo := NewMemoryRepository()
@@ -345,7 +345,7 @@ func TestServiceApplyTaskBatchMutationDeleteRemovesAllRequestedTasks(t *testing.
 }
 
 func TestServiceApplyTaskBatchMutationFallsBackWithoutTransactions(t *testing.T) {
-	// Requirement: API-033
+	// @req API-033
 	t.Parallel()
 
 	stub := &serviceRepoStub{details: BoardDetails{Board: Board{ID: "board-1"}}}

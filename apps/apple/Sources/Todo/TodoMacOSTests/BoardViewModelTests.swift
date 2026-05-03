@@ -5,7 +5,7 @@ import Testing
 @MainActor
 struct BoardViewModelTests {
     @Test func exportTasksWritesVersionedJSONSnapshot() async throws {
-        // Requirements: API-007, BOARD-005, BOARD-007, BOARD-008, BOARD-018, BOARD-020, UX-013, UX-024
+        // @req API-007, BOARD-005, BOARD-007, BOARD-008, BOARD-018, BOARD-020, UX-013, UX-024
         let board = KanbanBoard(id: "board-1", title: "Main")
         let exportedPayload = TaskExportPayload(
             formatVersion: TaskExportPayload.currentFormatVersion,
@@ -69,7 +69,7 @@ struct BoardViewModelTests {
     }
 
     @Test func importTasksCreatesMissingColumnsAndTasksFromBundleJSON() async throws {
-        // Requirements: API-007, API-008, BOARD-006, BOARD-008, BOARD-019, UX-013, UX-025
+        // @req API-007, API-008, BOARD-006, BOARD-008, BOARD-019, UX-013, UX-025
         let board = KanbanBoard(id: "board-1", title: "Main")
         let capture = ImportCapture()
 
@@ -140,7 +140,7 @@ struct BoardViewModelTests {
     }
 
     @Test func exportTasksIncludesOnlyCheckedBoards() async throws {
-        // Requirements: BOARD-018, UX-024, UX-026
+        // @req BOARD-018, UX-024, UX-026
         let boardA = KanbanBoard(id: "board-a", title: "A")
         let boardB = KanbanBoard(id: "board-b", title: "B")
 
@@ -191,7 +191,7 @@ struct BoardViewModelTests {
     }
 
     @Test func importTasksIncludesOnlyCheckedBoardsFromBundle() async throws {
-        // Requirements: BOARD-019, UX-025, UX-026
+        // @req BOARD-019, UX-025, UX-026
         let boardA = KanbanBoard(id: "board-a", title: "A")
         let boardB = KanbanBoard(id: "board-b", title: "B")
         let capture = MultiImportCapture()
@@ -260,7 +260,7 @@ struct BoardViewModelTests {
     }
 
     @Test func manualRefreshReloadsBoardStateFromAPI() async {
-        // Requirement: BOARD-004
+        // @req BOARD-004
         let board = KanbanBoard(id: "board-1", title: "Main")
         let firstDetails = KanbanBoardDetails(
             board: KanbanBoard(id: "board-1", title: "Main"),
@@ -303,7 +303,7 @@ struct BoardViewModelTests {
     }
 
     @Test func mutationActionsEnabledOnlyWhenBoardReady() async {
-        // Requirements: BOARD-003, UX-009
+        // @req BOARD-003, UX-009
         let gate = SuspendedOperationGate()
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(board: board, columns: [], tasks: [])
@@ -343,7 +343,7 @@ struct BoardViewModelTests {
     }
 
     @Test func deleteColumnConflictSurfacesStatusDetails() async {
-        // Requirements: COL-RULE-003, UX-002, UX-004
+        // @req COL-RULE-003, UX-002, UX-004
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -381,7 +381,7 @@ struct BoardViewModelTests {
     }
 
     @Test func archiveColumnTasksArchivesOnlySelectedColumnAndReloads() async {
-        // Requirements: COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
+        // @req COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
         let board = KanbanBoard(id: "board-1", title: "Main")
         let before = KanbanBoardDetails(
             board: board,
@@ -436,7 +436,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reloadBoardGroupsArchivedTasksByOriginalColumn() async {
-        // Requirements: TASK-023, TASK-024, TASK-026, UX-029
+        // @req TASK-023, TASK-024, TASK-026, UX-029
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -475,7 +475,7 @@ struct BoardViewModelTests {
     }
 
     @Test func archivedTaskLoadFailureDoesNotBlockActiveBoardRender() async {
-        // Requirement: UX-031
+        // @req UX-031
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -513,7 +513,7 @@ struct BoardViewModelTests {
     }
 
     @Test func restoreArchivedTaskMovesTaskBackToActiveColumn() async {
-        // Requirements: TASK-027, TASK-029, UX-034
+        // @req TASK-027, TASK-029, UX-034
         let board = KanbanBoard(id: "board-1", title: "Main")
         let getBoardCount = AsyncCounter()
 
@@ -558,7 +558,7 @@ struct BoardViewModelTests {
     }
 
     @Test func deleteArchivedTaskRemovesArchivedEntry() async {
-        // Requirements: TASK-028, UX-034
+        // @req TASK-028, UX-034
         let board = KanbanBoard(id: "board-1", title: "Main")
         let getBoardCount = AsyncCounter()
 
@@ -601,7 +601,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reorderTasksConflictSurfacesStatusDetails() async {
-        // Requirements: UX-006, API-005
+        // @req UX-006, API-005
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -642,7 +642,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reorderTasksInColumnSendsListOrderPayload() async {
-        // Requirements: TASK-037, TASK-038
+        // @req TASK-037, TASK-038
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -684,7 +684,7 @@ struct BoardViewModelTests {
     }
 
     @Test func deleteTasksDeletesSelectedSetWithSingleMutationCycle() async {
-        // Requirement: TASK-039
+        // @req TASK-039
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -721,7 +721,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reorderTasksRejectsDuplicateTaskIDsInPayload() async {
-        // Requirement: API-005
+        // @req API-005
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -764,7 +764,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reorderTasksSupportsCrossColumnBatchMovePayload() async {
-        // Requirements: TASK-040, UX-040
+        // @req TASK-040, UX-040
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -810,7 +810,7 @@ struct BoardViewModelTests {
     }
 
     @Test func applyTaskBatchMutationDeleteUsesBatchRequestShape() async {
-        // Requirement: TASK-041
+        // @req TASK-041
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -848,7 +848,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reorderColumnsOptimisticallyReordersAndPersists() async {
-        // Requirement: COL-MOVE-008
+        // @req COL-MOVE-008
         let gate = SuspendedOperationGate()
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
@@ -896,7 +896,7 @@ struct BoardViewModelTests {
     }
 
     @Test func reorderColumnsFailureRollsBackOrderAndShowsError() async {
-        // Requirement: COL-MOVE-008
+        // @req COL-MOVE-008
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -937,7 +937,7 @@ struct BoardViewModelTests {
     }
 
     @Test func switchingBoardsLoadsSelectedBoardDetails() async {
-        // Requirements: BOARD-011, UX-015
+        // @req BOARD-011, UX-015
         let boardA = KanbanBoard(id: "board-a", title: "Project A")
         let boardB = KanbanBoard(id: "board-b", title: "Project B")
 
@@ -975,7 +975,7 @@ struct BoardViewModelTests {
     }
 
     @Test func createAndRenameBoardUpdatesSelectionAndBoardList() async {
-        // Requirements: BOARD-009, BOARD-010, UX-016
+        // @req BOARD-009, BOARD-010, UX-016
         let boardA = KanbanBoard(id: "board-a", title: "Project A")
         let boardB = KanbanBoard(id: "board-b", title: "Project B")
         let createdBoard = KanbanBoard(id: "board-c", title: "Project C")
@@ -1021,7 +1021,7 @@ struct BoardViewModelTests {
     }
 
     @Test func deleteActiveBoardSwitchesToRemainingBoard() async {
-        // Requirements: BOARD-013, UX-019
+        // @req BOARD-013, UX-019
         let boardA = KanbanBoard(id: "board-a", title: "Board A")
         let boardB = KanbanBoard(id: "board-b", title: "Board B")
         let boardList = MutableBoardList(initial: [boardA, boardB])
@@ -1065,7 +1065,7 @@ struct BoardViewModelTests {
     }
 
     @Test func deleteActiveBoardConflictSurfacesStatusDetails() async {
-        // Requirements: BOARD-013, API-013, UX-019
+        // @req BOARD-013, API-013, UX-019
         let board = KanbanBoard(id: "board-1", title: "Main")
         let details = KanbanBoardDetails(
             board: board,
@@ -1105,7 +1105,7 @@ struct BoardViewModelTests {
     }
 
     @Test func archiveActiveBoardMovesBoardToArchivedList() async {
-        // Requirements: BOARD-014, BOARD-015, UX-020
+        // @req BOARD-014, BOARD-015, UX-020
         let boardA = KanbanBoard(id: "board-a", title: "Board A")
         let boardB = KanbanBoard(id: "board-b", title: "Board B")
         let boardList = MutableBoardList(initial: [boardA, boardB])
@@ -1144,7 +1144,7 @@ struct BoardViewModelTests {
     }
 
     @Test func restoreArchivedBoardReturnsItToActiveList() async {
-        // Requirements: BOARD-015, BOARD-016, BOARD-023, UX-021
+        // @req BOARD-015, BOARD-016, BOARD-023, UX-021
         let boardA = KanbanBoard(id: "board-a", title: "Board A")
         let active = MutableBoardList(initial: [KanbanBoard(id: "board-b", title: "Board B")])
         let archived = MutableBoardList(initial: [boardA])
@@ -1182,7 +1182,7 @@ struct BoardViewModelTests {
     }
 
     @Test func restoreArchivedBoardOriginalConflictSurfacesStatusDetails() async {
-        // Requirements: BOARD-024, UX-028
+        // @req BOARD-024, UX-028
         let boardA = KanbanBoard(id: "board-a", title: "Board A (archived)", archivedOriginalTitle: "Board A")
         let active = MutableBoardList(initial: [KanbanBoard(id: "board-b", title: "Board A")])
         let archived = MutableBoardList(initial: [boardA])

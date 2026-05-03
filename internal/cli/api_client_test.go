@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewHTTPAPIClientRejectsInvalidBaseURL(t *testing.T) {
-	// Requirement: CLI-001
+	// @req CLI-001
 	t.Parallel()
 
 	_, err := NewHTTPAPIClient("://bad-url", nil)
@@ -19,7 +19,7 @@ func TestNewHTTPAPIClientRejectsInvalidBaseURL(t *testing.T) {
 }
 
 func TestHTTPAPIClientLoginUsesTypedResponseParsing(t *testing.T) {
-	// Requirement: CLI-002
+	// @req CLI-002
 	t.Parallel()
 
 	expiresAt := time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)

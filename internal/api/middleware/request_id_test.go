@@ -7,7 +7,7 @@ import (
 )
 
 func TestRequestIDPreservesIncomingHeader(t *testing.T) {
-	// Requirement: MW-REQID-001
+	// @req MW-REQID-001
 	const incomingRequestID = "req-123"
 
 	var downstreamRequestID string
@@ -32,7 +32,7 @@ func TestRequestIDPreservesIncomingHeader(t *testing.T) {
 }
 
 func TestRequestIDGeneratesWhenMissing(t *testing.T) {
-	// Requirement: MW-REQID-002
+	// @req MW-REQID-002
 	var downstreamRequestID string
 	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downstreamRequestID = GetRequestID(r.Context())

@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct TodoMacOSTests {
     @Test func restoreSessionSkipsWhenNoPersistedSession() async {
-        // Requirement: AUTH-004
+        // @req AUTH-004
         let store = InMemorySessionStore()
         let viewModel = AuthSessionViewModel(sessionStore: store, now: { fixedNow })
 
@@ -19,7 +19,7 @@ struct TodoMacOSTests {
     }
 
     @Test func restoreSessionUsesPersistedValidToken() async {
-        // Requirement: AUTH-002
+        // @req AUTH-002
         let session = PersistedSession(
             email: "alice@example.com",
             accessToken: "access-token",
@@ -37,7 +37,7 @@ struct TodoMacOSTests {
     }
 
     @Test func restoreSessionRefreshesWhenAccessTokenExpired() async {
-        // Requirement: AUTH-003
+        // @req AUTH-003
         let expired = PersistedSession(
             email: "alice@example.com",
             accessToken: "access-token",
@@ -61,7 +61,7 @@ struct TodoMacOSTests {
     }
 
     @Test func restoreSessionClearsAndSetsExpiredStatusWhenRefreshFails() async {
-        // Requirement: UX-002
+        // @req UX-002
         let expired = PersistedSession(
             email: "alice@example.com",
             accessToken: "access-token",
@@ -129,7 +129,7 @@ struct TodoMacOSTests {
     }
 
     @Test func signOutRevokesAfterSignInWithoutKeepSignedIn() async {
-        // Requirement: AUTH-001
+        // @req AUTH-001
         let store = InMemorySessionStore()
         let revokeTracker = RevokeTracker()
         let authAPI = MockAuthAPI(

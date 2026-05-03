@@ -46,7 +46,7 @@ func TestMemoryRepositoryRunInTransactionRollsBackOnError(t *testing.T) {
 }
 
 func TestMemoryRepositoryCRUDAndReindex(t *testing.T) {
-	// Requirements: COL-002, COL-003, COL-004, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007
+	// @req COL-002, COL-003, COL-004, TASK-002, TASK-003, TASK-004, TASK-005, TASK-006, TASK-007
 	t.Parallel()
 
 	ctx := context.Background()
@@ -215,7 +215,7 @@ func TestMemoryRepositoryOwnershipEnforcement(t *testing.T) {
 }
 
 func TestMemoryRepositoryArchiveTasksInColumn(t *testing.T) {
-	// Requirements: COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-005
+	// @req COL-ARCH-001, COL-ARCH-002, COL-ARCH-003, COL-ARCH-005
 	t.Parallel()
 
 	ctx := context.Background()

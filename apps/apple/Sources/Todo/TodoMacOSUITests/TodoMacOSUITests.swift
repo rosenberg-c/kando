@@ -30,7 +30,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testExample() throws {
-        // Requirement: TEST-UI-001
+        // @req TEST-UI-001
         // UI tests must launch the application that they test.
         let app = configuredAppForUITests()
         app.launch()
@@ -40,7 +40,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testLaunchPerformance() throws {
-        // Requirement: TEST-UI-002
+        // @req TEST-UI-002
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             let app = configuredAppForUITests()
@@ -50,7 +50,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDeleteTaskConfirmationCancelAndConfirm() throws {
-        // Requirements: TASK-DEL-001, TASK-DEL-002, TASK-DEL-003, TASK-DEL-004, UX-003
+        // @req TASK-DEL-001, TASK-DEL-002, TASK-DEL-003, TASK-DEL-004, UX-003
         let app = launchSignedInApp()
 
         let taskDeleteButton = app.buttons["task-delete-task-1"]
@@ -80,7 +80,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testWorkspaceAnchorsTopLeading() throws {
-        // Requirement: UX-001
+        // @req UX-001
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
@@ -106,7 +106,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testBoardLoadingOverlayAppearsDuringSlowLoad() throws {
-        // Requirements: UX-009, UX-011
+        // @req UX-009, UX-011
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.mockDelayMs: "1500"])
 
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
@@ -138,7 +138,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsButtonAnchorsTopRightAndShowsActions() throws {
-        // Requirements: UX-010, UX-011, UX-012, UX-022, UX-023
+        // @req UX-010, UX-011, UX-012, UX-022, UX-023
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
@@ -220,7 +220,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateAndRenameBoardFromHeaderAndEditBoardPanel() throws {
-        // Requirements: BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016, UX-017
+        // @req BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016, UX-017
         let app = launchSignedInApp()
 
         let boardSelector = app.popUpButtons["board-selector-picker"]
@@ -296,7 +296,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateBoardTitleInputEnterSubmitsCreate() throws {
-        // Requirement: BOARD-025
+        // @req BOARD-025
         let app = launchSignedInApp()
         let createButton = app.buttons["board-create-button"]
 
@@ -324,7 +324,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testEditBoardPanelCloseDismissesEditMode() throws {
-        // Requirement: UX-018
+        // @req UX-018
         let app = launchSignedInApp()
 
         let editModeToggle = app.buttons["board-edit-mode-toggle"]
@@ -344,7 +344,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDeleteBoardAvailableOnlyWhenBoardHasNoTasks() throws {
-        // Requirements: BOARD-013, UX-019
+        // @req BOARD-013, UX-019
         let app = launchSignedInApp()
 
         let createButton = app.buttons["board-create-button"]
@@ -398,7 +398,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testArchivedBoardDeleteRequiresConfirmation() throws {
-        // Requirements: BOARD-017, UX-021
+        // @req BOARD-017, UX-021
         let app = launchSignedInApp()
 
         let createButton = app.buttons["board-create-button"]
@@ -502,7 +502,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testRestoreArchivedBoardShowsTitleModePrompt() throws {
-        // Requirement: UX-027
+        // @req UX-027
         let app = launchSignedInApp()
 
         let createButton = app.buttons["board-create-button"]
@@ -575,7 +575,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testExportFromSettingsShowsSavePanel() throws {
-        // Requirements: UX-012, UX-013, UX-024, UX-026
+        // @req UX-012, UX-013, UX-024, UX-026
         let app = launchSignedInApp(extraEnvironment: [
             UITestEnvKey.columnCount: "4",
             UITestEnvKey.workTaskCount: "50",
@@ -649,7 +649,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testOverflowingColumnTaskListScrollsWithoutPushingWorkspaceOutOfBounds() throws {
-        // Requirement: UX-008
+        // @req UX-008
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "28"])
         let uiTimeout = UITimeout.extended
 
@@ -687,7 +687,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDeleteColumnConfirmationCancelAndConfirm() throws {
-        // Requirements: COL-DEL-001, COL-DEL-002, COL-DEL-003, COL-DEL-004, UX-003
+        // @req COL-DEL-001, COL-DEL-002, COL-DEL-003, COL-DEL-004, UX-003
         let app = launchSignedInApp()
 
         let columnDeleteButton = app.buttons["column-delete-column-empty"]
@@ -717,7 +717,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDragTaskToAnotherColumn() throws {
-        // Requirement: UX-005
+        // @req UX-005
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
@@ -791,7 +791,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDropTaskOnColumnHeaderDoesNotFail() throws {
-        // Requirement: UX-007
+        // @req UX-007
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
@@ -822,7 +822,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testTaskMoveButtonsReorderWithinColumn() throws {
-        // Requirement: TASK-008
+        // @req TASK-008
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "3"])
         let uiTimeout = UITimeout.extended
 
@@ -850,8 +850,8 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testTaskTopBottomButtonsMoveTaskToColumnExtremes() throws {
-        // Requirement: TASK-009
-        // Requirement: TASK-010
+        // @req TASK-009
+        // @req TASK-010
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -901,7 +901,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsTaskControlTogglesHideButtonsAndPersistLocally() throws {
-        // Requirements: TASK-019, TASK-020, TASK-021, TASK-033, UX-023, UX-037
+        // @req TASK-019, TASK-020, TASK-021, TASK-033, UX-023, UX-037
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -1012,7 +1012,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testTaskSelectionEnablesTopBottomKeyboardShortcuts() throws {
-        // Requirements: TASK-012, TASK-013
+        // @req TASK-012, TASK-013
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -1063,7 +1063,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testTaskSelectionEnablesUpDownKeyboardShortcuts() throws {
-        // Requirements: TASK-015, TASK-016
+        // @req TASK-015, TASK-016
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -1113,7 +1113,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testTaskSelectionEnablesEditDeleteKeyboardShortcuts() throws {
-        // Requirements: TASK-017, TASK-018
+        // @req TASK-017, TASK-018
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -1159,7 +1159,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testEscapeClearsTaskSelectionForKeyboardShortcuts() throws {
-        // Requirement: TASK-014
+        // @req TASK-014
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 
@@ -1184,7 +1184,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateTaskAppearsInSelectedColumn() throws {
-        // Requirement: TASK-011
+        // @req TASK-011
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1241,7 +1241,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testColumnShortcutPickerSelectsSecondColumnForKeyboardCreate() throws {
-        // Requirements: TASK-011, TASK-042, TASK-043
+        // @req TASK-011, TASK-042, TASK-043
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1311,7 +1311,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateTaskTitleInputEnterSubmitsCreate() throws {
-        // Requirement: TASK-022
+        // @req TASK-022
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1354,7 +1354,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateTaskDescriptionInputEnterSubmitsAndShiftEnterDoesNot() throws {
-        // Requirement: TASK-022
+        // @req TASK-022
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1415,7 +1415,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateTaskWithHundredExistingTasksKeepsTaskInSelectedColumn() throws {
-        // Requirement: TASK-011
+        // @req TASK-011
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "100"])
         let uiTimeout = UITimeout.extended
 
@@ -1478,7 +1478,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testArchiveColumnTasksArchivesOnlySelectedColumn() throws {
-        // Requirements: COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
+        // @req COL-ARCH-002, COL-ARCH-003, COL-ARCH-004
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1501,7 +1501,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testArchivedTasksToggleShowsColumnArchivedSections() throws {
-        // Requirements: TASK-024, UX-030, UX-032
+        // @req TASK-024, UX-030, UX-032
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1525,7 +1525,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testArchivedTaskViewRestoreAndDelete() throws {
-        // Requirements: TASK-025, TASK-027, TASK-028, TASK-030, UX-033, UX-035
+        // @req TASK-025, TASK-027, TASK-028, TASK-030, UX-033, UX-035
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1584,7 +1584,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testArchivedTaskSelectionEnablesKeyboardShortcuts() throws {
-        // Requirements: TASK-031, TASK-032, UX-036
+        // @req TASK-031, TASK-032, UX-036
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1628,7 +1628,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testReorderColumnsFromEditBoardModal() throws {
-        // Requirement: COL-MOVE-009
+        // @req COL-MOVE-009
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
@@ -1676,7 +1676,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testDropTaskOnDestinationColumnHeaderDoesNotFail() throws {
-        // Requirement: UX-007
+        // @req UX-007
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
         let perElementTimeout: TimeInterval = 2
