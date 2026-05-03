@@ -73,7 +73,7 @@ run-cli:
 
 run-macos:
 	killall "$(MACOS_SCHEME)" >/dev/null 2>&1 || true
-	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$${TODO_API_BASE_URL:-http://localhost:8080}"
+	@sh -c 'if [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${TODO_API_BASE_URL:-http://localhost:8080}"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$$API_BASE_URL"'
 
 open-macos:
 	open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
