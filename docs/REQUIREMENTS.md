@@ -6,7 +6,7 @@ This document is the entry point for product requirements. Detailed requirements
 
 - Requirement IDs are globally unique and stable.
 - Requirement IDs must not be recycled.
-- Test tags should reference these IDs using `Requirement:` or `Requirements:` comments.
+- Test tags should reference these IDs using `@req` markers in line comments (for example `// @req AUTH-001, API-012`).
 - UI-facing requirements should declare platform applicability (`macOS`, `iOS`, `TUI`) so coverage can be tracked per client surface.
 - Platform applicability states should use `required`, `planned`, or `N/A`.
 

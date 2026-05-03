@@ -14,16 +14,16 @@ func TestCollectFromFileFindsAdjacentRequirementTags(t *testing.T) {
 	path := filepath.Join(root, "sample_test.go")
 	content := `package sample
 
-// Requirement: API-001
+// @req API-001
 func TestAboveTag(t *testing.T) {
 }
 
 func TestInlineTag(t *testing.T) {
-	// Requirements: AUTH-001, AUTH-002
+	// @req AUTH-001, AUTH-002
 }
 
 func TestIgnoresNonCommentTag(t *testing.T) {
-	_ = "Requirement: API-999"
+	_ = "@req API-999"
 }
 `
 
@@ -45,7 +45,7 @@ func TestIgnoresNonCommentTag(t *testing.T) {
 	}
 }
 
-// Requirement: TEST-HARNESS-001
+// @req TEST-HARNESS-001
 func TestCollectFromFileSupportsAdjacentMultiLineRequirementComments(t *testing.T) {
 	t.Parallel()
 
@@ -53,8 +53,8 @@ func TestCollectFromFileSupportsAdjacentMultiLineRequirementComments(t *testing.
 	path := filepath.Join(root, "multiline_test.go")
 	content := `package sample
 
-// Requirements: API-001, API-003
-// Requirements: UX-001, UX-002
+// @req API-001, API-003
+// @req UX-001, UX-002
 func TestMultiLineAbove(t *testing.T) {
 }
 `
@@ -79,8 +79,8 @@ func TestCollectAdjacentTagIDsSupportsConsecutiveBelowComments(t *testing.T) {
 
 	lines := []string{
 		"func TestFromBelow(t *testing.T) {",
-		"// Requirements: CLI-001, CLI-002",
-		"// Requirements: CLI-003",
+		"// @req CLI-001, CLI-002",
+		"// @req CLI-003",
 		"}",
 	}
 
@@ -97,10 +97,10 @@ func TestCollectFromFileIgnoresFixtureStringsThatLookLikeTests(t *testing.T) {
 	path := filepath.Join(root, "fixture_test.go")
 	content := "package sample\n\n" +
 		"var fixture = `\n" +
-		"// Requirement: API-001\n" +
+		"// @req API-001\n" +
 		"func TestNotReal(t *testing.T) {}\n" +
 		"`\n\n" +
-		"// Requirement: AUTH-001\n" +
+		"// @req AUTH-001\n" +
 		"func TestReal(t *testing.T) {\n" +
 		"}\n"
 

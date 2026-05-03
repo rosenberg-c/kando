@@ -44,7 +44,7 @@ Examples include:
 
 - every new feature or observable behavior change must map to requirement IDs before implementation
 - update `docs/requirements/*.md` first, then implement code and tests
-- keep automated tests tagged with requirement references using `Requirement:` / `Requirements:` comments
+- keep automated tests tagged with requirement references using `@req` comments
 - keep `docs/TEST_MATRIX.md` synchronized via `cmd/sync_test_matrix`
 
 ---
@@ -75,7 +75,7 @@ Examples include:
 
 ## 9. Preserve requirement tag conventions
 
-- keep test requirement annotations using `Requirement:` / `Requirements:` comment markers
+- keep test requirement annotations using `@req` comment markers
 - keep requirement IDs globally unique and stable; do not recycle IDs
 - keep UI requirement entries explicit about platform applicability states (`required`, `planned`, `N/A`)
 

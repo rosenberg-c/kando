@@ -15,7 +15,7 @@ Minimal Go backend scaffold for the task app.
 ## Requirement-driven development (RDD)
 
 - Requirements are defined and versioned in `docs/requirements/*.md`.
-- Automated tests map back to requirements using `Requirement:` / `Requirements:` tags in test files.
+- Automated tests map back to requirements using `@req` tags in test files.
 - `docs/TEST_MATRIX.md` is the traceability map from requirement IDs to test references.
 - `make test` includes `make verify-generate` and `make verify-test-matrix` to catch drift in generated artifacts and requirement mapping.
 - Historical planning notes are archived in `docs/archive/TEST_PLAN_2026-04.md`.
