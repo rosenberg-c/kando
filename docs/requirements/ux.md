@@ -1,47 +1,173 @@
 # UX and Layout
 
-- `UX-001`: Main workspace content anchors to top-leading layout.
-- `UX-002`: Important status feedback is exposed in UI-facing state for success and failure states.
-- `UX-003`: Destructive actions use destructive affordances and confirmations.
-- `UX-004`: Client app surfaces API failure context (status/detail) in user-visible state.
-- `UX-005`: Users can drag and drop tasks between columns in the board workspace.
-- `UX-006`: Task move failures are surfaced to the user with actionable status context.
-- `UX-007`: Releasing a dragged task on a column header area (not just on another task row) resolves to a valid destination position and does not fail with invalid-input errors.
-- `UX-008`: Column content grows as tasks are added, but when a column's content would exceed the app viewport height, the task list area becomes scrollable instead of pushing workspace content (for example app title) out of bounds.
-- `UX-009`: While a board mutation is pending, workspace interactions are disabled and a visible loading indicator is shown until the operation completes.
-- `UX-010`: Workspace header exposes a `Settings` control in the upper-right area.
-- `UX-011`: Refresh and sign-out actions are available from the settings panel instead of inline in the workspace header.
-- `UX-012`: Settings includes an export/import section with controls for task JSON export and import.
-- `UX-013`: Import/export actions surface success/failure feedback with actionable status context.
-- `UX-014`: Workspace header includes a board selector dropdown that lists owned boards.
-- `UX-015`: Switching boards shows loading feedback and disables board mutation controls until the destination board is loaded.
-- `UX-016`: The UI exposes create-board and rename-board actions with success/failure status feedback.
-- `UX-017`: Rename project/board is initiated from the `Edit board` panel instead of the workspace header.
-- `UX-018`: The `Edit board` panel includes an explicit `Close` action to dismiss edit mode.
-- `UX-019`: The `Edit board` panel includes a `Delete board` action that is available only when the active board has no tasks and surfaces clear blocked/success/failure feedback.
-- `UX-020`: The `Edit board` panel includes an `Archive board` action that removes the board from active workspace selection without destroying tasks/columns.
-- `UX-021`: The app exposes an archived-board management view that supports restore and permanent delete actions with destructive confirmations.
-- `UX-022`: The settings panel includes a keyboard shortcuts section that lists task-selection and task-action shortcuts.
-- `UX-023`: The settings panel includes task-action visibility checkboxes and persists each checkbox state locally across app launches.
-- `UX-024`: The export flow shows a checkbox list of owned boards so users can include/exclude each board before writing the export file.
-- `UX-025`: The import flow shows a checkbox list of boards detected in the selected import file so users can include/exclude each board before import starts.
-- `UX-026`: Export/import primary actions stay disabled until at least one board is checked.
-- `UX-027`: Restoring an archived board prompts for restore title mode so the user can choose `original` or `archived` title before restore is submitted.
-- `UX-028`: If restore title mode `original` would collide with an existing active board title, the UI shows a clear warning and disables the restore submit action.
-- `UX-029`: Each column includes an archived-task section in the board workspace so archived content remains discoverable without leaving the board.
-- `UX-030`: Workspace includes a `Show archived tasks` toggle that expands/collapses archived-task sections across all columns.
-- `UX-031`: Archived-task sections show loading and failure feedback states independent from active-task rendering so archived fetch failures are visible and recoverable.
-- `UX-032`: Archived-task controls follow accessibility-id conventions for deterministic UI automation (`column-archived-section-*`, `workspace-toggle-show-archived`).
-- `UX-033`: Archived-task rows expose explicit `View`, `Restore`, and `Delete` actions with stable accessibility identifiers.
-- `UX-034`: Restoring or deleting archived tasks surfaces success/failure status feedback without blocking active-task rendering.
-- `UX-035`: Archived-task delete uses destructive confirmation before permanent removal.
-- `UX-036`: The keyboard shortcuts section lists archived-task row shortcuts (`v` view, `r` restore, `x` delete) and their selection dependency.
-- `UX-037`: Settings includes an archived-task action visibility checkbox and persists its state locally across app launches.
-- `UX-038`: Multi-selected task rows have a clear selected visual state so users can distinguish selected and unselected rows before running batch actions.
-- `UX-039`: Keyboard shortcuts/help text documents task multi-selection behavior (`Ctrl`-click toggle, `Shift`-click range select) and clarifies that ordering actions run against the current selection.
-- `UX-040`: Drag-and-drop behavior keeps multi-selection intent: dragging a selected task moves the selected set rather than unexpectedly moving only one task.
-- `UX-041`: Workspace exposes a hidden top-left edge activation area (pointer/click target) that opens a developer status modal.
-- `UX-042`: The developer status modal displays backend connectivity status and the backend implementation currently in use.
+### `UX-001`
+
+Main workspace content anchors to top-leading layout.
+
+### `UX-002`
+
+Important status feedback is exposed in UI-facing state for success and failure states.
+
+### `UX-003`
+
+Destructive actions use destructive affordances and confirmations.
+
+### `UX-004`
+
+Client app surfaces API failure context (status/detail) in user-visible state.
+
+### `UX-005`
+
+Users can drag and drop tasks between columns in the board workspace.
+
+### `UX-006`
+
+Task move failures are surfaced to the user with actionable status context.
+
+### `UX-007`
+
+Releasing a dragged task on a column header area (not just on another task row) resolves to a valid destination position and does not fail with invalid-input errors.
+
+### `UX-008`
+
+Column content grows as tasks are added, but when a column's content would exceed the app viewport height, the task list area becomes scrollable instead of pushing workspace content (for example app title) out of bounds.
+
+### `UX-009`
+
+While a board mutation is pending, workspace interactions are disabled and a visible loading indicator is shown until the operation completes.
+
+### `UX-010`
+
+Workspace header exposes a `Settings` control in the upper-right area.
+
+### `UX-011`
+
+Refresh and sign-out actions are available from the settings panel instead of inline in the workspace header.
+
+### `UX-012`
+
+Settings includes an export/import section with controls for task JSON export and import.
+
+### `UX-013`
+
+Import/export actions surface success/failure feedback with actionable status context.
+
+### `UX-014`
+
+Workspace header includes a board selector dropdown that lists owned boards.
+
+### `UX-015`
+
+Switching boards shows loading feedback and disables board mutation controls until the destination board is loaded.
+
+### `UX-016`
+
+The UI exposes create-board and rename-board actions with success/failure status feedback.
+
+### `UX-017`
+
+Rename project/board is initiated from the `Edit board` panel instead of the workspace header.
+
+### `UX-018`
+
+The `Edit board` panel includes an explicit `Close` action to dismiss edit mode.
+
+### `UX-019`
+
+The `Edit board` panel includes a `Delete board` action that is available only when the active board has no tasks and surfaces clear blocked/success/failure feedback.
+
+### `UX-020`
+
+The `Edit board` panel includes an `Archive board` action that removes the board from active workspace selection without destroying tasks/columns.
+
+### `UX-021`
+
+The app exposes an archived-board management view that supports restore and permanent delete actions with destructive confirmations.
+
+### `UX-022`
+
+The settings panel includes a keyboard shortcuts section that lists task-selection and task-action shortcuts.
+
+### `UX-023`
+
+The settings panel includes task-action visibility checkboxes and persists each checkbox state locally across app launches.
+
+### `UX-024`
+
+The export flow shows a checkbox list of owned boards so users can include/exclude each board before writing the export file.
+
+### `UX-025`
+
+The import flow shows a checkbox list of boards detected in the selected import file so users can include/exclude each board before import starts.
+
+### `UX-026`
+
+Export/import primary actions stay disabled until at least one board is checked.
+
+### `UX-027`
+
+Restoring an archived board prompts for restore title mode so the user can choose `original` or `archived` title before restore is submitted.
+
+### `UX-028`
+
+If restore title mode `original` would collide with an existing active board title, the UI shows a clear warning and disables the restore submit action.
+
+### `UX-029`
+
+Each column includes an archived-task section in the board workspace so archived content remains discoverable without leaving the board.
+
+### `UX-030`
+
+Workspace includes a `Show archived tasks` toggle that expands/collapses archived-task sections across all columns.
+
+### `UX-031`
+
+Archived-task sections show loading and failure feedback states independent from active-task rendering so archived fetch failures are visible and recoverable.
+
+### `UX-032`
+
+Archived-task controls follow accessibility-id conventions for deterministic UI automation (`column-archived-section-*`, `workspace-toggle-show-archived`).
+
+### `UX-033`
+
+Archived-task rows expose explicit `View`, `Restore`, and `Delete` actions with stable accessibility identifiers.
+
+### `UX-034`
+
+Restoring or deleting archived tasks surfaces success/failure status feedback without blocking active-task rendering.
+
+### `UX-035`
+
+Archived-task delete uses destructive confirmation before permanent removal.
+
+### `UX-036`
+
+The keyboard shortcuts section lists archived-task row shortcuts (`v` view, `r` restore, `x` delete) and their selection dependency.
+
+### `UX-037`
+
+Settings includes an archived-task action visibility checkbox and persists its state locally across app launches.
+
+### `UX-038`
+
+Multi-selected task rows have a clear selected visual state so users can distinguish selected and unselected rows before running batch actions.
+
+### `UX-039`
+
+Keyboard shortcuts/help text documents task multi-selection behavior (`Ctrl`-click toggle, `Shift`-click range select) and clarifies that ordering actions run against the current selection.
+
+### `UX-040`
+
+Drag-and-drop behavior keeps multi-selection intent: dragging a selected task moves the selected set rather than unexpectedly moving only one task.
+
+### `UX-041`
+
+Workspace exposes a hidden top-left edge activation area (pointer/click target) that opens a developer status modal.
+
+### `UX-042`
+
+The developer status modal displays backend connectivity status and the backend implementation currently in use.
+
 
 ## Platform Applicability
 

@@ -1,33 +1,117 @@
 # Board Workspace
 
-- `BOARD-001`: The app loads the current user's board after sign-in.
-- `BOARD-002`: The workspace shows board title, columns, and tasks.
-- `BOARD-003`: Workspace actions are disabled while the board is not ready (no board context or loading state).
-- `BOARD-004`: The app supports manual refresh of board state.
-- `BOARD-005`: The app supports exporting all tasks on the active board to a JSON file.
-- `BOARD-006`: The app supports importing tasks from a JSON file to populate the active board.
-- `BOARD-007`: Exported task JSON includes a format version so future imports can validate compatibility.
-- `BOARD-008`: Board task export/import uses dedicated backend transfer endpoints rather than client-side row-by-row mutation orchestration.
-- `BOARD-009`: The app supports creating multiple boards/projects per authenticated user.
-- `BOARD-010`: The app supports renaming the active board.
-- `BOARD-011`: The app supports switching the active board from a board selector in the workspace header.
-- `BOARD-012`: The app restores the last selected board when board context is available for the signed-in user.
-- `BOARD-013`: The app supports deleting the active board only when that board has no tasks.
-- `BOARD-014`: The app supports archiving the active board, including boards with tasks, to remove it from active board selection.
-- `BOARD-015`: The app supports listing archived boards separately from active boards.
-- `BOARD-016`: The app supports restoring an archived board back to active state.
-- `BOARD-017`: The app supports permanent deletion of archived boards.
-- `BOARD-018`: Task export supports selecting one or more owned boards and includes only checked boards in the exported JSON.
-- `BOARD-019`: Task import supports selecting one or more boards discovered in the import file and imports only checked boards.
-- `BOARD-020`: Multi-board export/import preserves board boundaries so columns and tasks remain associated with the correct board snapshot.
-- `BOARD-021`: Archiving a board renames the board title to include an archive timestamp so archived board names are date-time qualified.
-- `BOARD-022`: Archiving stores the pre-archive board title separately so restore can choose between original title and archived title.
-- `BOARD-023`: Restoring an archived board supports selecting the restored title mode (`original` or `archived`) per restore action.
-- `BOARD-024`: When restore title mode is `original`, the restore flow warns and blocks submission if that original title conflicts with an existing active board title.
-- `BOARD-025`: On macOS, in the board editor sheet, pressing `Enter` while focused on the board title input submits the same primary action as tapping the sheet submit button.
-- `BOARD-026`: Board task export includes archived tasks grouped under their original column snapshot.
-- `BOARD-027`: Board task import restores archived tasks and preserves both archived state and original column association.
-- `BOARD-028`: Task export/import format versioning supports archived column-task snapshots while remaining backward compatible with prior export formats.
+### `BOARD-001`
+
+The app loads the current user's board after sign-in.
+
+### `BOARD-002`
+
+The workspace shows board title, columns, and tasks.
+
+### `BOARD-003`
+
+Workspace actions are disabled while the board is not ready (no board context or loading state).
+
+### `BOARD-004`
+
+The app supports manual refresh of board state.
+
+### `BOARD-005`
+
+The app supports exporting all tasks on the active board to a JSON file.
+
+### `BOARD-006`
+
+The app supports importing tasks from a JSON file to populate the active board.
+
+### `BOARD-007`
+
+Exported task JSON includes a format version so future imports can validate compatibility.
+
+### `BOARD-008`
+
+Board task export/import uses dedicated backend transfer endpoints rather than client-side row-by-row mutation orchestration.
+
+### `BOARD-009`
+
+The app supports creating multiple boards/projects per authenticated user.
+
+### `BOARD-010`
+
+The app supports renaming the active board.
+
+### `BOARD-011`
+
+The app supports switching the active board from a board selector in the workspace header.
+
+### `BOARD-012`
+
+The app restores the last selected board when board context is available for the signed-in user.
+
+### `BOARD-013`
+
+The app supports deleting the active board only when that board has no tasks.
+
+### `BOARD-014`
+
+The app supports archiving the active board, including boards with tasks, to remove it from active board selection.
+
+### `BOARD-015`
+
+The app supports listing archived boards separately from active boards.
+
+### `BOARD-016`
+
+The app supports restoring an archived board back to active state.
+
+### `BOARD-017`
+
+The app supports permanent deletion of archived boards.
+
+### `BOARD-018`
+
+Task export supports selecting one or more owned boards and includes only checked boards in the exported JSON.
+
+### `BOARD-019`
+
+Task import supports selecting one or more boards discovered in the import file and imports only checked boards.
+
+### `BOARD-020`
+
+Multi-board export/import preserves board boundaries so columns and tasks remain associated with the correct board snapshot.
+
+### `BOARD-021`
+
+Archiving a board renames the board title to include an archive timestamp so archived board names are date-time qualified.
+
+### `BOARD-022`
+
+Archiving stores the pre-archive board title separately so restore can choose between original title and archived title.
+
+### `BOARD-023`
+
+Restoring an archived board supports selecting the restored title mode (`original` or `archived`) per restore action.
+
+### `BOARD-024`
+
+When restore title mode is `original`, the restore flow warns and blocks submission if that original title conflicts with an existing active board title.
+
+### `BOARD-025`
+
+On macOS, in the board editor sheet, pressing `Enter` while focused on the board title input submits the same primary action as tapping the sheet submit button.
+
+### `BOARD-026`
+
+Board task export includes archived tasks grouped under their original column snapshot.
+
+### `BOARD-027`
+
+Board task import restores archived tasks and preserves both archived state and original column association.
+
+### `BOARD-028`
+
+Task export/import format versioning supports archived column-task snapshots while remaining backward compatible with prior export formats.
+
 
 ## Platform Applicability
 
