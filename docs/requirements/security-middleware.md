@@ -35,3 +35,11 @@ Request ID middleware preserves incoming request IDs in response and context.
 ### `MW-REQID-002`
 
 Request ID middleware generates and propagates a request ID when missing.
+
+### `MW-CORS-001`
+
+API middleware handles browser CORS preflight (`OPTIONS`) requests for allowed origins and returns CORS allow headers.
+
+### `MW-CORS-002`
+
+API middleware includes CORS allow-origin headers for simple/actual requests from allowed origins and omits them for disallowed origins.
