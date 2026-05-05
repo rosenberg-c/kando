@@ -22,12 +22,15 @@ type meOutput struct {
 	Body contracts.MeResponse
 }
 
+const publicTag = "public"
+
 func registerPublic(api huma.API, deps Dependencies) {
 	huma.Register(api, huma.Operation{
 		OperationID: "getHello",
 		Method:      http.MethodGet,
 		Path:        "/hello",
 		Summary:     "Returns hello world text",
+		Tags:        []string{publicTag},
 		Responses: map[string]*huma.Response{
 			"200": {
 				Description: "Plain text hello message",
@@ -47,6 +50,7 @@ func registerPublic(api huma.API, deps Dependencies) {
 		Method:      http.MethodGet,
 		Path:        "/me",
 		Summary:     "Returns the authenticated user identity",
+		Tags:        []string{publicTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *meInput) (*meOutput, error) {
 		if deps.Verifier == nil {

@@ -26,12 +26,15 @@ type logoutInput struct {
 	Body contracts.AuthRefreshRequest
 }
 
+const authTag = "auth"
+
 func registerAuth(api huma.API, deps Dependencies) {
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      http.MethodPost,
 		Path:        "/auth/login",
 		Summary:     "Authenticates a user and returns tokens",
+		Tags:        []string{authTag},
 	}, func(ctx context.Context, input *loginInput) (*authTokensOutput, error) {
 		if deps.Issuer == nil || deps.LoginLimiter == nil {
 			return nil, huma.Error500InternalServerError("auth dependencies are not configured")
@@ -74,6 +77,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/auth/refresh",
 		Summary:     "Refreshes an access token using refresh token",
+		Tags:        []string{authTag},
 	}, func(ctx context.Context, input *refreshInput) (*authTokensOutput, error) {
 		if deps.Issuer == nil {
 			return nil, huma.Error500InternalServerError("auth dependencies are not configured")
@@ -101,6 +105,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		Path:          "/auth/logout",
 		Summary:       "Revokes session and logs out user",
 		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{authTag},
 	}, func(ctx context.Context, input *logoutInput) (*struct{}, error) {
 		if deps.Issuer == nil {
 			return nil, huma.Error500InternalServerError("auth dependencies are not configured")

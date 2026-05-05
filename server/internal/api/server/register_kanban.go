@@ -158,6 +158,7 @@ const (
 	taskExportFormatVersionV2       = 2
 	taskExportBundleFormatVersionV2 = 2
 	taskExportBundleFormatVersionV3 = 3
+	kanbanTag                      = "boards"
 )
 
 type archiveRepository interface {
@@ -176,6 +177,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodGet,
 		Path:        "/boards",
 		Summary:     "List boards for the authenticated user",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *authHeaderInput) (*listBoardsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -200,6 +202,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodGet,
 		Path:        "/boards/archived",
 		Summary:     "List archived boards for the authenticated user",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *authHeaderInput) (*listBoardsOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
@@ -224,6 +227,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards",
 		Summary:     "Create a board",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *createBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -244,6 +248,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodGet,
 		Path:        "/boards/{boardId}",
 		Summary:     "Get board with columns and tasks",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *boardPathInput) (*boardDetailsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -278,6 +283,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPatch,
 		Path:        "/boards/{boardId}",
 		Summary:     "Update board title",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *updateBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -299,6 +305,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:          "/boards/{boardId}",
 		Summary:       "Delete a board",
 		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{kanbanTag},
 		Security:      []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *boardPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -318,6 +325,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/archive",
 		Summary:     "Archive a board",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *boardPathInput) (*boardOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
@@ -338,6 +346,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/restore",
 		Summary:     "Restore an archived board",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *restoreBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
@@ -364,6 +373,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:          "/boards/{boardId}/archive",
 		Summary:       "Permanently delete an archived board",
 		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{kanbanTag},
 		Security:      []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *boardPathInput) (*struct{}, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
@@ -383,6 +393,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/columns",
 		Summary:     "Create a column",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *createColumnInput) (*columnOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -403,6 +414,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPatch,
 		Path:        "/boards/{boardId}/columns/{columnId}",
 		Summary:     "Update column title",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *updateColumnInput) (*columnOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -423,6 +435,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPut,
 		Path:        "/boards/{boardId}/columns/order",
 		Summary:     "Replace board column order",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *reorderColumnsInput) (*columnsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -453,6 +466,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:          "/boards/{boardId}/columns/{columnId}",
 		Summary:       "Delete a column",
 		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{kanbanTag},
 		Security:      []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *columnPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -472,6 +486,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/columns/{columnId}/archive-tasks",
 		Summary:     "Archive all active tasks in a column",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *columnPathInput) (*archiveColumnTasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -500,6 +515,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/tasks",
 		Summary:     "Create a task",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *createTaskInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -520,6 +536,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodGet,
 		Path:        "/boards/{boardId}/tasks/archived",
 		Summary:     "List archived tasks for a board",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *boardPathInput) (*archivedTasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -550,6 +567,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/tasks/{taskId}/restore",
 		Summary:     "Restore an archived task",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *taskPathInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -576,6 +594,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:          "/boards/{boardId}/tasks/{taskId}/archived",
 		Summary:       "Permanently delete an archived task",
 		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{kanbanTag},
 		Security:      []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *taskPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -600,6 +619,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPatch,
 		Path:        "/boards/{boardId}/tasks/{taskId}",
 		Summary:     "Update a task",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *updateTaskInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -620,6 +640,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPut,
 		Path:        "/boards/{boardId}/tasks/order",
 		Summary:     "Replace board task order",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *reorderTasksInput) (*tasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -654,6 +675,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/{boardId}/tasks/actions",
 		Summary:     "Apply list-based task batch action",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *taskBatchMutationInput) (*tasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -687,6 +709,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/tasks/export",
 		Summary:     "Export selected boards as a multi-board task bundle",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *exportTasksBundleInput) (*exportTasksBundleOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -707,6 +730,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Method:      http.MethodPost,
 		Path:        "/boards/tasks/import",
 		Summary:     "Import selected snapshots from a multi-board task bundle",
+		Tags:        []string{kanbanTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *importTasksBundleInput) (*importTasksBundleOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
@@ -728,6 +752,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:          "/boards/{boardId}/tasks/{taskId}",
 		Summary:       "Delete a task",
 		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{kanbanTag},
 		Security:      []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *taskPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
