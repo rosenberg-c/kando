@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"go_macos_todo/apps/cli/ui"
-	"go_macos_todo/internal/cli"
+	"go_macos_todo/apps/cli/internal/cli"
 )
 
 func runTUI(ctx context.Context, service *cli.Service, store cli.TokenStore, input io.Reader, output io.Writer) error {

@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"go_macos_todo/apps/cli/ui"
-	"go_macos_todo/internal/cli"
+	"go_macos_todo/apps/cli/internal/cli"
 	"go_macos_todo/internal/config"
 )
 
