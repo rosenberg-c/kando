@@ -112,13 +112,15 @@ func main() {
 	}
 	apiserver.Register(api, deps)
 
+	corsOrigins := allowedCORSOrigins()
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: middleware.CORS(
 			middleware.RequestID(middleware.RequestLogger(mux)),
-			allowedCORSOrigins(),
+			corsOrigins,
 		),
 	}
+	log.Printf("cors allowed origins: %s", strings.Join(corsOrigins, ","))
 
 	log.Println("server listening on http://localhost:8080")
 	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
