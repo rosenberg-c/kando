@@ -25,7 +25,7 @@ Examples include:
 
 ## 3. OpenAPI is the transport source of truth
 
-- keep the API contract in `api/openapi.yaml` as the single transport source of truth
+- keep the API contract in `server/api/openapi.yaml` as the single transport source of truth
 - generate transport models/clients from OpenAPI; do not handwrite duplicate DTOs or endpoint paths
 - map between transport and domain models at boundary adapters
 - keep generated artifacts read-only and regenerate on contract changes

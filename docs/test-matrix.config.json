@@ -22,7 +22,7 @@
     ".swift": {
       "kind": "swift_syntax",
       "repoRoot": "..",
-      "parserPackagePath": "../cmd/sync_test_matrix/swift_parser",
+      "parserPackagePath": "../server/cmd/sync_test_matrix/swift_parser",
       "binaryName": "sync-test-matrix-swift-parser"
     }
   }

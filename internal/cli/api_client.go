@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	generatedclient "go_macos_todo/internal/api/generated/client"
+	generatedclient "go_macos_todo/generated/api/client"
 )
 
 type APIClient interface {

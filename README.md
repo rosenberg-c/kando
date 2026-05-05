@@ -7,8 +7,8 @@ Minimal Go backend scaffold for the task app.
 
 - Backend code is the source of truth.
 - `make generate` performs:
-  - Huma route definitions in backend code -> `api/openapi.yaml`
-  - `api/openapi.yaml` -> generated Go client for CLI
+  - Huma route definitions in backend code -> `server/api/openapi.yaml`
+  - `server/api/openapi.yaml` -> generated Go client for CLI
 - Backend OpenAPI is exported from the same registered operations used at runtime
 - `make verify-generate` fails if generated artifacts are out of date
 

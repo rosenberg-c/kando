@@ -41,7 +41,7 @@ Docs:
 ### 1. Backend code generates the API contract
 
 * Backend API code is the source of truth
-* `api/openapi.yaml` is exported from Huma operation definitions via `make generate`
+* `server/api/openapi.yaml` is exported from Huma operation definitions via `make generate`
 * Go CLI and Swift clients are generated from the same spec artifact
 
 ---
@@ -98,9 +98,9 @@ todo-app/
 ├─ api/
 │  └─ openapi.yaml
 │
+├─ server/
+│  └─ main.go
 ├─ apps/
-│  ├─ server/
-│  │  └─ main.go
 │  ├─ cli/
 │  │  └─ main.go
 │  └─ macos/
@@ -162,7 +162,7 @@ todo-app/
 ### Spec location
 
 ```txt id="mbhw21"
-/api/openapi.yaml
+/server/api/openapi.yaml
 ```
 
 ---
@@ -189,7 +189,7 @@ todo-app/
 
 Tool:
 
-* backend code -> OpenAPI: Huma operation registration + export (`cmd/gen_openapi`)
+* backend code -> OpenAPI: Huma operation registration + export (`server/cmd/gen_openapi`)
 * OpenAPI -> Go client: `oapi-codegen`
 
 ```bash id="z70yfh"

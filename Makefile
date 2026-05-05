@@ -1,4 +1,4 @@
-APP_SERVER := ./apps/server
+APP_SERVER := ./server
 APP_CLI := ./apps/cli
 APP_MACOS := ./apps/apple
 MACOS_XCODEPROJ := $(APP_MACOS)/Sources/Todo/TodoMacOS.xcodeproj
@@ -16,12 +16,12 @@ TEST_MATRIX_REPO ?= ../test-matrix
 .PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server
 
 generate:
-	go run ./cmd/gen_openapi
-	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config api/oapi-codegen-client.yaml -o internal/api/generated/client/client.gen.go api/openapi.yaml
-	go run ./cmd/gen_appwrite_schema
+	go run ./server/cmd/gen_openapi
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config server/api/oapi-codegen-client.yaml -o generated/api/client/client.gen.go server/api/openapi.yaml
+	go run ./server/cmd/gen_appwrite_schema
 
 verify-generate: generate
-	git diff --exit-code -- api/openapi.yaml internal/api/generated/client/client.gen.go api/appwrite-schema.json
+	git diff --exit-code -- server/api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json
 
 sync-test-matrix:
 	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
@@ -60,16 +60,16 @@ run-sqlite: kill-server
 	@sh -c 'KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
 appwrite-bootstrap:
-	go run ./cmd/bootstrap_appwrite
+	go run ./server/cmd/bootstrap_appwrite
 
 appwrite-prune:
-	go run ./cmd/prune_appwrite_schema
+	go run ./server/cmd/prune_appwrite_schema
 
 appwrite-prune-apply:
-	go run ./cmd/prune_appwrite_schema --apply
+	go run ./server/cmd/prune_appwrite_schema --apply
 
 verify-appwrite-schema:
-	go run ./cmd/verify_appwrite_schema
+	go run ./server/cmd/verify_appwrite_schema
 
 run-cli:
 	go run $(APP_CLI)
@@ -114,8 +114,8 @@ test-macos-ui:
 	@. ./scripts/test_summary.sh; run_with_test_summary xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) -only-testing:TodoMacOSUITests test
 
 test-appwrite-integration:
-	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "warning: .env.server not found; using existing environment"; fi; $(MAKE) verify-appwrite-schema && RUN_APPWRITE_INTEGRATION=1 go test ./internal/kanban -run Appwrite'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "warning: .env.server not found; using existing environment"; fi; $(MAKE) verify-appwrite-schema && RUN_APPWRITE_INTEGRATION=1 go test ./server/internal/kanban -run Appwrite'
 
 test-api-backends:
-	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'API_TEST_BACKEND=sqlite go test ./internal/api/server -run BackendMatrix'
-	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ "$${RUN_APPWRITE_MATRIX:-0}" = "1" ]; then if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "missing .env.server for appwrite backend matrix"; exit 1; fi; $(MAKE) appwrite-bootstrap && $(MAKE) verify-appwrite-schema && API_TEST_BACKEND=appwrite go test ./internal/api/server -run BackendMatrix; else echo "skipping appwrite matrix (set RUN_APPWRITE_MATRIX=1 to enable)"; fi'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'API_TEST_BACKEND=sqlite go test ./server/internal/api/server -run BackendMatrix'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ "$${RUN_APPWRITE_MATRIX:-0}" = "1" ]; then if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "missing .env.server for appwrite backend matrix"; exit 1; fi; $(MAKE) appwrite-bootstrap && $(MAKE) verify-appwrite-schema && API_TEST_BACKEND=appwrite go test ./server/internal/api/server -run BackendMatrix; else echo "skipping appwrite matrix (set RUN_APPWRITE_MATRIX=1 to enable)"; fi'

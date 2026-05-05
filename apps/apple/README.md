@@ -10,7 +10,7 @@ This package provides the macOS-facing generated API client.
 
 ## OpenAPI source
 
-The OpenAPI contract is generated from backend code into `api/openapi.yaml`.
+The OpenAPI contract is generated from backend code into `server/api/openapi.yaml`.
 
 The package reads that same contract via a symlink at `Sources/TodoAPIClient/openapi.yaml`, so there is a single OpenAPI source file in the repo.
 
