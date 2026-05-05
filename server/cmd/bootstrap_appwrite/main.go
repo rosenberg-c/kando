@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/internal/config"
+	"go_macos_todo/internal/shared/config"
 	"go_macos_todo/server/internal/schema"
 )
 

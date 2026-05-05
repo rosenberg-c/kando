@@ -15,7 +15,7 @@ import (
 	"go_macos_todo/server/internal/api/security"
 	apiserver "go_macos_todo/server/internal/api/server"
 	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/internal/config"
+	"go_macos_todo/internal/shared/config"
 	"go_macos_todo/server/internal/kanban"
 )
 
