@@ -13,9 +13,14 @@ const (
 // CORS adds CORS headers for configured origins and handles preflight requests.
 func CORS(next http.Handler, allowedOrigins []string) http.Handler {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
+	allowAnyOrigin := false
 	for _, origin := range allowedOrigins {
 		trimmed := strings.TrimSpace(origin)
 		if trimmed == "" {
+			continue
+		}
+		if trimmed == "*" {
+			allowAnyOrigin = true
 			continue
 		}
 		allowed[trimmed] = struct{}{}
@@ -29,14 +34,19 @@ func CORS(next http.Handler, allowedOrigins []string) http.Handler {
 			w.Header().Add("Vary", "Access-Control-Request-Headers")
 		}
 
-		if _, ok := allowed[origin]; ok {
+		originAllowed := allowAnyOrigin
+		if !originAllowed {
+			_, originAllowed = allowed[origin]
+		}
+
+		if originAllowed {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", corsAllowMethods)
 			w.Header().Set("Access-Control-Allow-Headers", corsAllowHeaders)
 		}
 
 		if r.Method == http.MethodOptions {
-			if _, ok := allowed[origin]; ok {
+			if originAllowed {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}

@@ -66,3 +66,24 @@ func TestCORSOmitsHeadersForDisallowedOrigin(t *testing.T) {
 		t.Fatalf("allow origin = %q, want empty", got)
 	}
 }
+
+func TestCORSAllowsWildcardOrigin(t *testing.T) {
+	// @req MW-CORS-002
+	handler := CORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), []string{"*"})
+
+	req := httptest.NewRequest(http.MethodOptions, "/auth/login", nil)
+	req.Header.Set("Origin", "http://192.168.56.2:5173")
+	req.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://192.168.56.2:5173" {
+		t.Fatalf("allow origin = %q, want %q", got, "http://192.168.56.2:5173")
+	}
+}
