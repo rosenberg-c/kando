@@ -10,6 +10,7 @@ Rule ownership:
 
 - `AGENT.md` = how to work (communication, decision-making, change process)
 - `docs/RULES.md` = generic engineering defaults
+- `docs/RULES_TYPESCRIPT.md` = TypeScript/React-specific defaults
 - `docs/PROJECT_RULES.md` = kando-specific policy and technical constraints
 
 A question is not a change request.
