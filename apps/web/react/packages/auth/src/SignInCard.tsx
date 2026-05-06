@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { Button, Card, Text } from "@kando/components";
 import { keys, t } from "@kando/locale";
 import type { SignInParams } from "./types";
+import styles from "./SignInCard.module.css";
 
 type SignInCardProps = {
   isBusy: boolean;
@@ -24,11 +26,11 @@ export function SignInCard({
   }, [email, password, isBusy]);
 
   return (
-    <section className="auth-card" aria-busy={isBusy}>
-      <h1>{t(keys.auth.signin.title)}</h1>
-      <p className="muted">{t(keys.auth.signin.subtitle)}</p>
+    <Card aria-busy={isBusy}>
+      <h1 className={styles.title}>{t(keys.auth.signin.title)}</h1>
+      <Text variant="muted">{t(keys.auth.signin.subtitle)}</Text>
       <form
-        className="auth-form"
+        className={styles.form}
         onSubmit={(event) => {
           event.preventDefault();
           if (!canSubmit) {
@@ -38,9 +40,10 @@ export function SignInCard({
         }}
       >
         <label>
-          <span>{t(keys.auth.email.label)}</span>
+          <span className={styles.label}>{t(keys.auth.email.label)}</span>
           <input
             type="email"
+            className={styles.input}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder={t(keys.auth.email.placeholder)}
@@ -49,9 +52,10 @@ export function SignInCard({
           />
         </label>
         <label>
-          <span>{t(keys.auth.password.label)}</span>
+          <span className={styles.label}>{t(keys.auth.password.label)}</span>
           <input
             type="password"
+            className={styles.input}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder={t(keys.auth.password.placeholder)}
@@ -59,22 +63,26 @@ export function SignInCard({
             data-testid="auth.password"
           />
         </label>
-        <label className="checkbox-row">
+        <label className={styles.checkboxRow}>
           <input
             type="checkbox"
             checked={keepSignedIn}
             onChange={(event) => setKeepSignedIn(event.target.checked)}
             disabled={isBusy}
           />
-          <span>{t(keys.auth.keepSignedIn)}</span>
+          <span className={styles.label}>{t(keys.auth.keepSignedIn)}</span>
         </label>
-        <button type="submit" disabled={!canSubmit} data-testid="auth.signin.submit">
+        <Button type="submit" disabled={!canSubmit} data-testid="auth.signin.submit">
           {isBusy ? t(keys.auth.signin.submitting) : t(keys.auth.signin.submit)}
-        </button>
+        </Button>
       </form>
       {statusMessage && (
-        <p className={statusIsError ? "status error" : "status ok"}>{statusMessage}</p>
+        <Text
+          className={statusIsError ? `${styles.status} ${styles.statusError}` : `${styles.status} ${styles.statusOk}`}
+        >
+          {statusMessage}
+        </Text>
       )}
-    </section>
+    </Card>
   );
 }

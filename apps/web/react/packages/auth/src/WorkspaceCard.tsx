@@ -1,4 +1,6 @@
+import { Button, Card, Text } from "@kando/components";
 import { keys, t } from "@kando/locale";
+import styles from "./WorkspaceCard.module.css";
 
 type WorkspaceCardProps = {
   signedInEmail: string;
@@ -18,18 +20,32 @@ export function WorkspaceCard({
   statusIsError,
 }: WorkspaceCardProps) {
   return (
-    <section className="workspace-card">
-      <h1>{t(keys.workspace.title)}</h1>
-      <p className="muted">{t(keys.workspace.subtitle, { email: signedInEmail })}</p>
-      <p className="token-meta">{t(keys.workspace.tokenExpiry, { at: accessTokenExpiresAt })}</p>
-      <div className="workspace-actions">
-        <button type="button" onClick={() => void onSignOut()} disabled={isBusy} data-testid="auth.signout.submit">
+    <Card>
+      <h1 className={styles.title}>{t(keys.workspace.title)}</h1>
+      <Text variant="muted">{t(keys.workspace.subtitle, { email: signedInEmail })}</Text>
+      <Text className={styles.tokenMeta}>{t(keys.workspace.tokenExpiry, { at: accessTokenExpiresAt })}</Text>
+      <div className={styles.actions}>
+        <Button
+          variant="danger"
+          type="button"
+          onClick={() => void onSignOut()}
+          disabled={isBusy}
+          data-testid="auth.signout.submit"
+        >
           {t(keys.auth.signout.submit)}
-        </button>
+        </Button>
       </div>
       {statusMessage && (
-        <p className={statusIsError ? "status error" : "status ok"}>{statusMessage}</p>
+        <Text
+          className={
+            statusIsError
+              ? `${styles.status} ${styles.statusError}`
+              : `${styles.status} ${styles.statusOk}`
+          }
+        >
+          {statusMessage}
+        </Text>
       )}
-    </section>
+    </Card>
   );
 }

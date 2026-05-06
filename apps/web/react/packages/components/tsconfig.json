@@ -8,7 +8,7 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "vitest/globals", "react", "react-dom"]
+    "types": ["vite/client", "react"]
   },
-  "include": ["src", "../types", "../packages/auth/src", "../packages/components/src", "../packages/locale/src"]
+  "include": ["src", "../../types"]
 }

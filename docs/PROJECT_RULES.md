@@ -135,3 +135,11 @@ Examples include:
 - small adjacent maintenance in touched areas is allowed when behavior-preserving and low risk
 - broad or cross-cutting refactors should be discussed before implementation
 - clearly separate feature behavior changes from adjacent cleanup in change notes
+
+---
+
+## 17. Promote reusable base UI to `packages/components`
+
+- avoid styling base HTML elements globally (for example `button`, `p`, `h1`, `input`) in feature or app stylesheets
+- when a base element needs shared visual treatment across composites/pages, implement it as a reusable component in `apps/web/react/packages/components`
+- keep feature/package styles focused on layout and feature-specific variants; compose shared base primitives (`Button`, `Text`, etc.) instead of duplicating base element styling

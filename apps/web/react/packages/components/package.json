@@ -1,5 +1,5 @@
 {
-  "name": "@kando/auth",
+  "name": "@kando/components",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,13 +13,8 @@
   "peerDependencies": {
     "react": "^19.2.0"
   },
-  "dependencies": {
-    "@kando/components": "workspace:*",
-    "@kando/locale": "workspace:*"
-  },
   "devDependencies": {
     "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
     "typescript": "^5.9.3"
   }
 }

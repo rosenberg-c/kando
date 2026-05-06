@@ -6,8 +6,14 @@
     "install:react": "pnpm --dir ./app install",
     "generate:api": "pnpm --dir ./app run generate:api",
     "dev": "pnpm --dir ./app dev",
+    "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "pnpm --dir ./app exec tsc --noEmit",
     "build": "pnpm --dir ./app build",
     "test": "pnpm --dir ./app test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "typescript-eslint": "^8.59.2"
   }
 }

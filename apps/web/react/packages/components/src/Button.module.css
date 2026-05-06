@@ -1,0 +1,28 @@
+.button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f766e, #0f766e 35%, #1d4ed8);
+}
+
+.neutral {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.danger {
+  color: #ffffff;
+  background: #b91c1c;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
