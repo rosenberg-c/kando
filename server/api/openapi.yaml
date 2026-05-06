@@ -748,6 +748,8 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Authenticates a user and returns tokens
+      tags:
+        - auth
   /auth/logout:
     post:
       operationId: logout
@@ -767,6 +769,8 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Revokes session and logs out user
+      tags:
+        - auth
   /auth/refresh:
     post:
       operationId: refreshAuth
@@ -790,6 +794,8 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Refreshes an access token using refresh token
+      tags:
+        - auth
   /boards:
     get:
       operationId: listBoards
@@ -817,6 +823,8 @@ paths:
       security:
         - bearerAuth: []
       summary: List boards for the authenticated user
+      tags:
+        - boards
     post:
       operationId: createBoard
       parameters:
@@ -846,6 +854,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a board
+      tags:
+        - boards
   /boards/archived:
     get:
       operationId: listArchivedBoards
@@ -873,6 +883,8 @@ paths:
       security:
         - bearerAuth: []
       summary: List archived boards for the authenticated user
+      tags:
+        - boards
   /boards/tasks/export:
     post:
       operationId: exportTasksBundle
@@ -903,6 +915,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Export selected boards as a multi-board task bundle
+      tags:
+        - boards
   /boards/tasks/import:
     post:
       operationId: importTasksBundle
@@ -933,6 +947,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Import selected snapshots from a multi-board task bundle
+      tags:
+        - boards
   /boards/{boardId}:
     delete:
       operationId: deleteBoard
@@ -958,6 +974,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Delete a board
+      tags:
+        - boards
     get:
       operationId: getBoard
       parameters:
@@ -986,6 +1004,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Get board with columns and tasks
+      tags:
+        - boards
     patch:
       operationId: updateBoard
       parameters:
@@ -1020,6 +1040,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Update board title
+      tags:
+        - boards
   /boards/{boardId}/archive:
     delete:
       operationId: deleteArchivedBoard
@@ -1045,6 +1067,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Permanently delete an archived board
+      tags:
+        - boards
     post:
       operationId: archiveBoard
       parameters:
@@ -1073,6 +1097,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Archive a board
+      tags:
+        - boards
   /boards/{boardId}/columns:
     post:
       operationId: createColumn
@@ -1108,6 +1134,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a column
+      tags:
+        - boards
   /boards/{boardId}/columns/order:
     put:
       operationId: reorderColumns
@@ -1146,6 +1174,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Replace board column order
+      tags:
+        - boards
   /boards/{boardId}/columns/{columnId}:
     delete:
       operationId: deleteColumn
@@ -1176,6 +1206,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Delete a column
+      tags:
+        - boards
     patch:
       operationId: updateColumn
       parameters:
@@ -1215,6 +1247,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Update column title
+      tags:
+        - boards
   /boards/{boardId}/columns/{columnId}/archive-tasks:
     post:
       operationId: archiveTasksInColumn
@@ -1249,6 +1283,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Archive all active tasks in a column
+      tags:
+        - boards
   /boards/{boardId}/restore:
     post:
       operationId: restoreBoard
@@ -1284,6 +1320,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Restore an archived board
+      tags:
+        - boards
   /boards/{boardId}/tasks:
     post:
       operationId: createTask
@@ -1319,6 +1357,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Create a task
+      tags:
+        - boards
   /boards/{boardId}/tasks/actions:
     post:
       operationId: applyTaskBatchMutation
@@ -1357,6 +1397,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Apply list-based task batch action
+      tags:
+        - boards
   /boards/{boardId}/tasks/archived:
     get:
       operationId: listArchivedTasksByBoard
@@ -1389,6 +1431,8 @@ paths:
       security:
         - bearerAuth: []
       summary: List archived tasks for a board
+      tags:
+        - boards
   /boards/{boardId}/tasks/order:
     put:
       operationId: reorderTasks
@@ -1427,6 +1471,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Replace board task order
+      tags:
+        - boards
   /boards/{boardId}/tasks/{taskId}:
     delete:
       operationId: deleteTask
@@ -1457,6 +1503,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Delete a task
+      tags:
+        - boards
     patch:
       operationId: updateTask
       parameters:
@@ -1496,6 +1544,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Update a task
+      tags:
+        - boards
   /boards/{boardId}/tasks/{taskId}/archived:
     delete:
       operationId: deleteArchivedTask
@@ -1526,6 +1576,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Permanently delete an archived task
+      tags:
+        - boards
   /boards/{boardId}/tasks/{taskId}/restore:
     post:
       operationId: restoreArchivedTask
@@ -1560,6 +1612,8 @@ paths:
       security:
         - bearerAuth: []
       summary: Restore an archived task
+      tags:
+        - boards
   /hello:
     get:
       operationId: getHello
@@ -1581,6 +1635,8 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Returns hello world text
+      tags:
+        - public
   /me:
     get:
       operationId: getMe
@@ -1605,3 +1661,5 @@ paths:
       security:
         - bearerAuth: []
       summary: Returns the authenticated user identity
+      tags:
+        - public

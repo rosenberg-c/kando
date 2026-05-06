@@ -1,0 +1,16 @@
+{
+  "name": "@kando/locale",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "i18next": "^25.6.0"
+  }
+}

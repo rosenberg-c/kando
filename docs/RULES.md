@@ -165,3 +165,5 @@ Avoid leaking framework or generated types across layers.
 - write UI tests using stable selectors first, then role/text fallback only when selectors are unavailable or unreliable
 - if fallback selectors are required, document the reason in the test for maintainability
 - keep fallback usage localized and avoid broad text-only matching across repeated controls
+
+For TypeScript/React-specific defaults, see `docs/RULES_TYPESCRIPT.md`.

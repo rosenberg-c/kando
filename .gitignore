@@ -16,3 +16,5 @@ apps/apple/Package.resolved
 
 # db
 *.db
+
+.build
