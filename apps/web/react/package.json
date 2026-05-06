@@ -9,7 +9,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "pnpm --dir ./app exec tsc --noEmit",
     "build": "pnpm --dir ./app build",
-    "test": "pnpm --dir ./app test"
+    "test": "pnpm --dir ./app test && pnpm --dir ./packages/locale test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

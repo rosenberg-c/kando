@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AuthProvider, type AuthSessionStore, type AuthTransport } from "@kando/auth";
+import { keys, t } from "@kando/locale";
 import App from "./App";
 
 function inFutureIso(minutes: number): string {
@@ -88,6 +89,12 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
+      expect(screen.getByText(t(keys.workspace.subtitle, { email: "person@example.com" }))).toBeTruthy();
+      expect(
+        screen.getByText((content) => content.startsWith(t(keys.workspace.tokenExpiry, { at: "" }))),
+      ).toBeTruthy();
+      expect(screen.queryByText("Signed in as {email}.")).toBeNull();
+      expect(screen.queryByText("Access token expires at: {at}")).toBeNull();
     });
   });
 
