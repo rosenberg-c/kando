@@ -70,6 +70,28 @@ make web-dev
 - `APPWRITE_*` values are backend-only and must not be shipped to clients.
 - Set Appwrite values only if you are using Appwrite-backed auth/storage.
 
+## Appwrite setup
+
+Required for auth:
+- `APPWRITE_ENDPOINT`
+- `APPWRITE_PROJECT_ID`
+- `APPWRITE_AUTH_API_KEY` (server-side key with `sessions.write`)
+
+Required for Appwrite storage backend:
+- `APPWRITE_DB_API_KEY` (server-side key with TablesDB/table/column/index read+write)
+- `APPWRITE_DB_ID`
+- `APPWRITE_DB_NAME`
+- `APPWRITE_BOARDS_COLLECTION_ID`
+- `APPWRITE_COLUMNS_COLLECTION_ID`
+- `APPWRITE_TASKS_COLLECTION_ID`
+
+Initialize/verify Appwrite schema:
+
+```bash
+make appwrite-bootstrap
+make verify-appwrite-schema
+```
+
 ## Project docs
 
 - Agent/process rules: `AGENT.md`
