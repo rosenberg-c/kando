@@ -12,16 +12,18 @@ LOCAL_BIN_DIR := $(HOME)/.local/bin
 SERVER_PORT := 8080
 SERVER_PID_FILE := .server.pid
 TEST_MATRIX_REPO ?= ../test-matrix
+WEB_APP_DIR := ./apps/web/react
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-dev web-build web-test
 
 generate:
 	go run ./server/cmd/gen_openapi
 	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config server/api/oapi-codegen-client.yaml -o generated/api/client/client.gen.go server/api/openapi.yaml
+	pnpm --dir $(WEB_APP_DIR) run generate:api
 	go run ./server/cmd/gen_appwrite_schema
 
 verify-generate: generate
-	git diff --exit-code -- server/api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json
+	git diff --exit-code -- server/api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json apps/web/react/app/src/generated/api
 
 sync-test-matrix:
 	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
@@ -119,3 +121,15 @@ test-appwrite-integration:
 test-api-backends:
 	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'API_TEST_BACKEND=sqlite go test ./server/internal/api/server -run BackendMatrix'
 	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'if [ "$${RUN_APPWRITE_MATRIX:-0}" = "1" ]; then if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; else echo "missing .env.server for appwrite backend matrix"; exit 1; fi; $(MAKE) appwrite-bootstrap && $(MAKE) verify-appwrite-schema && API_TEST_BACKEND=appwrite go test ./server/internal/api/server -run BackendMatrix; else echo "skipping appwrite matrix (set RUN_APPWRITE_MATRIX=1 to enable)"; fi'
+
+web-install:
+	pnpm --dir $(WEB_APP_DIR) run install:react
+
+web-dev:
+	pnpm --dir $(WEB_APP_DIR) dev
+
+web-build:
+	pnpm --dir $(WEB_APP_DIR) build
+
+web-test:
+	pnpm --dir $(WEB_APP_DIR) test

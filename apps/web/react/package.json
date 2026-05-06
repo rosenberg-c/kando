@@ -1,0 +1,13 @@
+{
+  "name": "@kando/web-root",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "install:react": "pnpm --dir ./app install",
+    "generate:api": "pnpm --dir ./app run generate:api",
+    "dev": "pnpm --dir ./app dev",
+    "typecheck": "pnpm --dir ./app exec tsc --noEmit",
+    "build": "pnpm --dir ./app build",
+    "test": "pnpm --dir ./app test"
+  }
+}
