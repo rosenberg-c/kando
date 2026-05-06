@@ -1,0 +1,1665 @@
+components:
+  schemas:
+    ArchiveColumnTasksResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/ArchiveColumnTasksResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        archivedAt:
+          format: date-time
+          type: string
+        archivedTaskCount:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - archivedTaskCount
+        - archivedAt
+      type: object
+    ArchivedTask:
+      additionalProperties: false
+      properties:
+        archivedAt:
+          format: date-time
+          type: string
+        boardId:
+          format: uuid
+          type: string
+        columnId:
+          format: uuid
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        description:
+          maxLength: 4000
+          type: string
+        id:
+          format: uuid
+          type: string
+        position:
+          format: int64
+          minimum: 0
+          type: integer
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - boardId
+        - columnId
+        - title
+        - description
+        - position
+        - archivedAt
+        - createdAt
+        - updatedAt
+      type: object
+    AuthLoginRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/AuthLoginRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+      type: object
+    AuthRefreshRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/AuthRefreshRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        refreshToken:
+          type: string
+      required:
+        - refreshToken
+      type: object
+    AuthTokens:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/AuthTokens.json
+          format: uri
+          readOnly: true
+          type: string
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          format: date-time
+          type: string
+        refreshToken:
+          type: string
+      required:
+        - accessToken
+        - refreshToken
+        - accessTokenExpiresAt
+      type: object
+    Board:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/Board.json
+          format: uri
+          readOnly: true
+          type: string
+        archivedOriginalTitle:
+          maxLength: 120
+          type: string
+        boardVersion:
+          format: int64
+          minimum: 1
+          type: integer
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        ownerUserId:
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - ownerUserId
+        - title
+        - boardVersion
+        - createdAt
+        - updatedAt
+      type: object
+    BoardDetailsResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/BoardDetailsResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        board:
+          $ref: "#/components/schemas/Board"
+        columns:
+          items:
+            $ref: "#/components/schemas/Column"
+          nullable: true
+          type: array
+        tasks:
+          items:
+            $ref: "#/components/schemas/Task"
+          nullable: true
+          type: array
+      required:
+        - board
+        - columns
+        - tasks
+      type: object
+    Column:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/Column.json
+          format: uri
+          readOnly: true
+          type: string
+        boardId:
+          format: uuid
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        position:
+          format: int64
+          minimum: 0
+          type: integer
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - boardId
+        - title
+        - position
+        - createdAt
+        - updatedAt
+      type: object
+    CreateBoardRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/CreateBoardRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - title
+      type: object
+    CreateColumnRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/CreateColumnRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - title
+      type: object
+    CreateTaskRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/CreateTaskRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        columnId:
+          format: uuid
+          type: string
+        description:
+          maxLength: 4000
+          type: string
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - columnId
+        - title
+        - description
+      type: object
+    ErrorDetail:
+      additionalProperties: false
+      properties:
+        location:
+          description: Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
+          type: string
+        message:
+          description: Error message text
+          type: string
+        value:
+          description: The value at the given location
+      type: object
+    ErrorModel:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/ErrorModel.json
+          format: uri
+          readOnly: true
+          type: string
+        detail:
+          description: A human-readable explanation specific to this occurrence of the problem.
+          example: Property foo is required but is missing.
+          type: string
+        errors:
+          description: Optional list of individual error details
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+          nullable: true
+          type: array
+        instance:
+          description: A URI reference that identifies the specific occurrence of the problem.
+          example: https://example.com/error-log/abc123
+          format: uri
+          type: string
+        status:
+          description: HTTP status code
+          example: 400
+          format: int64
+          type: integer
+        title:
+          description: A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
+          example: Bad Request
+          type: string
+        type:
+          default: about:blank
+          description: A URI reference to human-readable documentation for the error.
+          example: https://example.com/errors/example
+          format: uri
+          type: string
+      type: object
+    MeResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/MeResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        email:
+          type: string
+        userId:
+          type: string
+      required:
+        - userId
+        - email
+      type: object
+    ReorderColumnsRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/ReorderColumnsRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        columnIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - columnIds
+      type: object
+    ReorderTasksRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/ReorderTasksRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        columns:
+          items:
+            $ref: "#/components/schemas/TaskColumnOrderRequest"
+          minItems: 1
+          type: array
+      required:
+        - columns
+      type: object
+    RestoreBoardRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/RestoreBoardRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        titleMode:
+          enum:
+            - original
+            - archived
+          type: string
+      required:
+        - titleMode
+      type: object
+    Task:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/Task.json
+          format: uri
+          readOnly: true
+          type: string
+        boardId:
+          format: uuid
+          type: string
+        columnId:
+          format: uuid
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        description:
+          maxLength: 4000
+          type: string
+        id:
+          format: uuid
+          type: string
+        position:
+          format: int64
+          minimum: 0
+          type: integer
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - boardId
+        - columnId
+        - title
+        - description
+        - position
+        - createdAt
+        - updatedAt
+      type: object
+    TaskBatchMutationRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskBatchMutationRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        action:
+          enum:
+            - delete
+          type: string
+        taskIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - action
+        - taskIds
+      type: object
+    TaskColumnOrderRequest:
+      additionalProperties: false
+      properties:
+        columnId:
+          format: uuid
+          type: string
+        taskIds:
+          items:
+            type: string
+          type: array
+      required:
+        - columnId
+        - taskIds
+      type: object
+    TaskExportBundle:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskExportBundle.json
+          format: uri
+          readOnly: true
+          type: string
+        boards:
+          items:
+            $ref: "#/components/schemas/TaskExportBundleBoard"
+          minItems: 1
+          type: array
+        exportedAt:
+          format: date-time
+          type: string
+        formatVersion:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - formatVersion
+        - exportedAt
+        - boards
+      type: object
+    TaskExportBundleBoard:
+      additionalProperties: false
+      properties:
+        payload:
+          $ref: "#/components/schemas/TaskExportPayload"
+        sourceBoardId:
+          format: uuid
+          type: string
+        sourceBoardTitle:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - sourceBoardId
+        - sourceBoardTitle
+        - payload
+      type: object
+    TaskExportBundleRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskExportBundleRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        boardIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - boardIds
+      type: object
+    TaskExportColumn:
+      additionalProperties: false
+      properties:
+        archivedTasks:
+          items:
+            $ref: "#/components/schemas/TaskExportTask"
+          type: array
+        tasks:
+          items:
+            $ref: "#/components/schemas/TaskExportTask"
+          type: array
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - title
+        - tasks
+      type: object
+    TaskExportPayload:
+      additionalProperties: false
+      properties:
+        boardTitle:
+          maxLength: 120
+          minLength: 1
+          type: string
+        columns:
+          items:
+            $ref: "#/components/schemas/TaskExportColumn"
+          type: array
+        exportedAt:
+          format: date-time
+          type: string
+        formatVersion:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - formatVersion
+        - boardTitle
+        - exportedAt
+        - columns
+      type: object
+    TaskExportTask:
+      additionalProperties: false
+      properties:
+        archivedAt:
+          format: date-time
+          type: string
+        description:
+          maxLength: 4000
+          type: string
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - title
+        - description
+      type: object
+    TaskImportBundleBoardResult:
+      additionalProperties: false
+      properties:
+        createdColumnCount:
+          format: int64
+          minimum: 0
+          type: integer
+        destinationBoardId:
+          format: uuid
+          type: string
+        importedTaskCount:
+          format: int64
+          minimum: 0
+          type: integer
+        sourceBoardId:
+          format: uuid
+          type: string
+      required:
+        - sourceBoardId
+        - destinationBoardId
+        - createdColumnCount
+        - importedTaskCount
+      type: object
+    TaskImportBundleRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskImportBundleRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        bundle:
+          $ref: "#/components/schemas/TaskExportBundle"
+        sourceBoardIds:
+          items:
+            type: string
+          minItems: 1
+          type: array
+      required:
+        - sourceBoardIds
+        - bundle
+      type: object
+    TaskImportBundleResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/TaskImportBundleResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        results:
+          items:
+            $ref: "#/components/schemas/TaskImportBundleBoardResult"
+          type: array
+        totalCreatedColumnCount:
+          format: int64
+          minimum: 0
+          type: integer
+        totalImportedTaskCount:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - results
+        - totalCreatedColumnCount
+        - totalImportedTaskCount
+      type: object
+    UpdateBoardRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/UpdateBoardRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - title
+      type: object
+    UpdateColumnRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/UpdateColumnRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - title
+      type: object
+    UpdateTaskRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/UpdateTaskRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          maxLength: 4000
+          type: string
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - title
+        - description
+      type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
+info:
+  title: Go MacOS Task API
+  version: 0.1.0
+openapi: 3.0.3
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Authenticates a user and returns tokens
+      tags:
+        - auth
+  /auth/logout:
+    post:
+      operationId: logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRefreshRequest"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Revokes session and logs out user
+      tags:
+        - auth
+  /auth/refresh:
+    post:
+      operationId: refreshAuth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRefreshRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Refreshes an access token using refresh token
+      tags:
+        - auth
+  /boards:
+    get:
+      operationId: listBoards
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Board"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: List boards for the authenticated user
+      tags:
+        - boards
+    post:
+      operationId: createBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBoardRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Create a board
+      tags:
+        - boards
+  /boards/archived:
+    get:
+      operationId: listArchivedBoards
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Board"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: List archived boards for the authenticated user
+      tags:
+        - boards
+  /boards/tasks/export:
+    post:
+      operationId: exportTasksBundle
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskExportBundleRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskExportBundle"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Export selected boards as a multi-board task bundle
+      tags:
+        - boards
+  /boards/tasks/import:
+    post:
+      operationId: importTasksBundle
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskImportBundleRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskImportBundleResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Import selected snapshots from a multi-board task bundle
+      tags:
+        - boards
+  /boards/{boardId}:
+    delete:
+      operationId: deleteBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Delete a board
+      tags:
+        - boards
+    get:
+      operationId: getBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardDetailsResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Get board with columns and tasks
+      tags:
+        - boards
+    patch:
+      operationId: updateBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBoardRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Update board title
+      tags:
+        - boards
+  /boards/{boardId}/archive:
+    delete:
+      operationId: deleteArchivedBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Permanently delete an archived board
+      tags:
+        - boards
+    post:
+      operationId: archiveBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Archive a board
+      tags:
+        - boards
+  /boards/{boardId}/columns:
+    post:
+      operationId: createColumn
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateColumnRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Column"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Create a column
+      tags:
+        - boards
+  /boards/{boardId}/columns/order:
+    put:
+      operationId: reorderColumns
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderColumnsRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Column"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Replace board column order
+      tags:
+        - boards
+  /boards/{boardId}/columns/{columnId}:
+    delete:
+      operationId: deleteColumn
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: columnId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Delete a column
+      tags:
+        - boards
+    patch:
+      operationId: updateColumn
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: columnId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateColumnRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Column"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Update column title
+      tags:
+        - boards
+  /boards/{boardId}/columns/{columnId}/archive-tasks:
+    post:
+      operationId: archiveTasksInColumn
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: columnId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchiveColumnTasksResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Archive all active tasks in a column
+      tags:
+        - boards
+  /boards/{boardId}/restore:
+    post:
+      operationId: restoreBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreBoardRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Restore an archived board
+      tags:
+        - boards
+  /boards/{boardId}/tasks:
+    post:
+      operationId: createTask
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Create a task
+      tags:
+        - boards
+  /boards/{boardId}/tasks/actions:
+    post:
+      operationId: applyTaskBatchMutation
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBatchMutationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Task"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Apply list-based task batch action
+      tags:
+        - boards
+  /boards/{boardId}/tasks/archived:
+    get:
+      operationId: listArchivedTasksByBoard
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/ArchivedTask"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: List archived tasks for a board
+      tags:
+        - boards
+  /boards/{boardId}/tasks/order:
+    put:
+      operationId: reorderTasks
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderTasksRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Task"
+                nullable: true
+                type: array
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Replace board task order
+      tags:
+        - boards
+  /boards/{boardId}/tasks/{taskId}:
+    delete:
+      operationId: deleteTask
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Delete a task
+      tags:
+        - boards
+    patch:
+      operationId: updateTask
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Update a task
+      tags:
+        - boards
+  /boards/{boardId}/tasks/{taskId}/archived:
+    delete:
+      operationId: deleteArchivedTask
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Permanently delete an archived task
+      tags:
+        - boards
+  /boards/{boardId}/tasks/{taskId}/restore:
+    post:
+      operationId: restoreArchivedTask
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+        - in: path
+          name: boardId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Restore an archived task
+      tags:
+        - boards
+  /hello:
+    get:
+      operationId: getHello
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Plain text hello message
+          headers:
+            Content-Type:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Returns hello world text
+      tags:
+        - public
+  /me:
+    get:
+      operationId: getMe
+      parameters:
+        - in: header
+          name: Authorization
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearerAuth: []
+      summary: Returns the authenticated user identity
+      tags:
+        - public

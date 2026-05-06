@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "generate:api": "openapi --input ../../../../server/api/openapi.yaml --output ./src/generated/api --client fetch --useOptions --useUnionTypes"
+    "generate:api": "pnpm dlx openapi-typescript-codegen@0.29.0 --input ../../../../server/api/openapi.yaml --output ./src/generated/api --client fetch --useOptions --useUnionTypes"
   },
   "dependencies": {
     "@kando/auth": "workspace:*",
