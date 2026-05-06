@@ -27,7 +27,7 @@ func main() {
 	}
 
 	store := cli.NewSecureTokenStore(filepath.Join(configDir, "go_macos_todo", "auth.json"))
-	apiBaseURL := os.Getenv("TODO_API_BASE_URL")
+	apiBaseURL := os.Getenv("KANDO_API_BASE_URL")
 	if apiBaseURL == "" {
 		apiBaseURL = "http://localhost:8080"
 	}

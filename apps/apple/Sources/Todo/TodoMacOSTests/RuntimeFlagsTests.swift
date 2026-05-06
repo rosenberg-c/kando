@@ -3,7 +3,7 @@ import Testing
 
 struct RuntimeFlagsTests {
     @Test func shouldDisableKeychainWhenExplicitFlagSet() {
-        let env = ["TODO_DISABLE_KEYCHAIN": "1"]
+        let env = ["KANDO_DISABLE_KEYCHAIN": "1"]
         #expect(RuntimeFlags.shouldDisableKeychain(environment: env, isXCTestRuntime: false))
     }
 
@@ -12,7 +12,7 @@ struct RuntimeFlagsTests {
     }
 
     @Test func shouldUseMockBoardWhenUiTestModeEnabled() {
-        let env = ["TODO_UITEST_MODE": "1"]
+        let env = ["KANDO_UITEST_MODE": "1"]
         #expect(RuntimeFlags.shouldUseMockBoard(environment: env, isXCTestRuntime: false))
     }
 

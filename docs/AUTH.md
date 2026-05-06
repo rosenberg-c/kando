@@ -68,7 +68,7 @@ This project uses Appwrite as the authentication source of truth for all clients
 - `APPWRITE_DB_API_KEY` (server-side only, with TablesDB/table/column/index read+write scopes, used for schema bootstrap)
 
 - `.env.app`
-- `TODO_API_BASE_URL` (optional for CLI; default `http://localhost:8080`)
+- `KANDO_API_BASE_URL` (optional for CLI; default `http://localhost:8080`)
 
 ## References
 

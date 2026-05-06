@@ -52,5 +52,5 @@
   "cli.tui.me_label": "Current identity:",
   "cli.tui.status_logged_out": "Session status: logged out",
   "cli.tui.status_failed": "status failed: %v\n",
-  "cli.warning.insecure_base_url": "warning: TODO_API_BASE_URL uses insecure HTTP for non-localhost endpoint (%s); prefer HTTPS\n"
+  "cli.warning.insecure_base_url": "warning: KANDO_API_BASE_URL uses insecure HTTP for non-localhost endpoint (%s); prefer HTTPS\n"
 }

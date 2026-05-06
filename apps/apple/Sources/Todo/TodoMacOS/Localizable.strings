@@ -9,7 +9,7 @@
 "signin.submit_in_progress" = "Signing in...";
 "signin.forgot_password" = "Forgot password?";
 "signin.create_account" = "Create account";
-"signin.result.invalid_base_url" = "Invalid TODO_API_BASE_URL. Check your Run environment settings.";
+"signin.result.invalid_base_url" = "Invalid KANDO_API_BASE_URL. Check your Run environment settings.";
 "signin.result.invalid_response" = "The server returned an invalid response.";
 "signin.result.success" = "Signed in successfully.";
 "signin.result.failure" = "Sign-in failed (HTTP %d).";

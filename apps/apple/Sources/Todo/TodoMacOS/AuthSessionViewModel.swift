@@ -201,7 +201,7 @@ final class AuthSessionViewModel: ObservableObject {
         if let value = commandLineAPIBaseURL() {
             return URL(string: value)
         }
-        return URL(string: ProcessInfo.processInfo.environment["TODO_API_BASE_URL"] ?? "http://localhost:8080")
+        return URL(string: ProcessInfo.processInfo.environment["KANDO_API_BASE_URL"] ?? "http://localhost:8080")
     }
 
     private func commandLineAPIBaseURL() -> String? {

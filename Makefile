@@ -14,7 +14,7 @@ SERVER_PID_FILE := .server.pid
 TEST_MATRIX_REPO ?= ../test-matrix
 WEB_APP_DIR := ./apps/web/react
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-dev web-build web-test
+.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-dev web-build web-test
 
 generate:
 	go run ./server/cmd/gen_openapi
@@ -78,7 +78,7 @@ run-cli:
 
 run-macos:
 	killall "$(MACOS_SCHEME)" >/dev/null 2>&1 || true
-	@sh -c 'if [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${TODO_API_BASE_URL:-http://localhost:8080}"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$$API_BASE_URL"'
+	@sh -c 'if [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${KANDO_API_BASE_URL:-http://localhost:8080}"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$$API_BASE_URL"'
 
 open-macos:
 	open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
@@ -107,7 +107,10 @@ install-go:
 	fi
 
 test:
-	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'go test ./... && $(MAKE) verify-generate && $(MAKE) verify-test-matrix && $(MAKE) test-macos-unit'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c '$(MAKE) test-core && if command -v xcodebuild >/dev/null 2>&1; then $(MAKE) test-macos-unit; else echo "skipping test-macos-unit (xcodebuild not available)"; fi'
+
+test-core:
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'go test ./... && $(MAKE) verify-generate && $(MAKE) verify-test-matrix'
 
 test-macos-unit:
 	@. ./scripts/test_summary.sh; run_with_test_summary xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_UNIT_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
