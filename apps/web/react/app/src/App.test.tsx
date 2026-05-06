@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it } from "vitest";
 import { AuthProvider, type AuthTransport } from "@kando/auth";
 import { keys, t } from "@kando/locale";
+import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 
 function deferred<T>() {
@@ -15,7 +16,9 @@ function deferred<T>() {
 function renderApp(transport: AuthTransport) {
   return render(
     <AuthProvider transport={transport}>
-      <App />
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>
     </AuthProvider>,
   );
 }
