@@ -112,10 +112,15 @@ func main() {
 	}
 	apiserver.Register(api, deps)
 
+	corsOrigins := allowedCORSOrigins()
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: middleware.RequestID(middleware.RequestLogger(mux)),
+		Handler: middleware.CORS(
+			middleware.RequestID(middleware.RequestLogger(mux)),
+			corsOrigins,
+		),
 	}
+	log.Printf("cors allowed origins: %s", strings.Join(corsOrigins, ","))
 
 	log.Println("server listening on http://localhost:8080")
 	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -184,4 +189,27 @@ func validateLogSize(sizeBytes, warnBytes, maxBytes int64) (bool, error) {
 	}
 
 	return sizeBytes > warnBytes, nil
+}
+
+func allowedCORSOrigins() []string {
+	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	if raw == "" {
+		return []string{"http://localhost:5173"}
+	}
+
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		origins = append(origins, trimmed)
+	}
+
+	if len(origins) == 0 {
+		return []string{"http://localhost:5173"}
+	}
+
+	return origins
 }
