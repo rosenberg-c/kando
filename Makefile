@@ -14,13 +14,15 @@ SERVER_PID_FILE := .server.pid
 TEST_MATRIX_REPO ?= ../test-matrix
 WEB_APP_DIR := ./apps/web/react
 
-.PHONY: generate verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-dev web-build web-test
+.PHONY: generate generate-web-api verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-dev web-build web-test
 
 generate:
 	go run ./server/cmd/gen_openapi
 	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config server/api/oapi-codegen-client.yaml -o generated/api/client/client.gen.go server/api/openapi.yaml
-	pnpm --dir $(WEB_APP_DIR) run generate:api
 	go run ./server/cmd/gen_appwrite_schema
+
+generate-web-api:
+	pnpm --dir $(WEB_APP_DIR) run generate:api
 
 verify-generate: generate
 	git diff --exit-code -- server/api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json apps/web/react/app/src/generated/api
