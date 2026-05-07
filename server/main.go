@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"go_macos_todo/internal/shared/config"
 	"go_macos_todo/server/internal/api/middleware"
 	"go_macos_todo/server/internal/api/security"
 	apiserver "go_macos_todo/server/internal/api/server"
 	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/internal/shared/config"
 	"go_macos_todo/server/internal/kanban"
 )
 
@@ -72,6 +72,8 @@ func main() {
 		deps.Issuer = authClient
 		deps.Verifier = authClient
 		deps.LoginLimiter = security.NewLoginRateLimiter(5, 10*time.Minute, 15*time.Minute)
+		deps.AuthLimiter = security.NewLoginRateLimiter(20, time.Minute, 2*time.Minute)
+		deps.RefreshStore = security.NewRefreshTokenStore(14 * 24 * time.Hour)
 	}
 
 	switch kanbanRepositoryMode {
@@ -112,15 +114,31 @@ func main() {
 	}
 	apiserver.Register(api, deps)
 
-	corsOrigins := allowedCORSOrigins()
+	corsOrigins := config.AllowedCORSOrigins()
+	if err := config.ValidateAllowedCORSOrigins(corsOrigins); err != nil {
+		log.Fatalf("invalid CORS_ALLOWED_ORIGINS: %v", err)
+	}
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr: ":8080",
 		Handler: middleware.CORS(
 			middleware.RequestID(middleware.RequestLogger(mux)),
 			corsOrigins,
 		),
 	}
 	log.Printf("cors allowed origins: %s", strings.Join(corsOrigins, ","))
+	tlsCertFile := strings.TrimSpace(os.Getenv("TLS_CERT_FILE"))
+	tlsKeyFile := strings.TrimSpace(os.Getenv("TLS_KEY_FILE"))
+
+	if tlsCertFile != "" || tlsKeyFile != "" {
+		if tlsCertFile == "" || tlsKeyFile == "" {
+			log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE must both be set when enabling TLS")
+		}
+		log.Println("server listening on https://0.0.0.0:8080")
+		if err = server.ListenAndServeTLS(tlsCertFile, tlsKeyFile); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server stopped: %v", err)
+		}
+		return
+	}
 
 	log.Println("server listening on http://localhost:8080")
 	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -158,7 +176,7 @@ func setupLogging() (*os.File, error) {
 		return nil, statErr
 	}
 
-	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -189,27 +207,4 @@ func validateLogSize(sizeBytes, warnBytes, maxBytes int64) (bool, error) {
 	}
 
 	return sizeBytes > warnBytes, nil
-}
-
-func allowedCORSOrigins() []string {
-	raw := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
-	if raw == "" {
-		return []string{"http://localhost:5173"}
-	}
-
-	parts := strings.Split(raw, ",")
-	origins := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		origins = append(origins, trimmed)
-	}
-
-	if len(origins) == 0 {
-		return []string{"http://localhost:5173"}
-	}
-
-	return origins
 }

@@ -53,18 +53,9 @@ func registerPublic(api huma.API, deps Dependencies) {
 		Tags:        []string{publicTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *meInput) (*meOutput, error) {
-		if deps.Verifier == nil {
-			return nil, huma.Error500InternalServerError("auth dependencies are not configured")
-		}
-
-		token, ok := bearerToken(input.Authorization)
-		if !ok {
-			return nil, huma.Error401Unauthorized("missing bearer token")
-		}
-
-		identity, err := deps.Verifier.VerifyJWT(ctx, token)
+		identity, err := requireVerifiedIdentity(ctx, deps, input.Authorization)
 		if err != nil {
-			return nil, huma.Error401Unauthorized("unauthorized")
+			return nil, err
 		}
 
 		return &meOutput{Body: contracts.MeResponse{UserID: identity.UserID, Email: identity.Email}}, nil

@@ -772,18 +772,10 @@ func requireKanban(ctx context.Context, deps Dependencies, authorization string)
 	if deps.KanbanRepo == nil {
 		return nil, auth.Identity{}, huma.Error500InternalServerError("kanban dependencies are not configured")
 	}
-	if deps.Verifier == nil {
-		return nil, auth.Identity{}, huma.Error500InternalServerError("auth dependencies are not configured")
-	}
 
-	token, ok := bearerToken(authorization)
-	if !ok {
-		return nil, auth.Identity{}, huma.Error401Unauthorized("missing bearer token")
-	}
-
-	identity, err := deps.Verifier.VerifyJWT(ctx, token)
+	identity, err := requireVerifiedIdentity(ctx, deps, authorization)
 	if err != nil {
-		return nil, auth.Identity{}, huma.Error401Unauthorized("unauthorized")
+		return nil, auth.Identity{}, err
 	}
 
 	return deps.KanbanRepo, identity, nil
