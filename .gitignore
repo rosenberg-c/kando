@@ -18,3 +18,5 @@ apps/apple/Package.resolved
 *.db
 
 .build
+.cert
+/certs/
