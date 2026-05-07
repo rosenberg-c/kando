@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthSessionStore, AuthTokens, AuthTransport, SignInParams } from "./types";
+import type { AuthTokens, AuthTransport, SignInParams } from "./types";
 
 const SessionStatus = {
   Idle: "idle",
@@ -30,20 +30,10 @@ type AuthContextValue = {
 
 type AuthProviderProps = {
   transport: AuthTransport;
-  sessionStore: AuthSessionStore;
   children: ReactNode;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function parseExpiry(value: string): number {
-  const epoch = Date.parse(value);
-  return Number.isNaN(epoch) ? 0 : epoch;
-}
-
-function needsRefresh(expiresAtIso: string): boolean {
-  return parseExpiry(expiresAtIso) <= Date.now() + 30_000;
-}
 
 function toStatusMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -52,10 +42,9 @@ function toStatusMessage(error: unknown): string {
   return t(keys.auth.signin.unknownError);
 }
 
-export function AuthProvider({ transport, sessionStore, children }: AuthProviderProps) {
+export function AuthProvider({ transport, children }: AuthProviderProps) {
   const [signedInEmail, setSignedInEmail] = useState("");
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [accessTokenExpiresAt, setAccessTokenExpiresAt] = useState("");
   const [status, setStatus] = useState<SessionStatus>(SessionStatus.Idle);
   const [statusMessage, setStatusMessage] = useState("");
@@ -64,59 +53,34 @@ export function AuthProvider({ transport, sessionStore, children }: AuthProvider
   const isSignedIn = Boolean(accessToken);
   const isBusy = status === SessionStatus.Loading;
 
-  useEffect(() => {
-    const restore = async () => {
-      const session = sessionStore.load();
-      if (!session) {
-        return;
-      }
-
-      if (needsRefresh(session.accessTokenExpiresAt)) {
-        setStatus(SessionStatus.Loading);
-        try {
-          const refreshed = await transport.refreshTokens(session.refreshToken);
-          if (!refreshed) {
-            sessionStore.clear();
-            setSignedInEmail("");
-            setStatusIsError(true);
-            setStatusMessage(t(keys.auth.session.expired));
-            return;
-          }
-
-          const restored = {
-            email: session.email,
-            ...refreshed,
-          };
-          sessionStore.save(restored);
-          setAccessToken(restored.accessToken);
-          setRefreshToken(restored.refreshToken);
-          setAccessTokenExpiresAt(restored.accessTokenExpiresAt);
-          setSignedInEmail(restored.email);
-        } catch (error) {
-          setSignedInEmail("");
-          setStatusIsError(true);
-          setStatusMessage(t(keys.auth.session.restoreFailed, { reason: String(error) }));
-        } finally {
-          setStatus(SessionStatus.Idle);
-        }
-        return;
-      }
-
-      setAccessToken(session.accessToken);
-      setRefreshToken(session.refreshToken);
-      setAccessTokenExpiresAt(session.accessTokenExpiresAt);
-      setSignedInEmail(session.email);
-    };
-
-    void restore();
-  }, [sessionStore, transport]);
-
   const applySignedInState = useCallback((nextEmail: string, tokens: AuthTokens) => {
     setAccessToken(tokens.accessToken);
-    setRefreshToken(tokens.refreshToken);
     setAccessTokenExpiresAt(tokens.accessTokenExpiresAt);
     setSignedInEmail(nextEmail);
   }, []);
+
+  useEffect(() => {
+    const restore = async () => {
+      setStatus(SessionStatus.Loading);
+      try {
+        const refreshed = await transport.refreshTokens();
+        if (!refreshed) {
+          return;
+        }
+
+        const identity = await transport.getIdentity();
+        applySignedInState(identity?.email ?? "", refreshed);
+      } catch (error) {
+        setSignedInEmail("");
+        setStatusIsError(true);
+        setStatusMessage(t(keys.auth.session.restoreFailed, { reason: String(error) }));
+      } finally {
+        setStatus(SessionStatus.Idle);
+      }
+    };
+
+    void restore();
+  }, [applySignedInState, transport]);
 
   const signIn = useCallback(
     async ({ email, password, keepSignedIn }: SignInParams) => {
@@ -138,11 +102,7 @@ export function AuthProvider({ transport, sessionStore, children }: AuthProvider
         }
 
         applySignedInState(nextEmail, tokens);
-        if (keepSignedIn) {
-          sessionStore.save({ email: nextEmail, ...tokens });
-        } else {
-          sessionStore.clear();
-        }
+        void keepSignedIn;
         setStatusMessage(t(keys.auth.signin.success));
       } catch (error) {
         setStatusIsError(true);
@@ -151,32 +111,27 @@ export function AuthProvider({ transport, sessionStore, children }: AuthProvider
         setStatus(SessionStatus.Idle);
       }
     },
-    [applySignedInState, sessionStore, transport],
+    [applySignedInState, transport],
   );
 
   const signOut = useCallback(async () => {
-    const currentRefreshToken = refreshToken;
     let hasError = false;
     setStatus(SessionStatus.Loading);
     setStatusMessage("");
     setStatusIsError(false);
     try {
-      if (currentRefreshToken) {
-        const statusCode = await transport.revokeSession(currentRefreshToken);
-        if (statusCode !== null) {
-          hasError = true;
-          setStatusIsError(true);
-          setStatusMessage(t(keys.auth.signout.failed, { statusCode: String(statusCode) }));
-        }
+      const statusCode = await transport.revokeSession();
+      if (statusCode !== null) {
+        hasError = true;
+        setStatusIsError(true);
+        setStatusMessage(t(keys.auth.signout.failed, { statusCode: String(statusCode) }));
       }
     } catch (error) {
       hasError = true;
       setStatusIsError(true);
       setStatusMessage(t(keys.auth.signout.networkError, { reason: String(error) }));
     } finally {
-      sessionStore.clear();
       setAccessToken(null);
-      setRefreshToken(null);
       setAccessTokenExpiresAt("");
       setSignedInEmail("");
       if (!hasError) {
@@ -184,7 +139,7 @@ export function AuthProvider({ transport, sessionStore, children }: AuthProvider
       }
       setStatus(SessionStatus.Idle);
     }
-  }, [refreshToken, sessionStore, transport]);
+  }, [transport]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
