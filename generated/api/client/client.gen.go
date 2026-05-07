@@ -54,6 +54,14 @@ type ArchivedTask struct {
 	UpdatedAt   time.Time          `json:"updatedAt"`
 }
 
+// AuthBrowserTokens defines model for AuthBrowserTokens.
+type AuthBrowserTokens struct {
+	// Schema A URL to the JSON Schema for this object.
+	Schema               *string   `json:"$schema,omitempty"`
+	AccessToken          string    `json:"accessToken"`
+	AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
+}
+
 // AuthLoginRequest defines model for AuthLoginRequest.
 type AuthLoginRequest struct {
 	// Schema A URL to the JSON Schema for this object.
@@ -326,6 +334,26 @@ type UpdateTaskRequest struct {
 	Title       string  `json:"title"`
 }
 
+// LoginParams defines parameters for Login.
+type LoginParams struct {
+	SecFetchSite *string `json:"Sec-Fetch-Site,omitempty"`
+	Origin       *string `json:"Origin,omitempty"`
+}
+
+// LogoutParams defines parameters for Logout.
+type LogoutParams struct {
+	Cookie       *string `json:"Cookie,omitempty"`
+	SecFetchSite *string `json:"Sec-Fetch-Site,omitempty"`
+	Origin       *string `json:"Origin,omitempty"`
+}
+
+// RefreshAuthParams defines parameters for RefreshAuth.
+type RefreshAuthParams struct {
+	Cookie       *string `json:"Cookie,omitempty"`
+	SecFetchSite *string `json:"Sec-Fetch-Site,omitempty"`
+	Origin       *string `json:"Origin,omitempty"`
+}
+
 // ListBoardsParams defines parameters for ListBoards.
 type ListBoardsParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -454,11 +482,14 @@ type GetMeParams struct {
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = AuthLoginRequest
 
-// LogoutJSONRequestBody defines body for Logout for application/json ContentType.
-type LogoutJSONRequestBody = AuthRefreshRequest
+// NativeLoginJSONRequestBody defines body for NativeLogin for application/json ContentType.
+type NativeLoginJSONRequestBody = AuthLoginRequest
 
-// RefreshAuthJSONRequestBody defines body for RefreshAuth for application/json ContentType.
-type RefreshAuthJSONRequestBody = AuthRefreshRequest
+// NativeLogoutJSONRequestBody defines body for NativeLogout for application/json ContentType.
+type NativeLogoutJSONRequestBody = AuthRefreshRequest
+
+// NativeRefreshAuthJSONRequestBody defines body for NativeRefreshAuth for application/json ContentType.
+type NativeRefreshAuthJSONRequestBody = AuthRefreshRequest
 
 // CreateBoardJSONRequestBody defines body for CreateBoard for application/json ContentType.
 type CreateBoardJSONRequestBody = CreateBoardRequest
@@ -570,19 +601,30 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// LoginWithBody request with any body
-	LoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	LoginWithBody(ctx context.Context, params *LoginParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	Login(ctx context.Context, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	Login(ctx context.Context, params *LoginParams, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// LogoutWithBody request with any body
-	LogoutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Logout request
+	Logout(ctx context.Context, params *LogoutParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	Logout(ctx context.Context, body LogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// NativeLoginWithBody request with any body
+	NativeLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RefreshAuthWithBody request with any body
-	RefreshAuthWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	NativeLogin(ctx context.Context, body NativeLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	RefreshAuth(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// NativeLogoutWithBody request with any body
+	NativeLogoutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	NativeLogout(ctx context.Context, body NativeLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NativeRefreshAuthWithBody request with any body
+	NativeRefreshAuthWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	NativeRefreshAuth(ctx context.Context, body NativeRefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RefreshAuth request
+	RefreshAuth(ctx context.Context, params *RefreshAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListBoards request
 	ListBoards(ctx context.Context, params *ListBoardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -687,8 +729,8 @@ type ClientInterface interface {
 	GetMe(ctx context.Context, params *GetMeParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) LoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLoginRequestWithBody(c.Server, contentType, body)
+func (c *Client) LoginWithBody(ctx context.Context, params *LoginParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLoginRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -699,8 +741,8 @@ func (c *Client) LoginWithBody(ctx context.Context, contentType string, body io.
 	return c.Client.Do(req)
 }
 
-func (c *Client) Login(ctx context.Context, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLoginRequest(c.Server, body)
+func (c *Client) Login(ctx context.Context, params *LoginParams, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLoginRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -711,8 +753,8 @@ func (c *Client) Login(ctx context.Context, body LoginJSONRequestBody, reqEditor
 	return c.Client.Do(req)
 }
 
-func (c *Client) LogoutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLogoutRequestWithBody(c.Server, contentType, body)
+func (c *Client) Logout(ctx context.Context, params *LogoutParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLogoutRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -723,8 +765,8 @@ func (c *Client) LogoutWithBody(ctx context.Context, contentType string, body io
 	return c.Client.Do(req)
 }
 
-func (c *Client) Logout(ctx context.Context, body LogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLogoutRequest(c.Server, body)
+func (c *Client) NativeLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNativeLoginRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -735,8 +777,8 @@ func (c *Client) Logout(ctx context.Context, body LogoutJSONRequestBody, reqEdit
 	return c.Client.Do(req)
 }
 
-func (c *Client) RefreshAuthWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRefreshAuthRequestWithBody(c.Server, contentType, body)
+func (c *Client) NativeLogin(ctx context.Context, body NativeLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNativeLoginRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -747,8 +789,56 @@ func (c *Client) RefreshAuthWithBody(ctx context.Context, contentType string, bo
 	return c.Client.Do(req)
 }
 
-func (c *Client) RefreshAuth(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRefreshAuthRequest(c.Server, body)
+func (c *Client) NativeLogoutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNativeLogoutRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) NativeLogout(ctx context.Context, body NativeLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNativeLogoutRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) NativeRefreshAuthWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNativeRefreshAuthRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) NativeRefreshAuth(ctx context.Context, body NativeRefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNativeRefreshAuthRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) RefreshAuth(ctx context.Context, params *RefreshAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRefreshAuthRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1216,18 +1306,18 @@ func (c *Client) GetMe(ctx context.Context, params *GetMeParams, reqEditors ...R
 }
 
 // NewLoginRequest calls the generic Login builder with application/json body
-func NewLoginRequest(server string, body LoginJSONRequestBody) (*http.Request, error) {
+func NewLoginRequest(server string, params *LoginParams, body LoginJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewLoginRequestWithBody(server, "application/json", bodyReader)
+	return NewLoginRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewLoginRequestWithBody generates requests for Login with any type of body
-func NewLoginRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewLoginRequestWithBody(server string, params *LoginParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -1252,22 +1342,37 @@ func NewLoginRequestWithBody(server string, contentType string, body io.Reader) 
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params != nil {
+
+		if params.SecFetchSite != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Sec-Fetch-Site", runtime.ParamLocationHeader, *params.SecFetchSite)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Sec-Fetch-Site", headerParam0)
+		}
+
+		if params.Origin != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "Origin", runtime.ParamLocationHeader, *params.Origin)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Origin", headerParam1)
+		}
+
+	}
+
 	return req, nil
 }
 
-// NewLogoutRequest calls the generic Logout builder with application/json body
-func NewLogoutRequest(server string, body LogoutJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewLogoutRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewLogoutRequestWithBody generates requests for Logout with any type of body
-func NewLogoutRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewLogoutRequest generates requests for Logout
+func NewLogoutRequest(server string, params *LogoutParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -1285,6 +1390,81 @@ func NewLogoutRequestWithBody(server string, contentType string, body io.Reader)
 		return nil, err
 	}
 
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Cookie != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Cookie", runtime.ParamLocationHeader, *params.Cookie)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Cookie", headerParam0)
+		}
+
+		if params.SecFetchSite != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "Sec-Fetch-Site", runtime.ParamLocationHeader, *params.SecFetchSite)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Sec-Fetch-Site", headerParam1)
+		}
+
+		if params.Origin != nil {
+			var headerParam2 string
+
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "Origin", runtime.ParamLocationHeader, *params.Origin)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Origin", headerParam2)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewNativeLoginRequest calls the generic NativeLogin builder with application/json body
+func NewNativeLoginRequest(server string, body NativeLoginJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNativeLoginRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewNativeLoginRequestWithBody generates requests for NativeLogin with any type of body
+func NewNativeLoginRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/native/login")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
@@ -1295,19 +1475,88 @@ func NewLogoutRequestWithBody(server string, contentType string, body io.Reader)
 	return req, nil
 }
 
-// NewRefreshAuthRequest calls the generic RefreshAuth builder with application/json body
-func NewRefreshAuthRequest(server string, body RefreshAuthJSONRequestBody) (*http.Request, error) {
+// NewNativeLogoutRequest calls the generic NativeLogout builder with application/json body
+func NewNativeLogoutRequest(server string, body NativeLogoutJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewRefreshAuthRequestWithBody(server, "application/json", bodyReader)
+	return NewNativeLogoutRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewRefreshAuthRequestWithBody generates requests for RefreshAuth with any type of body
-func NewRefreshAuthRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewNativeLogoutRequestWithBody generates requests for NativeLogout with any type of body
+func NewNativeLogoutRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/native/logout")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewNativeRefreshAuthRequest calls the generic NativeRefreshAuth builder with application/json body
+func NewNativeRefreshAuthRequest(server string, body NativeRefreshAuthJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewNativeRefreshAuthRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewNativeRefreshAuthRequestWithBody generates requests for NativeRefreshAuth with any type of body
+func NewNativeRefreshAuthRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/native/refresh")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRefreshAuthRequest generates requests for RefreshAuth
+func NewRefreshAuthRequest(server string, params *RefreshAuthParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -1325,12 +1574,47 @@ func NewRefreshAuthRequestWithBody(server string, contentType string, body io.Re
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), body)
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Content-Type", contentType)
+	if params != nil {
+
+		if params.Cookie != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Cookie", runtime.ParamLocationHeader, *params.Cookie)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Cookie", headerParam0)
+		}
+
+		if params.SecFetchSite != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "Sec-Fetch-Site", runtime.ParamLocationHeader, *params.SecFetchSite)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Sec-Fetch-Site", headerParam1)
+		}
+
+		if params.Origin != nil {
+			var headerParam2 string
+
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "Origin", runtime.ParamLocationHeader, *params.Origin)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Origin", headerParam2)
+		}
+
+	}
 
 	return req, nil
 }
@@ -2794,19 +3078,30 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 	// LoginWithBodyWithResponse request with any body
-	LoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoginResponse, error)
+	LoginWithBodyWithResponse(ctx context.Context, params *LoginParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoginResponse, error)
 
-	LoginWithResponse(ctx context.Context, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*LoginResponse, error)
+	LoginWithResponse(ctx context.Context, params *LoginParams, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*LoginResponse, error)
 
-	// LogoutWithBodyWithResponse request with any body
-	LogoutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LogoutResponse, error)
+	// LogoutWithResponse request
+	LogoutWithResponse(ctx context.Context, params *LogoutParams, reqEditors ...RequestEditorFn) (*LogoutResponse, error)
 
-	LogoutWithResponse(ctx context.Context, body LogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*LogoutResponse, error)
+	// NativeLoginWithBodyWithResponse request with any body
+	NativeLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NativeLoginResponse, error)
 
-	// RefreshAuthWithBodyWithResponse request with any body
-	RefreshAuthWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error)
+	NativeLoginWithResponse(ctx context.Context, body NativeLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*NativeLoginResponse, error)
 
-	RefreshAuthWithResponse(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error)
+	// NativeLogoutWithBodyWithResponse request with any body
+	NativeLogoutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NativeLogoutResponse, error)
+
+	NativeLogoutWithResponse(ctx context.Context, body NativeLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*NativeLogoutResponse, error)
+
+	// NativeRefreshAuthWithBodyWithResponse request with any body
+	NativeRefreshAuthWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NativeRefreshAuthResponse, error)
+
+	NativeRefreshAuthWithResponse(ctx context.Context, body NativeRefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*NativeRefreshAuthResponse, error)
+
+	// RefreshAuthWithResponse request
+	RefreshAuthWithResponse(ctx context.Context, params *RefreshAuthParams, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error)
 
 	// ListBoardsWithResponse request
 	ListBoardsWithResponse(ctx context.Context, params *ListBoardsParams, reqEditors ...RequestEditorFn) (*ListBoardsResponse, error)
@@ -2914,7 +3209,7 @@ type ClientWithResponsesInterface interface {
 type LoginResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *AuthTokens
+	JSON200                       *AuthBrowserTokens
 	ApplicationproblemJSONDefault *ErrorModel
 }
 
@@ -2956,10 +3251,78 @@ func (r LogoutResponse) StatusCode() int {
 	return 0
 }
 
-type RefreshAuthResponse struct {
+type NativeLoginResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *AuthTokens
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r NativeLoginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NativeLoginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type NativeLogoutResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r NativeLogoutResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NativeLogoutResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type NativeRefreshAuthResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *AuthTokens
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r NativeRefreshAuthResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NativeRefreshAuthResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type RefreshAuthResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *AuthBrowserTokens
 	ApplicationproblemJSONDefault *ErrorModel
 }
 
@@ -3572,50 +3935,85 @@ func (r GetMeResponse) StatusCode() int {
 }
 
 // LoginWithBodyWithResponse request with arbitrary body returning *LoginResponse
-func (c *ClientWithResponses) LoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoginResponse, error) {
-	rsp, err := c.LoginWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) LoginWithBodyWithResponse(ctx context.Context, params *LoginParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoginResponse, error) {
+	rsp, err := c.LoginWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseLoginResponse(rsp)
 }
 
-func (c *ClientWithResponses) LoginWithResponse(ctx context.Context, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*LoginResponse, error) {
-	rsp, err := c.Login(ctx, body, reqEditors...)
+func (c *ClientWithResponses) LoginWithResponse(ctx context.Context, params *LoginParams, body LoginJSONRequestBody, reqEditors ...RequestEditorFn) (*LoginResponse, error) {
+	rsp, err := c.Login(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseLoginResponse(rsp)
 }
 
-// LogoutWithBodyWithResponse request with arbitrary body returning *LogoutResponse
-func (c *ClientWithResponses) LogoutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LogoutResponse, error) {
-	rsp, err := c.LogoutWithBody(ctx, contentType, body, reqEditors...)
+// LogoutWithResponse request returning *LogoutResponse
+func (c *ClientWithResponses) LogoutWithResponse(ctx context.Context, params *LogoutParams, reqEditors ...RequestEditorFn) (*LogoutResponse, error) {
+	rsp, err := c.Logout(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseLogoutResponse(rsp)
 }
 
-func (c *ClientWithResponses) LogoutWithResponse(ctx context.Context, body LogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*LogoutResponse, error) {
-	rsp, err := c.Logout(ctx, body, reqEditors...)
+// NativeLoginWithBodyWithResponse request with arbitrary body returning *NativeLoginResponse
+func (c *ClientWithResponses) NativeLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NativeLoginResponse, error) {
+	rsp, err := c.NativeLoginWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseLogoutResponse(rsp)
+	return ParseNativeLoginResponse(rsp)
 }
 
-// RefreshAuthWithBodyWithResponse request with arbitrary body returning *RefreshAuthResponse
-func (c *ClientWithResponses) RefreshAuthWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error) {
-	rsp, err := c.RefreshAuthWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) NativeLoginWithResponse(ctx context.Context, body NativeLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*NativeLoginResponse, error) {
+	rsp, err := c.NativeLogin(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRefreshAuthResponse(rsp)
+	return ParseNativeLoginResponse(rsp)
 }
 
-func (c *ClientWithResponses) RefreshAuthWithResponse(ctx context.Context, body RefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error) {
-	rsp, err := c.RefreshAuth(ctx, body, reqEditors...)
+// NativeLogoutWithBodyWithResponse request with arbitrary body returning *NativeLogoutResponse
+func (c *ClientWithResponses) NativeLogoutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NativeLogoutResponse, error) {
+	rsp, err := c.NativeLogoutWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNativeLogoutResponse(rsp)
+}
+
+func (c *ClientWithResponses) NativeLogoutWithResponse(ctx context.Context, body NativeLogoutJSONRequestBody, reqEditors ...RequestEditorFn) (*NativeLogoutResponse, error) {
+	rsp, err := c.NativeLogout(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNativeLogoutResponse(rsp)
+}
+
+// NativeRefreshAuthWithBodyWithResponse request with arbitrary body returning *NativeRefreshAuthResponse
+func (c *ClientWithResponses) NativeRefreshAuthWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*NativeRefreshAuthResponse, error) {
+	rsp, err := c.NativeRefreshAuthWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNativeRefreshAuthResponse(rsp)
+}
+
+func (c *ClientWithResponses) NativeRefreshAuthWithResponse(ctx context.Context, body NativeRefreshAuthJSONRequestBody, reqEditors ...RequestEditorFn) (*NativeRefreshAuthResponse, error) {
+	rsp, err := c.NativeRefreshAuth(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNativeRefreshAuthResponse(rsp)
+}
+
+// RefreshAuthWithResponse request returning *RefreshAuthResponse
+func (c *ClientWithResponses) RefreshAuthWithResponse(ctx context.Context, params *RefreshAuthParams, reqEditors ...RequestEditorFn) (*RefreshAuthResponse, error) {
+	rsp, err := c.RefreshAuth(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -3967,7 +4365,7 @@ func ParseLoginResponse(rsp *http.Response) (*LoginResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest AuthTokens
+		var dest AuthBrowserTokens
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -4011,6 +4409,98 @@ func ParseLogoutResponse(rsp *http.Response) (*LogoutResponse, error) {
 	return response, nil
 }
 
+// ParseNativeLoginResponse parses an HTTP response from a NativeLoginWithResponse call
+func ParseNativeLoginResponse(rsp *http.Response) (*NativeLoginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NativeLoginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuthTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNativeLogoutResponse parses an HTTP response from a NativeLogoutWithResponse call
+func ParseNativeLogoutResponse(rsp *http.Response) (*NativeLogoutResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NativeLogoutResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNativeRefreshAuthResponse parses an HTTP response from a NativeRefreshAuthWithResponse call
+func ParseNativeRefreshAuthResponse(rsp *http.Response) (*NativeRefreshAuthResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NativeRefreshAuthResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuthTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRefreshAuthResponse parses an HTTP response from a RefreshAuthWithResponse call
 func ParseRefreshAuthResponse(rsp *http.Response) (*RefreshAuthResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -4026,7 +4516,7 @@ func ParseRefreshAuthResponse(rsp *http.Response) (*RefreshAuthResponse, error) 
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest AuthTokens
+		var dest AuthBrowserTokens
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

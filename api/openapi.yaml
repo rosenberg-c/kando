@@ -63,6 +63,24 @@ components:
         - createdAt
         - updatedAt
       type: object
+    AuthBrowserTokens:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          example: https://example.com/AuthBrowserTokens.json
+          format: uri
+          readOnly: true
+          type: string
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          format: date-time
+          type: string
+      required:
+        - accessToken
+        - accessTokenExpiresAt
+      type: object
     AuthLoginRequest:
       additionalProperties: false
       properties:
@@ -728,6 +746,94 @@ paths:
   /auth/login:
     post:
       operationId: login
+      parameters:
+        - in: header
+          name: Sec-Fetch-Site
+          schema:
+            type: string
+        - in: header
+          name: Origin
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthBrowserTokens"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Expires:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Authenticates a user and returns tokens
+      tags:
+        - auth
+  /auth/logout:
+    post:
+      operationId: logout
+      parameters:
+        - in: header
+          name: Cookie
+          schema:
+            type: string
+        - in: header
+          name: Sec-Fetch-Site
+          schema:
+            type: string
+        - in: header
+          name: Origin
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Expires:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Revokes session and logs out user
+      tags:
+        - auth
+  /auth/native/login:
+    post:
+      operationId: nativeLogin
       requestBody:
         content:
           application/json:
@@ -741,18 +847,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthTokens"
           description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Expires:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
         default:
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Authenticates a user and returns tokens
+      summary: Authenticates a native client and returns tokens
       tags:
         - auth
-  /auth/logout:
+  /auth/native/logout:
     post:
-      operationId: logout
+      operationId: nativeLogout
       requestBody:
         content:
           application/json:
@@ -762,18 +878,28 @@ paths:
       responses:
         "204":
           description: No Content
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Expires:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
         default:
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Revokes session and logs out user
+      summary: Revokes session for native client
       tags:
         - auth
-  /auth/refresh:
+  /auth/native/refresh:
     post:
-      operationId: refreshAuth
+      operationId: nativeRefreshAuth
       requestBody:
         content:
           application/json:
@@ -787,13 +913,68 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthTokens"
           description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Expires:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
         default:
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Refreshes an access token using refresh token
+      summary: Refreshes an access token for native client
+      tags:
+        - auth
+  /auth/refresh:
+    post:
+      operationId: refreshAuth
+      parameters:
+        - in: header
+          name: Cookie
+          schema:
+            type: string
+        - in: header
+          name: Sec-Fetch-Site
+          schema:
+            type: string
+        - in: header
+          name: Origin
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthBrowserTokens"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Expires:
+              schema:
+                type: string
+            Pragma:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Refreshes an access token using refresh cookie
       tags:
         - auth
   /boards:

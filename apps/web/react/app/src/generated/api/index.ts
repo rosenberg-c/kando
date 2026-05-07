@@ -9,6 +9,7 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { ArchiveColumnTasksResponse } from './models/ArchiveColumnTasksResponse';
 export type { ArchivedTask } from './models/ArchivedTask';
+export type { AuthBrowserTokens } from './models/AuthBrowserTokens';
 export type { AuthLoginRequest } from './models/AuthLoginRequest';
 export type { AuthRefreshRequest } from './models/AuthRefreshRequest';
 export type { AuthTokens } from './models/AuthTokens';
