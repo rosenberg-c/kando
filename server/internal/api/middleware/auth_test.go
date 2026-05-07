@@ -107,3 +107,21 @@ func TestAuthRejectsVerifierErrors(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
+
+func TestAuthReturnsServiceUnavailableWhenVerifierUnavailable(t *testing.T) {
+	// @req MW-AUTH-008
+	verifier := &stubVerifier{err: auth.ErrVerifierUnavailable}
+	handler := Auth(verifier, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("next handler should not be called")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req.Header.Set("Authorization", "Bearer maybe")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
+	}
+}
