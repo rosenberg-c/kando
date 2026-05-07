@@ -13,19 +13,32 @@ SERVER_PORT := 8080
 SERVER_PID_FILE := .server.pid
 TEST_MATRIX_REPO ?= ../test-matrix
 WEB_APP_DIR := ./apps/web/react
+WEB_VITE_APP_DIR := $(WEB_APP_DIR)/app
+WEB_CERT_DIR := $(WEB_VITE_APP_DIR)/.cert
+WEB_CERT_FILE := $(WEB_CERT_DIR)/localhost.pem
+WEB_KEY_FILE := $(WEB_CERT_DIR)/localhost-key.pem
+SERVER_CERT_DIR := ./certs
+SERVER_CERT_FILE := $(SERVER_CERT_DIR)/server.pem
+SERVER_KEY_FILE := $(SERVER_CERT_DIR)/server-key.pem
+REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 
-.PHONY: generate generate-web-api verify-generate sync-test-matrix verify-test-matrix build build-macos run run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-dev web-build web-test
+.PHONY: generate-backend generate-web-api generate-apple-api generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-dev web-build web-test server-cert fetch-remote-ca trust-remote-ca
 
-generate:
+generate-backend:
 	go run ./server/cmd/gen_openapi
-	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config server/api/oapi-codegen-client.yaml -o generated/api/client/client.gen.go server/api/openapi.yaml
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config server/api/oapi-codegen-client.yaml -o generated/api/client/client.gen.go api/openapi.yaml
 	go run ./server/cmd/gen_appwrite_schema
 
 generate-web-api:
 	pnpm --dir $(WEB_APP_DIR) run generate:api
 
-verify-generate: generate
-	git diff --exit-code -- server/api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json apps/web/react/app/src/generated/api
+generate-apple-api:
+	swift package --package-path $(APP_MACOS) plugin --allow-writing-to-package-directory generate-code-from-openapi
+
+generate-all: generate-backend generate-web-api generate-apple-api
+
+verify-generate: generate-backend
+	git diff --exit-code -- api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json apps/web/react/app/src/generated/api
 
 sync-test-matrix:
 	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
@@ -60,6 +73,22 @@ kill-server:
 run: kill-server
 	@sh -c 'KANBAN_REPOSITORY=appwrite go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
+server-cert:
+	@command -v mkcert >/dev/null 2>&1 || (echo "mkcert is required. install from https://github.com/FiloSottile/mkcert" && exit 1)
+	@mkdir -p $(SERVER_CERT_DIR)
+	@sh -c 'if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; fi; NAMES="localhost 127.0.0.1 ::1"; if [ -n "$${DEV_LAN_IP:-}" ]; then NAMES="$$NAMES $${DEV_LAN_IP}"; fi; mkcert -cert-file "$(SERVER_CERT_FILE)" -key-file "$(SERVER_KEY_FILE)" $$NAMES'
+
+run-tls: kill-server server-cert
+	@sh -c 'TLS_CERT_FILE="$(SERVER_CERT_FILE)" TLS_KEY_FILE="$(SERVER_KEY_FILE)" KANBAN_REPOSITORY=appwrite go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
+
+fetch-remote-ca:
+	@test -n "$(REMOTE_SSH)" || (echo "usage: make fetch-remote-ca REMOTE_SSH=user@host" && exit 1)
+	@mkdir -p $(SERVER_CERT_DIR)
+	@sh -c 'CAROOT="$$(ssh "$(REMOTE_SSH)" "mkcert -CAROOT")"; scp "$(REMOTE_SSH):$$CAROOT/rootCA.pem" "$(REMOTE_CA_PEM)"'
+
+trust-remote-ca: fetch-remote-ca
+	@security add-trusted-cert -d -r trustRoot -k "$${HOME}/Library/Keychains/login.keychain-db" "$(REMOTE_CA_PEM)"
+
 run-sqlite: kill-server
 	@sh -c 'KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
@@ -88,7 +117,7 @@ open-macos:
 open: open-macos
 
 ready:
-	$(MAKE) generate && $(MAKE) sync-test-matrix && $(MAKE) test && $(MAKE) test-macos-unit && $(MAKE) test-macos-ui
+	$(MAKE) generate-all && $(MAKE) sync-test-matrix && $(MAKE) test && $(MAKE) test-macos-unit && $(MAKE) test-macos-ui
 
 cli-install:
 	mkdir -p $(LOCAL_BIN_DIR)
@@ -130,7 +159,12 @@ test-api-backends:
 web-install:
 	pnpm --dir $(WEB_APP_DIR) run install:react
 
-web-dev:
+web-cert:
+	@command -v mkcert >/dev/null 2>&1 || (echo "mkcert is required. install from https://github.com/FiloSottile/mkcert" && exit 1)
+	@mkdir -p $(WEB_CERT_DIR)
+	@sh -c 'if [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; NAMES="localhost 127.0.0.1 ::1"; if [ -n "$${DEV_LAN_IP:-}" ]; then NAMES="$$NAMES $${DEV_LAN_IP}"; fi; mkcert -cert-file "$(WEB_CERT_FILE)" -key-file "$(WEB_KEY_FILE)" $$NAMES'
+
+web-dev: web-cert
 	pnpm --dir $(WEB_APP_DIR) dev
 
 web-build:
