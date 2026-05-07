@@ -1292,7 +1292,7 @@ final class TodoMacOSUITests: XCTestCase {
         taskTitleField.tap()
         taskTitleField.typeText(createdTaskTitle)
         sendKeyboardInputWithFallback(XCUIKeyboardKey.return.rawValue, to: appWindow, attempts: 4) {
-            waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 1.2)
+            self.waitForCountValue(element: emptyColumnTaskCount, equals: 1, timeout: 1.2)
         }
 
         XCTAssertTrue(
