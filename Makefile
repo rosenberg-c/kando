@@ -109,7 +109,7 @@ run-cli:
 
 run-macos:
 	killall "$(MACOS_SCHEME)" >/dev/null 2>&1 || true
-	@sh -c 'if [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${KANDO_API_BASE_URL:-http://localhost:8080}"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$$API_BASE_URL"'
+	@sh -c 'if [ -f ./.env.app.apple ]; then set -a; . ./.env.app.apple; set +a; elif [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${KANDO_API_BASE_URL:-http://localhost:8080}"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$$API_BASE_URL"'
 
 open-macos:
 	open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
@@ -162,7 +162,7 @@ web-install:
 web-cert:
 	@command -v mkcert >/dev/null 2>&1 || (echo "mkcert is required. install from https://github.com/FiloSottile/mkcert" && exit 1)
 	@mkdir -p $(WEB_CERT_DIR)
-	@sh -c 'if [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; NAMES="localhost 127.0.0.1 ::1"; if [ -n "$${DEV_LAN_IP:-}" ]; then NAMES="$$NAMES $${DEV_LAN_IP}"; fi; mkcert -cert-file "$(WEB_CERT_FILE)" -key-file "$(WEB_KEY_FILE)" $$NAMES'
+	@sh -c 'if [ -f ./.env.app.apple ]; then set -a; . ./.env.app.apple; set +a; elif [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; NAMES="localhost 127.0.0.1 ::1"; if [ -n "$${DEV_LAN_IP:-}" ]; then NAMES="$$NAMES $${DEV_LAN_IP}"; fi; mkcert -cert-file "$(WEB_CERT_FILE)" -key-file "$(WEB_KEY_FILE)" $$NAMES'
 
 web-dev: web-cert
 	pnpm --dir $(WEB_APP_DIR) dev

@@ -28,7 +28,8 @@ Workspace includes:
 
 ```bash
 cp .env.server.example .env.server
-cp .env.app.example .env.app
+cp .env.app.apple.example .env.app.apple
+cp .env.app.web.example .env.app.web
 ```
 
 2) Generate API artifacts and run backend:
@@ -84,7 +85,7 @@ Use this setup when testing cookie-based web auth:
 make run-tls
 ```
 
-2) Web app env (`apps/web/react/app/.env.local`):
+2) Web app env (`.env.app.web`):
 
 ```env
 VITE_KANDO_API_BASE_URL=https://localhost:8080
@@ -112,8 +113,8 @@ Backend machine:
 - run `make run-tls`
 
 Frontend machine:
-- set `DEV_LAN_IP=192.168.56.2` in `.env.app` (used by `make web-cert`/`make web-dev`)
-- set `VITE_KANDO_API_BASE_URL=https://192.168.56.3:8080` in `apps/web/react/app/.env.local`
+- set `DEV_LAN_IP=192.168.56.2` in `.env.app.apple` (used by `make web-cert`/`make web-dev`)
+- set `VITE_KANDO_API_BASE_URL=https://192.168.56.3:8080` in `.env.app.web`
 - run `make web-dev`
 
 Open from browser:
@@ -141,7 +142,7 @@ Example with SSH config alias:
 make trust-remote-ca REMOTE_SSH=deb-dev3
 ```
 
-2) Point the macOS app to backend HTTPS URL in `.env.app`:
+2) Point the macOS app to backend HTTPS URL in `.env.app.apple`:
 
 ```env
 KANDO_API_BASE_URL=https://<backend-lan-ip>:8080

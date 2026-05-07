@@ -1,5 +1,5 @@
 {
-  "cli.env.load_error": "load .env.app: %v\n",
+  "cli.env.load_error": "load app env file (.env.app.apple or .env.app): %v\n",
   "cli.config.user_dir_error": "resolve user config dir: %v\n",
   "cli.api.init_error": "initialize api client: %v\n",
   "cli.login.failed": "login failed: %v\n",

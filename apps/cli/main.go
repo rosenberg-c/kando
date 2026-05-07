@@ -15,9 +15,15 @@ import (
 )
 
 func main() {
-	if err := config.LoadDotEnvIfPresent(".env.app"); err != nil {
+	if err := config.LoadDotEnvIfPresent(".env.app.apple"); err != nil {
 		fmt.Fprintf(os.Stderr, ui.T("cli.env.load_error"), err)
 		os.Exit(1)
+	}
+	if _, hasBaseURL := os.LookupEnv("KANDO_API_BASE_URL"); !hasBaseURL {
+		if err := config.LoadDotEnvIfPresent(".env.app"); err != nil {
+			fmt.Fprintf(os.Stderr, ui.T("cli.env.load_error"), err)
+			os.Exit(1)
+		}
 	}
 
 	configDir, err := os.UserConfigDir()
