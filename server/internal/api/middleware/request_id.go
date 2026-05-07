@@ -11,13 +11,14 @@ import (
 )
 
 const requestIDHeader = "X-Request-ID"
+const maxRequestIDLen = 128
 
 type requestIDContextKey struct{}
 
 // RequestID attaches a request ID to context and response headers.
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := strings.TrimSpace(r.Header.Get(requestIDHeader))
+		requestID := sanitizeRequestID(strings.TrimSpace(r.Header.Get(requestIDHeader)))
 		if requestID == "" {
 			requestID = newRequestID()
 		}
@@ -27,6 +28,25 @@ func RequestID(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func sanitizeRequestID(value string) string {
+	if value == "" || len(value) > maxRequestIDLen {
+		return ""
+	}
+
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-', r == '_', r == '.', r == ':':
+		default:
+			return ""
+		}
+	}
+
+	return value
 }
 
 // GetRequestID returns the request ID from context, if present.

@@ -57,3 +57,31 @@ func TestRequestIDGeneratesWhenMissing(t *testing.T) {
 		t.Fatalf("context request ID = %q, want %q", downstreamRequestID, responseRequestID)
 	}
 }
+
+func TestRequestIDRegeneratesWhenIncomingContainsInvalidCharacters(t *testing.T) {
+	// @req MW-REQID-003
+	const incomingRequestID = "req-123\r\nforged"
+
+	var downstreamRequestID string
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downstreamRequestID = GetRequestID(r.Context())
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/hello", nil)
+	req.Header.Set(requestIDHeader, incomingRequestID)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	responseRequestID := rec.Header().Get(requestIDHeader)
+	if responseRequestID == "" {
+		t.Fatal("response request ID is empty")
+	}
+	if responseRequestID == incomingRequestID {
+		t.Fatalf("response request ID = %q, want regenerated value", responseRequestID)
+	}
+	if downstreamRequestID != responseRequestID {
+		t.Fatalf("context request ID = %q, want %q", downstreamRequestID, responseRequestID)
+	}
+}
