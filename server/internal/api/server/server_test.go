@@ -20,6 +20,8 @@ type stubIssuer struct {
 	jwt           string
 	expiresAt     time.Time
 	err           error
+	jwtInput      string
+	deletedSecret string
 }
 
 func (s *stubIssuer) CreateEmailPasswordSession(context.Context, string, string) (string, error) {
@@ -30,7 +32,8 @@ func (s *stubIssuer) CreateEmailPasswordSession(context.Context, string, string)
 	return s.sessionSecret, nil
 }
 
-func (s *stubIssuer) CreateJWT(context.Context, string) (string, time.Time, error) {
+func (s *stubIssuer) CreateJWT(_ context.Context, sessionSecret string) (string, time.Time, error) {
+	s.jwtInput = sessionSecret
 	if s.err != nil {
 		return "", time.Time{}, s.err
 	}
@@ -38,13 +41,23 @@ func (s *stubIssuer) CreateJWT(context.Context, string) (string, time.Time, erro
 	return s.jwt, s.expiresAt, nil
 }
 
-func (s *stubIssuer) DeleteSession(context.Context, string) error {
+func (s *stubIssuer) DeleteSession(_ context.Context, sessionSecret string) error {
+	s.deletedSecret = sessionSecret
 	return s.err
 }
 
 type stubVerifier struct {
 	identity auth.Identity
 	err      error
+}
+
+func issueRefreshTokenForTests(t *testing.T, store *security.RefreshTokenStore, sessionSecret string) string {
+	t.Helper()
+	token, ok := store.Issue(sessionSecret)
+	if !ok {
+		t.Fatal("failed to issue test refresh token")
+	}
+	return token
 }
 
 func (s *stubVerifier) VerifyJWT(context.Context, string) (auth.Identity, error) {
@@ -165,7 +178,8 @@ func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
 
 	issuer := &stubIssuer{sessionSecret: "session-1", jwt: "jwt-1", expiresAt: time.Now().Add(10 * time.Minute)}
 	limiter := security.NewLoginRateLimiter(1, time.Minute, 2*time.Minute)
-	limiter.RegisterFailure("user@example.com|127.0.0.1")
+	limiter.RegisterFailure(loginRateLimitAccountKey("user@example.com"))
+	limiter.RegisterFailure(loginRateLimitIPKey("127.0.0.1:12345"))
 
 	mux, api := NewAPI()
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: limiter})
@@ -174,6 +188,8 @@ func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
 	request.RemoteAddr = "127.0.0.1:12345"
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://localhost:5173")
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, request)
 
@@ -187,7 +203,7 @@ func TestLoginBlockedReturnsRetryAfter(t *testing.T) {
 }
 
 func TestLoginReturnsTokensOnSuccess(t *testing.T) {
-	// @req AUTH-001
+	// @req AUTH-001, AUTH-005, MW-AUTH-005, MW-AUTH-006, MW-AUTH-007
 	t.Parallel()
 
 	expiresAt := time.Now().UTC().Add(15 * time.Minute).Round(0)
@@ -199,6 +215,132 @@ func TestLoginReturnsTokensOnSuccess(t *testing.T) {
 
 	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "secret"})
 	request := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+	request.RemoteAddr = "127.0.0.1:12345"
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://localhost:5173")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+
+	var response struct {
+		AccessToken          string    `json:"accessToken"`
+		AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	if response.AccessToken != "jwt-1" {
+		t.Fatalf("accessToken = %q, want %q", response.AccessToken, "jwt-1")
+	}
+	var responseRaw map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &responseRaw); err != nil {
+		t.Fatalf("decode login response map: %v", err)
+	}
+	if _, ok := responseRaw["refreshToken"]; ok {
+		t.Fatalf("refreshToken present in browser login response: %v", responseRaw["refreshToken"])
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
+	}
+	if got := recorder.Header().Get("Pragma"); got != "no-cache" {
+		t.Fatalf("Pragma = %q, want %q", got, "no-cache")
+	}
+	if got := recorder.Header().Get("Expires"); got != "0" {
+		t.Fatalf("Expires = %q, want %q", got, "0")
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Host-refresh_token=") {
+		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookie)
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "HttpOnly") || !strings.Contains(setCookie, "Secure") {
+		t.Fatalf("Set-Cookie missing secure attributes: %q", setCookie)
+	}
+	if !response.AccessTokenExpiresAt.Equal(expiresAt) {
+		t.Fatalf("accessTokenExpiresAt = %s, want %s", response.AccessTokenExpiresAt, expiresAt)
+	}
+}
+
+func TestLoginRejectsWithoutTrustedOrigin(t *testing.T) {
+	// @req MW-AUTH-005, MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{sessionSecret: "session-1", jwt: "jwt-1", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+	limiter := security.NewLoginRateLimiter(5, time.Minute, time.Minute)
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: limiter})
+
+	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "secret"})
+	request := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+	request.RemoteAddr = "127.0.0.1:12345"
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Sec-Fetch-Site", "cross-site")
+	request.Header.Set("Origin", "http://evil.example")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+}
+
+func TestRefreshUsesRefreshCookie(t *testing.T) {
+	// @req AUTH-003, AUTH-005, MW-AUTH-005, MW-AUTH-006, MW-AUTH-007
+	t.Parallel()
+
+	expiresAt := time.Now().UTC().Add(15 * time.Minute).Round(0)
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: expiresAt}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "session-1")
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://localhost:5173")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if issuer.jwtInput != "session-1" {
+		t.Fatalf("jwt input = %q, want %q", issuer.jwtInput, "session-1")
+	}
+	var responseRaw map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &responseRaw); err != nil {
+		t.Fatalf("decode refresh response map: %v", err)
+	}
+	if _, ok := responseRaw["refreshToken"]; ok {
+		t.Fatalf("refreshToken present in browser refresh response: %v", responseRaw["refreshToken"])
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Host-refresh_token=") {
+		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookie)
+	}
+}
+
+func TestNativeLoginReturnsRefreshTokenInBody(t *testing.T) {
+	// @req AUTH-001, AUTH-006, MW-AUTH-007
+	t.Parallel()
+
+	expiresAt := time.Now().UTC().Add(15 * time.Minute).Round(0)
+	issuer := &stubIssuer{sessionSecret: "native-session-1", jwt: "jwt-native-1", expiresAt: expiresAt}
+	limiter := security.NewLoginRateLimiter(5, time.Minute, time.Minute)
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: limiter})
+
+	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "secret"})
+	request := httptest.NewRequest(http.MethodPost, "/auth/native/login", bytes.NewReader(body))
 	request.RemoteAddr = "127.0.0.1:12345"
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -214,17 +356,278 @@ func TestLoginReturnsTokensOnSuccess(t *testing.T) {
 		AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode login response: %v", err)
+		t.Fatalf("decode native login response: %v", err)
 	}
+	if strings.TrimSpace(response.RefreshToken) == "" {
+		t.Fatal("refreshToken should be present")
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); setCookie != "" {
+		t.Fatalf("Set-Cookie = %q, want empty for native login", setCookie)
+	}
+}
 
-	if response.AccessToken != "jwt-1" {
-		t.Fatalf("accessToken = %q, want %q", response.AccessToken, "jwt-1")
+func TestNativeRefreshUsesBodyRefreshToken(t *testing.T) {
+	// @req AUTH-003, AUTH-006, MW-AUTH-007
+	t.Parallel()
+
+	expiresAt := time.Now().UTC().Add(15 * time.Minute).Round(0)
+	issuer := &stubIssuer{jwt: "jwt-3", expiresAt: expiresAt}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "native-session-1")
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
+
+	body, _ := json.Marshal(map[string]string{"refreshToken": refreshToken})
+	request := httptest.NewRequest(http.MethodPost, "/auth/native/refresh", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
-	if response.RefreshToken != "session-1" {
-		t.Fatalf("refreshToken = %q, want %q", response.RefreshToken, "session-1")
+	if issuer.jwtInput != "native-session-1" {
+		t.Fatalf("jwt input = %q, want %q", issuer.jwtInput, "native-session-1")
 	}
-	if !response.AccessTokenExpiresAt.Equal(expiresAt) {
-		t.Fatalf("accessTokenExpiresAt = %s, want %s", response.AccessTokenExpiresAt, expiresAt)
+	if setCookie := recorder.Header().Get("Set-Cookie"); setCookie != "" {
+		t.Fatalf("Set-Cookie = %q, want empty for native refresh", setCookie)
+	}
+}
+
+func TestLogoutRevokesSessionFromRefreshCookie(t *testing.T) {
+	// @req AUTH-001, MW-AUTH-005, MW-AUTH-006, MW-AUTH-007
+	t.Parallel()
+
+	issuer := &stubIssuer{}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "session-1")
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://localhost:5173")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+	}
+	if issuer.deletedSecret != "session-1" {
+		t.Fatalf("deleted secret = %q, want %q", issuer.deletedSecret, "session-1")
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Max-Age=0") {
+		t.Fatalf("Set-Cookie = %q, want clearing cookie", setCookie)
+	}
+}
+
+func TestNativeLogoutUsesBodyRefreshToken(t *testing.T) {
+	// @req AUTH-001, AUTH-006, MW-AUTH-007
+	t.Parallel()
+
+	issuer := &stubIssuer{}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "native-session-1")
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
+
+	body, _ := json.Marshal(map[string]string{"refreshToken": refreshToken})
+	request := httptest.NewRequest(http.MethodPost, "/auth/native/logout", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusNoContent, recorder.Body.String())
+	}
+	if issuer.deletedSecret != "native-session-1" {
+		t.Fatalf("deleted secret = %q, want %q", issuer.deletedSecret, "native-session-1")
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); setCookie != "" {
+		t.Fatalf("Set-Cookie = %q, want empty for native logout", setCookie)
+	}
+}
+
+func TestRefreshAllowsCookieWithSameSiteFetch(t *testing.T) {
+	// @req MW-AUTH-005
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "session-1")
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Sec-Fetch-Site", "same-site")
+	request.Header.Set("Origin", "http://localhost:5173")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
+func TestRefreshAllowsCookieWithCanonicalizedOriginCase(t *testing.T) {
+	// @req MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "session-1")
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "HTTP://LOCALHOST:5173")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
+func TestRefreshRejectsCookieWithoutTrustedOrigin(t *testing.T) {
+	// @req MW-AUTH-005, MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Sec-Fetch-Site", "cross-site")
+	request.Header.Set("Origin", "http://evil.example")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+	if issuer.jwtInput != "" {
+		t.Fatalf("jwt input = %q, want empty", issuer.jwtInput)
+	}
+}
+
+func TestRefreshRejectsCookieWithoutOrigin(t *testing.T) {
+	// @req MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+}
+
+func TestRefreshRejectsCookieWithMismatchedOrigin(t *testing.T) {
+	// @req MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://evil.example")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+}
+
+func TestRefreshRejectsCookieWithMalformedOrigin(t *testing.T) {
+	// @req MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-2", expiresAt: time.Now().UTC().Add(15 * time.Minute).Round(0)}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "://bad origin")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+}
+
+func TestLogoutRejectsCookieWithoutTrustedOrigin(t *testing.T) {
+	// @req MW-AUTH-005, MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Sec-Fetch-Site", "cross-site")
+	request.Header.Set("Origin", "http://evil.example")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+	}
+	if issuer.deletedSecret != "" {
+		t.Fatalf("deleted secret = %q, want empty", issuer.deletedSecret)
+	}
+}
+
+func TestLogoutRejectsCookieWithoutOrigin(t *testing.T) {
+	// @req MW-AUTH-006
+	t.Parallel()
+
+	issuer := &stubIssuer{}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
+
+	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
 	}
 }
 

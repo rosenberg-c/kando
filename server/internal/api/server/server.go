@@ -26,6 +26,8 @@ type Dependencies struct {
 	Issuer       TokenIssuer
 	Verifier     auth.Verifier
 	LoginLimiter *security.LoginRateLimiter
+	AuthLimiter  *security.LoginRateLimiter
+	RefreshStore *security.RefreshTokenStore
 	KanbanRepo   kanban.Repository
 }
 
@@ -69,6 +71,14 @@ func Register(api huma.API, deps Dependencies) {
 
 func loginRateLimitKey(email, remoteAddr string) string {
 	return strings.ToLower(strings.TrimSpace(email)) + "|" + clientIP(remoteAddr)
+}
+
+func loginRateLimitAccountKey(email string) string {
+	return "account|" + strings.ToLower(strings.TrimSpace(email))
+}
+
+func loginRateLimitIPKey(remoteAddr string) string {
+	return "ip|" + clientIP(remoteAddr)
 }
 
 func clientIP(remoteAddr string) string {

@@ -5,7 +5,7 @@ struct GeneratedAuthAPI: AuthAPI {
     func login(email: String, password: String, baseURL: URL) async throws -> AuthLoginResult {
         let client = TodoAPIClientFactory.makeClient(baseURL: baseURL)
         let payload = Components.Schemas.AuthLoginRequest(email: email, password: password)
-        let output = try await client.login(body: .json(payload))
+        let output = try await client.nativeLogin(body: .json(payload))
         switch output {
         case let .ok(ok):
             return .success(mapTokens(try ok.body.json))
@@ -17,7 +17,7 @@ struct GeneratedAuthAPI: AuthAPI {
     func refreshTokens(refreshToken: String, baseURL: URL) async throws -> AuthSessionTokens? {
         let client = TodoAPIClientFactory.makeClient(baseURL: baseURL)
         let payload = Components.Schemas.AuthRefreshRequest(refreshToken: refreshToken)
-        let output = try await client.refreshAuth(body: .json(payload))
+        let output = try await client.nativeRefreshAuth(body: .json(payload))
         switch output {
         case let .ok(ok):
             return mapTokens(try ok.body.json)
@@ -29,7 +29,7 @@ struct GeneratedAuthAPI: AuthAPI {
     func revokeSession(refreshToken: String, baseURL: URL) async throws -> Int? {
         let client = TodoAPIClientFactory.makeClient(baseURL: baseURL)
         let payload = Components.Schemas.AuthRefreshRequest(refreshToken: refreshToken)
-        let output = try await client.logout(body: .json(payload))
+        let output = try await client.nativeLogout(body: .json(payload))
         switch output {
         case .noContent:
             return nil
