@@ -22,7 +22,7 @@ SERVER_CERT_FILE := $(SERVER_CERT_DIR)/server.pem
 SERVER_KEY_FILE := $(SERVER_CERT_DIR)/server-key.pem
 REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 
-.PHONY: generate-backend generate-web-api generate-apple-api generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-dev web-build web-test server-cert fetch-remote-ca trust-remote-ca
+.PHONY: generate-backend generate-web-api generate-apple-api generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test server-cert fetch-remote-ca trust-remote-ca
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -163,6 +163,10 @@ web-cert:
 	@command -v mkcert >/dev/null 2>&1 || (echo "mkcert is required. install from https://github.com/FiloSottile/mkcert" && exit 1)
 	@mkdir -p $(WEB_CERT_DIR)
 	@sh -c 'if [ -f ./.env.app.apple ]; then set -a; . ./.env.app.apple; set +a; elif [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; NAMES="localhost 127.0.0.1 ::1"; if [ -n "$${DEV_LAN_IP:-}" ]; then NAMES="$$NAMES $${DEV_LAN_IP}"; fi; mkcert -cert-file "$(WEB_CERT_FILE)" -key-file "$(WEB_KEY_FILE)" $$NAMES'
+
+web-trust:
+	@command -v mkcert >/dev/null 2>&1 || (echo "mkcert is required. install from https://github.com/FiloSottile/mkcert" && exit 1)
+	mkcert -install
 
 web-dev: web-cert
 	pnpm --dir $(WEB_APP_DIR) dev
