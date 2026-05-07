@@ -6,6 +6,7 @@ import (
 )
 
 var ErrUnauthorized = errors.New("unauthorized")
+var ErrVerifierUnavailable = errors.New("verifier unavailable")
 
 // Identity is the authenticated Appwrite user mapped into the API context.
 type Identity struct {

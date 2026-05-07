@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -136,7 +137,11 @@ func (c *Client) VerifyJWT(ctx context.Context, token string) (auth.Identity, er
 
 	var response accountResponse
 	if err := c.do(req, &response); err != nil {
-		return auth.Identity{}, err
+		if errors.Is(err, auth.ErrUnauthorized) {
+			return auth.Identity{}, err
+		}
+
+		return auth.Identity{}, fmt.Errorf("%w: %v", auth.ErrVerifierUnavailable, err)
 	}
 
 	if response.ID == "" {

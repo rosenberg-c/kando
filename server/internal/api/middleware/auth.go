@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,7 @@ func Auth(verifier auth.Verifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearerToken(r.Header.Get("Authorization"))
 		if !ok {
+			log.Printf("auth_event=bearer_rejected reason=missing_or_invalid_authorization_header path=%q remote_addr=%q", r.URL.Path, r.RemoteAddr)
 			http.Error(w, "missing bearer token", http.StatusUnauthorized)
 			return
 		}
@@ -20,10 +22,17 @@ func Auth(verifier auth.Verifier, next http.Handler) http.Handler {
 		identity, err := verifier.VerifyJWT(r.Context(), token)
 		if err != nil {
 			if errors.Is(err, auth.ErrUnauthorized) {
+				log.Printf("auth_event=bearer_rejected reason=unauthorized path=%q remote_addr=%q", r.URL.Path, r.RemoteAddr)
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
+			if errors.Is(err, auth.ErrVerifierUnavailable) {
+				log.Printf("auth_event=bearer_rejected reason=verifier_unavailable path=%q remote_addr=%q", r.URL.Path, r.RemoteAddr)
+				http.Error(w, "auth verifier unavailable", http.StatusServiceUnavailable)
+				return
+			}
 
+			log.Printf("auth_event=bearer_rejected reason=verify_failed path=%q remote_addr=%q", r.URL.Path, r.RemoteAddr)
 			http.Error(w, "failed to verify token", http.StatusUnauthorized)
 			return
 		}

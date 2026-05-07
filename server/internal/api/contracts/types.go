@@ -17,6 +17,11 @@ type AuthTokens struct {
 	AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
 }
 
+type AuthBrowserTokens struct {
+	AccessToken          string    `json:"accessToken"`
+	AccessTokenExpiresAt time.Time `json:"accessTokenExpiresAt"`
+}
+
 type MeResponse struct {
 	UserID string `json:"userId"`
 	Email  string `json:"email"`
