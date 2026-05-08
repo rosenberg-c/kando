@@ -21,8 +21,9 @@ SERVER_CERT_DIR := ./certs
 SERVER_CERT_FILE := $(SERVER_CERT_DIR)/server.pem
 SERVER_KEY_FILE := $(SERVER_CERT_DIR)/server-key.pem
 REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
+LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
-.PHONY: generate-backend generate-web-api generate-apple-api generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test server-cert fetch-remote-ca trust-remote-ca
+.PHONY: generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test server-cert fetch-remote-ca trust-remote-ca
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -34,6 +35,10 @@ generate-web-api:
 
 generate-apple-api:
 	swift package --package-path $(APP_MACOS) plugin --allow-writing-to-package-directory generate-code-from-openapi
+
+generate-macos-iconset:
+	export_image --source ./art/svg/icon.svg --layer-name "main-1" --target ./art/export/main.png
+	generate_iconset --source ./art/export/main.png --target ./apps/apple/Sources/Todo/TodoMacOS/Assets.xcassets --name AppIcon.appiconset
 
 generate-all: generate-backend generate-web-api generate-apple-api
 
@@ -55,6 +60,11 @@ build:
 
 build-macos:
 	xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build
+
+clean-macos:
+	rm -rf "$(MACOS_DERIVED)"
+	rm -rf "$(APP_MACOS)/.build"
+	@sh -c 'rm -rf "$${HOME}/Library/Developer/Xcode/DerivedData/TodoMacOS-"* "$${HOME}/Library/Developer/Xcode/DerivedData/TodoMacOSApp-"* 2>/dev/null || true'
 
 kill-server:
 	@PID=""; \
@@ -109,7 +119,7 @@ run-cli:
 
 run-macos:
 	killall "$(MACOS_SCHEME)" >/dev/null 2>&1 || true
-	@sh -c 'if [ -f ./.env.app.apple ]; then set -a; . ./.env.app.apple; set +a; elif [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${KANDO_API_BASE_URL:-http://localhost:8080}"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app" --args --api-base-url "$$API_BASE_URL"'
+	@sh -c 'if [ -f ./.env.app.apple ]; then set -a; . ./.env.app.apple; set +a; elif [ -f ./.env.app ]; then set -a; . ./.env.app; set +a; fi; API_BASE_URL="$${KANDO_API_BASE_URL:-http://localhost:8080}"; APP_PATH="$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"; xcodebuild -skipPackagePluginValidation -project $(MACOS_XCODEPROJ) -scheme $(MACOS_SCHEME) -configuration Debug -derivedDataPath $(MACOS_DERIVED) build && "$(LSREGISTER)" -f -R "$$APP_PATH" && open -n "$$APP_PATH" --args --api-base-url "$$API_BASE_URL"'
 
 open-macos:
 	open "$(MACOS_DERIVED)/Build/Products/Debug/$(MACOS_SCHEME).app"
