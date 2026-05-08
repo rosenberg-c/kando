@@ -1,9 +1,3 @@
-export type AuthTokens = {
-  accessToken: string;
-  refreshToken?: string;
-  accessTokenExpiresAt: string;
-};
-
 export type SignInParams = {
   email: string;
   password: string;
@@ -11,8 +5,8 @@ export type SignInParams = {
 };
 
 export type AuthTransport = {
-  signIn: (email: string, password: string) => Promise<AuthTokens | null>;
-  refreshTokens: () => Promise<AuthTokens | null>;
+  signIn: (email: string, password: string) => Promise<boolean>;
+  refreshSession: () => Promise<boolean>;
   revokeSession: () => Promise<number | null>;
   getIdentity: () => Promise<{ email: string } | null>;
 };

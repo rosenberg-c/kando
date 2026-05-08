@@ -253,11 +253,14 @@ func TestLoginReturnsTokensOnSuccess(t *testing.T) {
 	if got := recorder.Header().Get("Expires"); got != "0" {
 		t.Fatalf("Expires = %q, want %q", got, "0")
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Host-refresh_token=") {
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Secure-refresh_token=") {
 		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookie)
 	}
 	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "HttpOnly") || !strings.Contains(setCookie, "Secure") {
 		t.Fatalf("Set-Cookie missing secure attributes: %q", setCookie)
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Path=/auth") {
+		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookie)
 	}
 	if !response.AccessTokenExpiresAt.Equal(expiresAt) {
 		t.Fatalf("accessTokenExpiresAt = %s, want %s", response.AccessTokenExpiresAt, expiresAt)
@@ -301,7 +304,7 @@ func TestRefreshUsesRefreshCookie(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Cookie", "__Secure-refresh_token="+refreshToken)
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	request.Header.Set("Origin", "http://localhost:5173")
 	recorder := httptest.NewRecorder()
@@ -323,8 +326,11 @@ func TestRefreshUsesRefreshCookie(t *testing.T) {
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Host-refresh_token=") {
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Secure-refresh_token=") {
 		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookie)
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Path=/auth") {
+		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookie)
 	}
 }
 
@@ -407,7 +413,7 @@ func TestLogoutRevokesSessionFromRefreshCookie(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Cookie", "__Secure-refresh_token="+refreshToken)
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	request.Header.Set("Origin", "http://localhost:5173")
 	recorder := httptest.NewRecorder()
@@ -424,6 +430,9 @@ func TestLogoutRevokesSessionFromRefreshCookie(t *testing.T) {
 	}
 	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Max-Age=0") {
 		t.Fatalf("Set-Cookie = %q, want clearing cookie", setCookie)
+	}
+	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Path=/auth") {
+		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookie)
 	}
 }
 
@@ -467,7 +476,7 @@ func TestRefreshAllowsCookieWithSameSiteFetch(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Cookie", "__Secure-refresh_token="+refreshToken)
 	request.Header.Set("Sec-Fetch-Site", "same-site")
 	request.Header.Set("Origin", "http://localhost:5173")
 	recorder := httptest.NewRecorder()
@@ -490,7 +499,7 @@ func TestRefreshAllowsCookieWithCanonicalizedOriginCase(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute), RefreshStore: refreshStore})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token="+refreshToken)
+	request.Header.Set("Cookie", "__Secure-refresh_token="+refreshToken)
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	request.Header.Set("Origin", "HTTP://LOCALHOST:5173")
 	recorder := httptest.NewRecorder()
@@ -511,7 +520,7 @@ func TestRefreshRejectsCookieWithoutTrustedOrigin(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Cookie", "__Secure-refresh_token=session-1")
 	request.Header.Set("Sec-Fetch-Site", "cross-site")
 	request.Header.Set("Origin", "http://evil.example")
 	recorder := httptest.NewRecorder()
@@ -535,7 +544,7 @@ func TestRefreshRejectsCookieWithoutOrigin(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Cookie", "__Secure-refresh_token=session-1")
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, request)
@@ -555,7 +564,7 @@ func TestRefreshRejectsCookieWithMismatchedOrigin(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Cookie", "__Secure-refresh_token=session-1")
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	request.Header.Set("Origin", "http://evil.example")
 	recorder := httptest.NewRecorder()
@@ -576,7 +585,7 @@ func TestRefreshRejectsCookieWithMalformedOrigin(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Cookie", "__Secure-refresh_token=session-1")
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	request.Header.Set("Origin", "://bad origin")
 	recorder := httptest.NewRecorder()
@@ -597,7 +606,7 @@ func TestLogoutRejectsCookieWithoutTrustedOrigin(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Cookie", "__Secure-refresh_token=session-1")
 	request.Header.Set("Sec-Fetch-Site", "cross-site")
 	request.Header.Set("Origin", "http://evil.example")
 	recorder := httptest.NewRecorder()
@@ -621,7 +630,7 @@ func TestLogoutRejectsCookieWithoutOrigin(t *testing.T) {
 	Register(api, Dependencies{Issuer: issuer, LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute)})
 
 	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
-	request.Header.Set("Cookie", "__Host-refresh_token=session-1")
+	request.Header.Set("Cookie", "__Secure-refresh_token=session-1")
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	recorder := httptest.NewRecorder()
 	mux.ServeHTTP(recorder, request)

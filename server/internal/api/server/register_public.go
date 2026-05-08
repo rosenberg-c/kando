@@ -16,6 +16,9 @@ type helloOutput struct {
 
 type meInput struct {
 	Authorization string `header:"Authorization"`
+	Cookie        string `header:"Cookie"`
+	SecFetchSite  string `header:"Sec-Fetch-Site"`
+	Origin        string `header:"Origin"`
 }
 
 type meOutput struct {
@@ -53,7 +56,7 @@ func registerPublic(api huma.API, deps Dependencies) {
 		Tags:        []string{publicTag},
 		Security:    []map[string][]string{{"bearerAuth": []string{}}},
 	}, func(ctx context.Context, input *meInput) (*meOutput, error) {
-		identity, err := requireVerifiedIdentity(ctx, deps, input.Authorization)
+		identity, err := requireVerifiedIdentityDual(ctx, deps, input.Authorization, input.Cookie, input.SecFetchSite, input.Origin)
 		if err != nil {
 			return nil, err
 		}

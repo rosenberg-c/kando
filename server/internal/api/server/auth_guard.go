@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"kando/server/internal/auth"
 )
@@ -17,6 +18,60 @@ func requireVerifiedIdentity(ctx context.Context, deps Dependencies, authorizati
 		return auth.Identity{}, authAPIError(authErrorCodeMissingBearerToken)
 	}
 
+	identity, err := deps.Verifier.VerifyJWT(ctx, token)
+	if err != nil {
+		if errors.Is(err, auth.ErrVerifierUnavailable) {
+			return auth.Identity{}, authAPIError(authErrorCodeVerifierUnavailable)
+		}
+		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+	}
+
+	return identity, nil
+}
+
+func requireVerifiedIdentityDual(
+	ctx context.Context,
+	deps Dependencies,
+	authorization string,
+	cookieHeader string,
+	secFetchSite string,
+	origin string,
+) (auth.Identity, error) {
+	if token, ok := bearerToken(authorization); ok {
+		return verifyJWTIdentity(ctx, deps, token)
+	}
+
+	if strings.TrimSpace(cookieHeader) == "" {
+		return auth.Identity{}, authAPIError(authErrorCodeMissingBearerToken)
+	}
+
+	if deps.Issuer == nil || deps.RefreshStore == nil || deps.Verifier == nil {
+		return auth.Identity{}, authAPIError(authErrorCodeAuthDependenciesNotConfigured)
+	}
+
+	if !isTrustedCSRFFetch(secFetchSite) || !isTrustedOrigin(origin) {
+		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+	}
+
+	refreshCookie, err := readRefreshCookie(cookieHeader)
+	if err != nil {
+		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+	}
+
+	sessionSecret, ok := deps.RefreshStore.Resolve(refreshCookie.Value)
+	if !ok {
+		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+	}
+
+	jwt, _, err := deps.Issuer.CreateJWT(ctx, sessionSecret)
+	if err != nil {
+		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+	}
+
+	return verifyJWTIdentity(ctx, deps, jwt)
+}
+
+func verifyJWTIdentity(ctx context.Context, deps Dependencies, token string) (auth.Identity, error) {
 	identity, err := deps.Verifier.VerifyJWT(ctx, token)
 	if err != nil {
 		if errors.Is(err, auth.ErrVerifierUnavailable) {

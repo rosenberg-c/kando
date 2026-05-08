@@ -64,7 +64,8 @@ type logoutOutput struct {
 }
 
 const authTag = "auth"
-const refreshCookieName = "__Host-refresh_token"
+const refreshCookieName = "__Secure-refresh_token"
+const refreshCookiePath = "/auth"
 const refreshCookieMaxAgeSeconds = 60 * 60 * 24 * 14
 const noStoreCacheControl = "no-store"
 const noCachePragma = "no-cache"
@@ -137,7 +138,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		OperationID: "login",
 		Method:      http.MethodPost,
 		Path:        "/auth/login",
-		Summary:     "Authenticates a user and returns tokens",
+		Summary:     "Authenticates a user, returns tokens, and sets __Secure-refresh_token cookie scoped to /auth",
 		Tags:        []string{authTag},
 	}, func(ctx context.Context, input *browserLoginInput) (*browserAuthTokensOutput, error) {
 		if !isTrustedCSRFFetch(input.SecFetchSite) || !isTrustedOrigin(input.Origin) {
@@ -213,7 +214,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		OperationID: "refreshAuth",
 		Method:      http.MethodPost,
 		Path:        "/auth/refresh",
-		Summary:     "Refreshes an access token using refresh cookie",
+		Summary:     "Refreshes an access token using __Secure-refresh_token cookie scoped to /auth",
 		Tags:        []string{authTag},
 	}, func(ctx context.Context, input *browserRefreshInput) (*browserAuthTokensOutput, error) {
 		if deps.Issuer == nil {
@@ -326,7 +327,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		OperationID:   "logout",
 		Method:        http.MethodPost,
 		Path:          "/auth/logout",
-		Summary:       "Revokes session and logs out user",
+		Summary:       "Revokes session and clears __Secure-refresh_token cookie scoped to /auth",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{authTag},
 	}, func(ctx context.Context, input *browserLogoutInput) (*logoutOutput, error) {
@@ -444,7 +445,7 @@ func newRefreshCookie(refreshToken string) *http.Cookie {
 	return &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    refreshToken,
-		Path:     "/",
+		Path:     refreshCookiePath,
 		MaxAge:   refreshCookieMaxAgeSeconds,
 		HttpOnly: true,
 		Secure:   true,
@@ -456,7 +457,7 @@ func clearRefreshCookie() *http.Cookie {
 	return &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    "",
-		Path:     "/",
+		Path:     refreshCookiePath,
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,

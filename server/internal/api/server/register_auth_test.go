@@ -90,6 +90,35 @@ func TestAuthErrorMappingMeVerifierUnavailableReturnsServiceUnavailable(t *testi
 	}
 }
 
+func TestAuthErrorMappingMeCookieAuthReturnsOK(t *testing.T) {
+	// @req AUTH-002
+	t.Parallel()
+
+	issuer := &stubIssuer{jwt: "jwt-1", expiresAt: time.Now().Add(10 * time.Minute)}
+	refreshStore := security.NewRefreshTokenStore(time.Hour)
+	refreshToken := issueRefreshTokenForTests(t, refreshStore, "session-1")
+	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{
+		Issuer:       issuer,
+		Verifier:     verifier,
+		RefreshStore: refreshStore,
+		LoginLimiter: security.NewLoginRateLimiter(5, time.Minute, time.Minute),
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/me", nil)
+	request.Header.Set("Cookie", "__Secure-refresh_token="+refreshToken)
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://localhost:5173")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
 func TestAuthErrorMappingLoginRateLimitedReturnsTooManyRequests(t *testing.T) {
 	// @req SEC-LOGIN-001
 	t.Parallel()
