@@ -49,7 +49,11 @@ func requireVerifiedIdentityDual(
 		return auth.Identity{}, authAPIError(authErrorCodeAuthDependenciesNotConfigured)
 	}
 
-	if !isTrustedCSRFFetch(secFetchSite) || !isTrustedOrigin(origin) {
+	if !isTrustedCSRFFetch(secFetchSite) {
+		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+	}
+
+	if origin != "" && !isTrustedOrigin(origin) {
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
 
