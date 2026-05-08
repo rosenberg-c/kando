@@ -100,6 +100,7 @@ make web-dev
 Notes:
 - In dev, frontend uses `/api` and Vite proxies to `VITE_KANDO_API_BASE_URL`.
 - Set `AUTH_REFRESH_COOKIE_PATH=/api/auth` in `.env.server` when using the Vite `/api` proxy.
+- Set `AUTH_ACCESS_COOKIE_PATH=/api` in `.env.server` so cookie-authenticated API calls (for example `/api/me`) receive the access cookie.
 - This avoids browser mixed-content and cross-site fetch-metadata issues during login/refresh/logout.
 
 ## HTTPS web auth dev (frontend and backend on different machines)
@@ -112,6 +113,7 @@ Backend machine:
 - set `DEV_LAN_IP=192.168.56.3` in `.env.server` (used by `make server-cert`/`make run-tls`)
 - set `CORS_ALLOWED_ORIGINS=https://192.168.56.2:5173`
 - set `AUTH_REFRESH_COOKIE_PATH=/api/auth`
+- set `AUTH_ACCESS_COOKIE_PATH=/api`
 - run `make run-tls`
 
 Frontend machine:
@@ -167,6 +169,7 @@ Notes:
 - `KANDO_API_BASE_URL` configures CLI API endpoint.
 - `VITE_KANDO_API_BASE_URL` configures Vite proxy target for web dev and direct base URL for production web builds.
 - `AUTH_REFRESH_COOKIE_PATH` controls the refresh cookie path. Use `/auth` for direct backend routing and `/api/auth` behind the web proxy.
+- `AUTH_ACCESS_COOKIE_PATH` controls the access cookie path used for browser API authentication. Use `/` for direct routing and `/api` behind the web proxy.
 - `DEV_LAN_IP` is used only for cert generation (`make web-cert` and `make server-cert`). Use the LAN IP of the machine running that dev server.
 - `APPWRITE_*` values are backend-only and must not be shipped to clients.
 - Set Appwrite values only if you are using Appwrite-backed auth/storage.

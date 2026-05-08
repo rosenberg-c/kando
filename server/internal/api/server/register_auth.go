@@ -30,7 +30,7 @@ type browserLoginInput struct {
 }
 
 type browserAuthTokensOutput struct {
-	SetCookie    string `header:"Set-Cookie"`
+	SetCookie    []string `header:"Set-Cookie"`
 	CacheControl string `header:"Cache-Control"`
 	Pragma       string `header:"Pragma"`
 	Expires      string `header:"Expires"`
@@ -57,7 +57,7 @@ type browserLogoutInput struct {
 }
 
 type logoutOutput struct {
-	SetCookie    string `header:"Set-Cookie"`
+	SetCookie    []string `header:"Set-Cookie"`
 	CacheControl string `header:"Cache-Control"`
 	Pragma       string `header:"Pragma"`
 	Expires      string `header:"Expires"`
@@ -65,7 +65,9 @@ type logoutOutput struct {
 
 const authTag = "auth"
 const refreshCookieName = "__Secure-refresh_token"
+const accessCookieName = "__Secure-access_token"
 const refreshCookieMaxAgeSeconds = 60 * 60 * 24 * 14
+const accessCookieMaxAgeSeconds = 60 * 15
 const noStoreCacheControl = "no-store"
 const noCachePragma = "no-cache"
 const expiresImmediately = "0"
@@ -137,7 +139,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		OperationID: "login",
 		Method:      http.MethodPost,
 		Path:        "/auth/login",
-		Summary:     "Authenticates a user, returns tokens, and sets __Secure-refresh_token cookie scoped to /auth",
+		Summary:     "Authenticates a user, returns tokens, and sets browser auth cookies",
 		Tags:        []string{authTag},
 	}, func(ctx context.Context, input *browserLoginInput) (*browserAuthTokensOutput, error) {
 		if !isTrustedCSRFFetch(input.SecFetchSite) || !isTrustedOrigin(input.Origin) {
@@ -153,11 +155,12 @@ func registerAuth(api huma.API, deps Dependencies) {
 		}
 
 		refreshCookie := newRefreshCookie(tokens.RefreshToken)
+		accessCookie := newAccessCookie(tokens.AccessToken)
 
 		return &browserAuthTokensOutput{Body: contracts.AuthBrowserTokens{
 			AccessToken:          tokens.AccessToken,
 			AccessTokenExpiresAt: tokens.AccessTokenExpiresAt,
-		}, SetCookie: refreshCookie.String(), CacheControl: noStoreCacheControl, Pragma: noCachePragma, Expires: expiresImmediately}, nil
+		}, SetCookie: []string{refreshCookie.String(), accessCookie.String()}, CacheControl: noStoreCacheControl, Pragma: noCachePragma, Expires: expiresImmediately}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -213,7 +216,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		OperationID: "refreshAuth",
 		Method:      http.MethodPost,
 		Path:        "/auth/refresh",
-		Summary:     "Refreshes an access token using __Secure-refresh_token cookie scoped to /auth",
+		Summary:     "Refreshes an access token using browser auth cookies",
 		Tags:        []string{authTag},
 	}, func(ctx context.Context, input *browserRefreshInput) (*browserAuthTokensOutput, error) {
 		if deps.Issuer == nil {
@@ -267,7 +270,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		return &browserAuthTokensOutput{Body: contracts.AuthBrowserTokens{
 			AccessToken:          jwt,
 			AccessTokenExpiresAt: expiresAt,
-		}, SetCookie: newRefreshCookie(rotatedToken).String(), CacheControl: noStoreCacheControl, Pragma: noCachePragma, Expires: expiresImmediately}, nil
+		}, SetCookie: []string{newRefreshCookie(rotatedToken).String(), newAccessCookie(jwt).String()}, CacheControl: noStoreCacheControl, Pragma: noCachePragma, Expires: expiresImmediately}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -326,7 +329,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 		OperationID:   "logout",
 		Method:        http.MethodPost,
 		Path:          "/auth/logout",
-		Summary:       "Revokes session and clears __Secure-refresh_token cookie scoped to /auth",
+		Summary:       "Revokes session and clears browser auth cookies",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{authTag},
 	}, func(ctx context.Context, input *browserLogoutInput) (*logoutOutput, error) {
@@ -381,7 +384,7 @@ func registerAuth(api huma.API, deps Dependencies) {
 			return nil, authAPIError(authErrorCodeLogoutFailed)
 		}
 
-		return &logoutOutput{SetCookie: clearRefreshCookie().String(), CacheControl: noStoreCacheControl, Pragma: noCachePragma, Expires: expiresImmediately}, nil
+		return &logoutOutput{SetCookie: []string{clearRefreshCookie().String(), clearAccessCookie().String()}, CacheControl: noStoreCacheControl, Pragma: noCachePragma, Expires: expiresImmediately}, nil
 	})
 }
 
@@ -466,6 +469,32 @@ func clearRefreshCookie() *http.Cookie {
 	}
 }
 
+func newAccessCookie(accessToken string) *http.Cookie {
+	cookiePath := sharedconfig.AuthAccessCookiePath()
+	return &http.Cookie{
+		Name:     accessCookieName,
+		Value:    accessToken,
+		Path:     cookiePath,
+		MaxAge:   accessCookieMaxAgeSeconds,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func clearAccessCookie() *http.Cookie {
+	cookiePath := sharedconfig.AuthAccessCookiePath()
+	return &http.Cookie{
+		Name:     accessCookieName,
+		Value:    "",
+		Path:     cookiePath,
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
 func readRefreshCookie(cookieHeader string) (*http.Cookie, error) {
 	req := &http.Request{Header: make(http.Header)}
 	req.Header.Set("Cookie", cookieHeader)
@@ -475,6 +504,20 @@ func readRefreshCookie(cookieHeader string) (*http.Cookie, error) {
 	}
 	if strings.TrimSpace(cookie.Value) == "" {
 		return nil, errors.New("missing refresh cookie value")
+	}
+
+	return cookie, nil
+}
+
+func readAccessCookie(cookieHeader string) (*http.Cookie, error) {
+	req := &http.Request{Header: make(http.Header)}
+	req.Header.Set("Cookie", cookieHeader)
+	cookie, err := req.Cookie(accessCookieName)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(cookie.Value) == "" {
+		return nil, errors.New("missing access cookie value")
 	}
 
 	return cookie, nil

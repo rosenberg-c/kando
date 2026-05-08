@@ -96,7 +96,7 @@ func TestAuthErrorMappingMeCookieAuthReturnsOK(t *testing.T) {
 
 	issuer := &stubIssuer{jwt: "jwt-1", expiresAt: time.Now().Add(10 * time.Minute)}
 	refreshStore := security.NewRefreshTokenStore(time.Hour)
-	refreshToken := issueRefreshTokenForTests(t, refreshStore, "session-1")
+	_ = issueRefreshTokenForTests(t, refreshStore, "session-1")
 	verifier := &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "user@example.com"}}
 
 	mux, api := NewAPI()
@@ -108,7 +108,7 @@ func TestAuthErrorMappingMeCookieAuthReturnsOK(t *testing.T) {
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/me", nil)
-	request.Header.Set("Cookie", "__Secure-refresh_token="+refreshToken)
+	request.Header.Set("Cookie", "__Secure-access_token=jwt-1")
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	request.Header.Set("Origin", "http://localhost:5173")
 	recorder := httptest.NewRecorder()

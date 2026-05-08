@@ -253,14 +253,18 @@ func TestLoginReturnsTokensOnSuccess(t *testing.T) {
 	if got := recorder.Header().Get("Expires"); got != "0" {
 		t.Fatalf("Expires = %q, want %q", got, "0")
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Secure-refresh_token=") {
-		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookie)
+	setCookies := strings.Join(recorder.Header().Values("Set-Cookie"), "\n")
+	if !strings.Contains(setCookies, "__Secure-refresh_token=") {
+		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookies)
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "HttpOnly") || !strings.Contains(setCookie, "Secure") {
-		t.Fatalf("Set-Cookie missing secure attributes: %q", setCookie)
+	if !strings.Contains(setCookies, "__Secure-access_token=") {
+		t.Fatalf("Set-Cookie = %q, want access token cookie", setCookies)
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Path=/auth") {
-		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookie)
+	if !strings.Contains(setCookies, "HttpOnly") || !strings.Contains(setCookies, "Secure") {
+		t.Fatalf("Set-Cookie missing secure attributes: %q", setCookies)
+	}
+	if !strings.Contains(setCookies, "Path=/auth") {
+		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookies)
 	}
 	if !response.AccessTokenExpiresAt.Equal(expiresAt) {
 		t.Fatalf("accessTokenExpiresAt = %s, want %s", response.AccessTokenExpiresAt, expiresAt)
@@ -326,11 +330,15 @@ func TestRefreshUsesRefreshCookie(t *testing.T) {
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "__Secure-refresh_token=") {
-		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookie)
+	setCookies := strings.Join(recorder.Header().Values("Set-Cookie"), "\n")
+	if !strings.Contains(setCookies, "__Secure-refresh_token=") {
+		t.Fatalf("Set-Cookie = %q, want refresh token cookie", setCookies)
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Path=/auth") {
-		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookie)
+	if !strings.Contains(setCookies, "__Secure-access_token=") {
+		t.Fatalf("Set-Cookie = %q, want access token cookie", setCookies)
+	}
+	if !strings.Contains(setCookies, "Path=/auth") {
+		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookies)
 	}
 }
 
@@ -428,11 +436,12 @@ func TestLogoutRevokesSessionFromRefreshCookie(t *testing.T) {
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Max-Age=0") {
-		t.Fatalf("Set-Cookie = %q, want clearing cookie", setCookie)
+	setCookies := strings.Join(recorder.Header().Values("Set-Cookie"), "\n")
+	if !strings.Contains(setCookies, "Max-Age=0") {
+		t.Fatalf("Set-Cookie = %q, want clearing cookie", setCookies)
 	}
-	if setCookie := recorder.Header().Get("Set-Cookie"); !strings.Contains(setCookie, "Path=/auth") {
-		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookie)
+	if !strings.Contains(setCookies, "Path=/auth") {
+		t.Fatalf("Set-Cookie = %q, want Path=/auth", setCookies)
 	}
 }
 

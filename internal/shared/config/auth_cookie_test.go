@@ -29,3 +29,17 @@ func TestAuthRefreshCookiePathRejectsRelativeValue(t *testing.T) {
 		t.Fatalf("AuthRefreshCookiePath()=%q, want /auth", got)
 	}
 }
+
+func TestAuthAccessCookiePathDefaultsToRoot(t *testing.T) {
+	t.Setenv("AUTH_ACCESS_COOKIE_PATH", "")
+	if got := AuthAccessCookiePath(); got != "/" {
+		t.Fatalf("AuthAccessCookiePath()=%q, want /", got)
+	}
+}
+
+func TestAuthAccessCookiePathUsesConfiguredValue(t *testing.T) {
+	t.Setenv("AUTH_ACCESS_COOKIE_PATH", "/api")
+	if got := AuthAccessCookiePath(); got != "/api" {
+		t.Fatalf("AuthAccessCookiePath()=%q, want /api", got)
+	}
+}

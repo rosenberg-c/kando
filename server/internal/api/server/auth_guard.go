@@ -45,7 +45,7 @@ func requireVerifiedIdentityDual(
 		return auth.Identity{}, authAPIError(authErrorCodeMissingBearerToken)
 	}
 
-	if deps.Issuer == nil || deps.RefreshStore == nil || deps.Verifier == nil {
+	if deps.Verifier == nil {
 		return auth.Identity{}, authAPIError(authErrorCodeAuthDependenciesNotConfigured)
 	}
 
@@ -57,22 +57,11 @@ func requireVerifiedIdentityDual(
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
 
-	refreshCookie, err := readRefreshCookie(cookieHeader)
+	accessCookie, err := readAccessCookie(cookieHeader)
 	if err != nil {
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
-
-	sessionSecret, ok := deps.RefreshStore.Resolve(refreshCookie.Value)
-	if !ok {
-		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
-	}
-
-	jwt, _, err := deps.Issuer.CreateJWT(ctx, sessionSecret)
-	if err != nil {
-		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
-	}
-
-	return verifyJWTIdentity(ctx, deps, jwt)
+	return verifyJWTIdentity(ctx, deps, accessCookie.Value)
 }
 
 func verifyJWTIdentity(ctx context.Context, deps Dependencies, token string) (auth.Identity, error) {
