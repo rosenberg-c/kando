@@ -11,7 +11,7 @@ BIN_CLI := $(BIN_DIR)/cli
 LOCAL_BIN_DIR := $(HOME)/.local/bin
 SERVER_PORT := 8080
 SERVER_PID_FILE := .server.pid
-TEST_MATRIX_REPO ?= ../test-matrix
+SPECSYNC ?= specsync
 WEB_APP_DIR := ./apps/web/react
 WEB_VITE_APP_DIR := $(WEB_APP_DIR)/app
 WEB_CERT_DIR := $(WEB_VITE_APP_DIR)/.cert
@@ -46,12 +46,12 @@ verify-generate: generate-backend
 	git diff --exit-code -- api/openapi.yaml generated/api/client/client.gen.go server/api/appwrite-schema.json apps/web/react/app/src/generated/api
 
 sync-test-matrix:
-	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
-	cd $(TEST_MATRIX_REPO) && go run ./cmd/sync_test_matrix -config $(CURDIR)/docs/test-matrix.config.json -apply
+	@command -v $(SPECSYNC) >/dev/null 2>&1 || (echo "$(SPECSYNC) is required but was not found in PATH" && exit 1)
+	$(SPECSYNC) -config $(CURDIR)/docs/test-matrix.config.json -apply
 
 verify-test-matrix:
-	@test -d $(TEST_MATRIX_REPO) || (echo "missing $(TEST_MATRIX_REPO) dependency; clone it beside this repo or set TEST_MATRIX_REPO" && exit 1)
-	cd $(TEST_MATRIX_REPO) && go run ./cmd/sync_test_matrix -config $(CURDIR)/docs/test-matrix.config.json
+	@command -v $(SPECSYNC) >/dev/null 2>&1 || (echo "$(SPECSYNC) is required but was not found in PATH" && exit 1)
+	$(SPECSYNC) -config $(CURDIR)/docs/test-matrix.config.json
 
 build:
 	mkdir -p $(BIN_DIR)

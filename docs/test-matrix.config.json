@@ -18,9 +18,9 @@
       "`.github/workflows/verify-generate.yml`"
     ],
     "TEST-HARNESS-001": [
-      "`../test-matrix/syncmatrix/syncmatrix_test.go` (`TestSyncApplyUpdatesMatrixFromReqTags`)",
-      "`../test-matrix/syncmatrix/syncmatrix_test.go` (`TestSyncCheckModeReportsWhenUpdatesNeeded`)",
-      "`../test-matrix/syncmatrix/syncmatrix_test.go` (`TestSyncIncludesStaticRefsForNonTaggedRequirements`)"
+      "`specsync/syncmatrix/syncmatrix_test.go` (`TestSyncApplyUpdatesMatrixFromReqTags`)",
+      "`specsync/syncmatrix/syncmatrix_test.go` (`TestSyncCheckModeReportsWhenUpdatesNeeded`)",
+      "`specsync/syncmatrix/syncmatrix_test.go` (`TestSyncIncludesStaticRefsForNonTaggedRequirements`)"
     ]
   },
   "parsers": {
@@ -35,11 +35,11 @@
     },
     ".ts": {
       "kind": "typescript",
-      "repoRoot": "../../test-matrix"
+      "repoRoot": ".."
     },
     ".tsx": {
       "kind": "typescript",
-      "repoRoot": "../../test-matrix"
+      "repoRoot": ".."
     }
   }
 }
