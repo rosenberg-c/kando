@@ -65,7 +65,6 @@ type logoutOutput struct {
 
 const authTag = "auth"
 const refreshCookieName = "__Secure-refresh_token"
-const refreshCookiePath = "/auth"
 const refreshCookieMaxAgeSeconds = 60 * 60 * 24 * 14
 const noStoreCacheControl = "no-store"
 const noCachePragma = "no-cache"
@@ -442,10 +441,11 @@ func createAuthTokens(ctx context.Context, deps Dependencies, input *loginInput)
 }
 
 func newRefreshCookie(refreshToken string) *http.Cookie {
+	cookiePath := sharedconfig.AuthRefreshCookiePath()
 	return &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    refreshToken,
-		Path:     refreshCookiePath,
+		Path:     cookiePath,
 		MaxAge:   refreshCookieMaxAgeSeconds,
 		HttpOnly: true,
 		Secure:   true,
@@ -454,10 +454,11 @@ func newRefreshCookie(refreshToken string) *http.Cookie {
 }
 
 func clearRefreshCookie() *http.Cookie {
+	cookiePath := sharedconfig.AuthRefreshCookiePath()
 	return &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    "",
-		Path:     refreshCookiePath,
+		Path:     cookiePath,
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,
