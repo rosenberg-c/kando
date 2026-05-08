@@ -14,7 +14,7 @@ type SecureTokenStore struct {
 }
 
 func NewSecureTokenStore(path string) TokenStore {
-	secretStore, err := newSecretStore("go_macos_todo.refresh_token")
+	secretStore, err := newSecretStore("kando.refresh_token")
 	if err != nil {
 		return NewFileTokenStore(path)
 	}

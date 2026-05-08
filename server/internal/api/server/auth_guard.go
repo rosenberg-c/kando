@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"go_macos_todo/server/internal/auth"
+	"kando/server/internal/auth"
 )
 
 func requireVerifiedIdentity(ctx context.Context, deps Dependencies, authorization string) (auth.Identity, error) {

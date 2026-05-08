@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go_macos_todo/apps/cli/ui"
-	"go_macos_todo/apps/cli/internal/cli"
-	"go_macos_todo/internal/shared/config"
+	"kando/apps/cli/ui"
+	"kando/apps/cli/internal/cli"
+	"kando/internal/shared/config"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	store := cli.NewSecureTokenStore(filepath.Join(configDir, "go_macos_todo", "auth.json"))
+	store := cli.NewSecureTokenStore(filepath.Join(configDir, "kando", "auth.json"))
 	apiBaseURL := os.Getenv("KANDO_API_BASE_URL")
 	if apiBaseURL == "" {
 		apiBaseURL = "http://localhost:8080"

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"go_macos_todo/server/internal/schema"
+	"kando/server/internal/schema"
 )
 
 func main() {

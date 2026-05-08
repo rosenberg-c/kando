@@ -12,8 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"go_macos_todo/apps/cli/ui"
-	"go_macos_todo/apps/cli/internal/cli"
+	"kando/apps/cli/ui"
+	"kando/apps/cli/internal/cli"
 )
 
 func runTUI(ctx context.Context, service *cli.Service, store cli.TokenStore, input io.Reader, output io.Writer) error {

@@ -1,4 +1,4 @@
-module go_macos_todo
+module kando
 
 go 1.22
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"go_macos_todo/server/internal/kanban"
+	"kando/server/internal/kanban"
 )
 
 func (r *KanbanRepository) CreateTaskWithArchivedAt(ctx context.Context, ownerUserID, boardID, columnID, title, description string, archivedAt *time.Time) (kanban.Task, kanban.Board, error) {

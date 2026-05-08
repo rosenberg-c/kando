@@ -11,9 +11,9 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 
-	"go_macos_todo/server/internal/api/security"
-	"go_macos_todo/server/internal/auth"
-	"go_macos_todo/server/internal/kanban"
+	"kando/server/internal/api/security"
+	"kando/server/internal/auth"
+	"kando/server/internal/kanban"
 )
 
 type TokenIssuer interface {

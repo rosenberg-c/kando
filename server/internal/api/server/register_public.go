@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"go_macos_todo/server/internal/api/contracts"
+	"kando/server/internal/api/contracts"
 )
 
 type helloOutput struct {

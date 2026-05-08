@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/server/internal/kanban"
-	"go_macos_todo/server/internal/kanban/contracttest"
+	"kando/server/internal/appwrite"
+	"kando/server/internal/kanban"
+	"kando/server/internal/kanban/contracttest"
 )
 
 func requireAppwriteIntegrationConfig(t *testing.T) (string, string, string, string, string, string) {

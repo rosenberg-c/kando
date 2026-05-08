@@ -12,9 +12,9 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 
-	"go_macos_todo/server/internal/api/contracts"
-	"go_macos_todo/server/internal/auth"
-	"go_macos_todo/server/internal/kanban"
+	"kando/server/internal/api/contracts"
+	"kando/server/internal/auth"
+	"kando/server/internal/kanban"
 )
 
 type authHeaderInput struct {

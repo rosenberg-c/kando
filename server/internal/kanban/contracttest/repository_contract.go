@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"go_macos_todo/server/internal/kanban"
+	"kando/server/internal/kanban"
 )
 
 type archiveCapable interface {

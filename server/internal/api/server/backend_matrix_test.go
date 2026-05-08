@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/server/internal/auth"
-	"go_macos_todo/server/internal/kanban"
+	"kando/server/internal/appwrite"
+	"kando/server/internal/auth"
+	"kando/server/internal/kanban"
 )
 
 func TestKanbanAPIBackendMatrixBoardCreateAndList(t *testing.T) {

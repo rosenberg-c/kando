@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"go_macos_todo/server/internal/schema"
+	"kando/server/internal/schema"
 )
 
 // PruneOptions controls whether planned prune operations are applied.

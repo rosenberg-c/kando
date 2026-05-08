@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"go_macos_todo/server/internal/auth"
+	"kando/server/internal/auth"
 )
 
 // Auth validates Appwrite JWT from Authorization header.

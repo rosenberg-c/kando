@@ -1,6 +1,6 @@
 package kanban
 
-import "go_macos_todo/server/internal/sliceutil"
+import "kando/server/internal/sliceutil"
 
 // ReorderIDs returns a reordered copy where targetID is moved to destinationPosition.
 func ReorderIDs(ids []string, targetID string, destinationPosition int) ([]string, error) {

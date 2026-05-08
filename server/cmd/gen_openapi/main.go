@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	apiserver "go_macos_todo/server/internal/api/server"
+	apiserver "kando/server/internal/api/server"
 )
 
 func main() {

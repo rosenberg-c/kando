@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"go_macos_todo/internal/shared/config"
-	"go_macos_todo/server/internal/api/middleware"
-	"go_macos_todo/server/internal/api/security"
-	apiserver "go_macos_todo/server/internal/api/server"
-	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/server/internal/kanban"
+	"kando/internal/shared/config"
+	"kando/server/internal/api/middleware"
+	"kando/server/internal/api/security"
+	apiserver "kando/server/internal/api/server"
+	"kando/server/internal/appwrite"
+	"kando/server/internal/kanban"
 )
 
 const (

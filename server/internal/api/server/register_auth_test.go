@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"go_macos_todo/server/internal/api/security"
-	"go_macos_todo/server/internal/auth"
+	"kando/server/internal/api/security"
+	"kando/server/internal/auth"
 )
 
 type cleanupIssuer struct {

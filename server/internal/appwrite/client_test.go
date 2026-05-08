@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"go_macos_todo/server/internal/auth"
+	"kando/server/internal/auth"
 )
 
 func TestCreateEmailPasswordSession(t *testing.T) {

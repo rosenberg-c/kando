@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"go_macos_todo/server/internal/schema"
+	"kando/server/internal/schema"
 )
 
 const (

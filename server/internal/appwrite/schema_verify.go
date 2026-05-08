@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"go_macos_todo/server/internal/schema"
+	"kando/server/internal/schema"
 )
 
 // SchemaVerifyReport summarizes schema drift between expected and live Appwrite resources.

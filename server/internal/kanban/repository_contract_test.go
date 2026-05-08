@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"go_macos_todo/server/internal/kanban"
-	"go_macos_todo/server/internal/kanban/contracttest"
+	"kando/server/internal/kanban"
+	"kando/server/internal/kanban/contracttest"
 )
 
 func TestRepositoryContractMemoryService(t *testing.T) {

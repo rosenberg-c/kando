@@ -14,9 +14,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	sharedconfig "go_macos_todo/internal/shared/config"
-	"go_macos_todo/server/internal/api/contracts"
-	"go_macos_todo/server/internal/api/security"
+	sharedconfig "kando/internal/shared/config"
+	"kando/server/internal/api/contracts"
+	"kando/server/internal/api/security"
 )
 
 type loginInput struct {

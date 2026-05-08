@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go_macos_todo/server/internal/auth"
+	"kando/server/internal/auth"
 )
 
 type stubVerifier struct {

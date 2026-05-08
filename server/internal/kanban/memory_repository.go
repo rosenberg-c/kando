@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"go_macos_todo/server/internal/sliceutil"
+	"kando/server/internal/sliceutil"
 )
 
 // MemoryRepository is an in-memory repository suitable for local development.

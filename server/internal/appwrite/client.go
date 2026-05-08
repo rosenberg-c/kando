@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"go_macos_todo/server/internal/auth"
+	"kando/server/internal/auth"
 )
 
 const jwtTTL = 14 * time.Minute

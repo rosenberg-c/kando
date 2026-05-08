@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"go_macos_todo/server/internal/appwrite"
-	"go_macos_todo/internal/shared/config"
+	"kando/server/internal/appwrite"
+	"kando/internal/shared/config"
 )
 
 func main() {
