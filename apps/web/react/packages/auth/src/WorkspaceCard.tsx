@@ -4,7 +4,6 @@ import styles from "./WorkspaceCard.module.css";
 
 type WorkspaceCardProps = {
   signedInEmail: string;
-  accessTokenExpiresAt: string;
   isBusy: boolean;
   onSignOut: () => Promise<void>;
   statusMessage: string;
@@ -13,7 +12,6 @@ type WorkspaceCardProps = {
 
 export function WorkspaceCard({
   signedInEmail,
-  accessTokenExpiresAt,
   isBusy,
   onSignOut,
   statusMessage,
@@ -23,7 +21,6 @@ export function WorkspaceCard({
     <Card>
       <h1 className={styles.title}>{t(keys.workspace.title)}</h1>
       <Text variant="muted">{t(keys.workspace.subtitle, { email: signedInEmail })}</Text>
-      <Text className={styles.tokenMeta}>{t(keys.workspace.tokenExpiry, { at: accessTokenExpiresAt })}</Text>
       <div className={styles.actions}>
         <Button
           variant="danger"

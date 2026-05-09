@@ -6,7 +6,6 @@ export default function App() {
     isSignedIn,
     isBusy,
     signedInEmail,
-    accessTokenExpiresAt,
     statusMessage,
     statusIsError,
     signIn,
@@ -25,7 +24,6 @@ export default function App() {
       ) : (
         <WorkspaceCard
           signedInEmail={signedInEmail}
-          accessTokenExpiresAt={accessTokenExpiresAt}
           isBusy={isBusy}
           onSignOut={signOut}
           statusMessage={statusMessage}

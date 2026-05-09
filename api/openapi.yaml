@@ -787,7 +787,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Authenticates a user and returns tokens
+      summary: Authenticates a user, returns tokens, and sets browser auth cookies
       tags:
         - auth
   /auth/logout:
@@ -828,7 +828,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Revokes session and logs out user
+      summary: Revokes session and clears browser auth cookies
       tags:
         - auth
   /auth/native/login:
@@ -974,7 +974,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      summary: Refreshes an access token using refresh cookie
+      summary: Refreshes an access token using browser auth cookies
       tags:
         - auth
   /boards:
@@ -1824,6 +1824,18 @@ paths:
       parameters:
         - in: header
           name: Authorization
+          schema:
+            type: string
+        - in: header
+          name: Cookie
+          schema:
+            type: string
+        - in: header
+          name: Sec-Fetch-Site
+          schema:
+            type: string
+        - in: header
+          name: Origin
           schema:
             type: string
       responses:

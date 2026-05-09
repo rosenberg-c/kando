@@ -12,7 +12,7 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class AuthService {
     /**
-     * Authenticates a user and returns tokens
+     * Authenticates a user, returns tokens, and sets browser auth cookies
      * @returns AuthBrowserTokens OK
      * @returns ErrorModel Error
      * @throws ApiError
@@ -38,7 +38,7 @@ export class AuthService {
         });
     }
     /**
-     * Revokes session and logs out user
+     * Revokes session and clears browser auth cookies
      * @returns ErrorModel Error
      * @throws ApiError
      */
@@ -115,7 +115,7 @@ export class AuthService {
         });
     }
     /**
-     * Refreshes an access token using refresh cookie
+     * Refreshes an access token using browser auth cookies
      * @returns AuthBrowserTokens OK
      * @returns ErrorModel Error
      * @throws ApiError

@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthTokens, AuthTransport, SignInParams } from "./types";
+import type { AuthTransport, SignInParams } from "./types";
 
 const SessionStatus = {
   Idle: "idle",
@@ -21,7 +21,6 @@ type AuthContextValue = {
   isSignedIn: boolean;
   isBusy: boolean;
   signedInEmail: string;
-  accessTokenExpiresAt: string;
   statusMessage: string;
   statusIsError: boolean;
   signIn: (params: SignInParams) => Promise<void>;
@@ -43,19 +42,16 @@ function toStatusMessage(error: unknown): string {
 }
 
 export function AuthProvider({ transport, children }: AuthProviderProps) {
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const [signedInEmail, setSignedInEmail] = useState("");
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [accessTokenExpiresAt, setAccessTokenExpiresAt] = useState("");
   const [status, setStatus] = useState<SessionStatus>(SessionStatus.Idle);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusIsError, setStatusIsError] = useState(false);
 
-  const isSignedIn = Boolean(accessToken);
   const isBusy = status === SessionStatus.Loading;
 
-  const applySignedInState = useCallback((nextEmail: string, tokens: AuthTokens) => {
-    setAccessToken(tokens.accessToken);
-    setAccessTokenExpiresAt(tokens.accessTokenExpiresAt);
+  const applySignedInState = useCallback((nextEmail: string) => {
+    setIsSignedIn(true);
     setSignedInEmail(nextEmail);
   }, []);
 
@@ -63,14 +59,16 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
     const restore = async () => {
       setStatus(SessionStatus.Loading);
       try {
-        const refreshed = await transport.refreshTokens();
-        if (!refreshed) {
+        const restored = await transport.refreshSession();
+        if (!restored) {
+          setIsSignedIn(false);
           return;
         }
 
         const identity = await transport.getIdentity();
-        applySignedInState(identity?.email ?? "", refreshed);
+        applySignedInState(identity?.email ?? "");
       } catch (error) {
+        setIsSignedIn(false);
         setSignedInEmail("");
         setStatusIsError(true);
         setStatusMessage(t(keys.auth.session.restoreFailed, { reason: String(error) }));
@@ -94,14 +92,14 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
       setStatusIsError(false);
 
       try {
-        const tokens = await transport.signIn(nextEmail, password);
-        if (!tokens) {
+        const signedIn = await transport.signIn(nextEmail, password);
+        if (!signedIn) {
           setStatusIsError(true);
           setStatusMessage(t(keys.auth.signin.failed));
           return;
         }
 
-        applySignedInState(nextEmail, tokens);
+        applySignedInState(nextEmail);
         void keepSignedIn;
         setStatusMessage(t(keys.auth.signin.success));
       } catch (error) {
@@ -131,8 +129,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
       setStatusIsError(true);
       setStatusMessage(t(keys.auth.signout.networkError, { reason: String(error) }));
     } finally {
-      setAccessToken(null);
-      setAccessTokenExpiresAt("");
+      setIsSignedIn(false);
       setSignedInEmail("");
       if (!hasError) {
         setStatusMessage(t(keys.auth.signout.success));
@@ -146,14 +143,12 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
       isSignedIn,
       isBusy,
       signedInEmail,
-      accessTokenExpiresAt,
       statusMessage,
       statusIsError,
       signIn,
       signOut,
     }),
     [
-      accessTokenExpiresAt,
       isBusy,
       isSignedIn,
       signIn,

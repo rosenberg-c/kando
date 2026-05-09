@@ -1,5 +1,5 @@
 import { type AuthTransport } from "@kando/auth";
-import { AuthService, ApiError, OpenAPI, PublicService, type AuthTokens } from "../generated/api";
+import { AuthService, ApiError, OpenAPI, PublicService } from "../generated/api";
 import { apiBaseUrl } from "../config/env";
 
 function configureBaseURL(): void {
@@ -8,45 +8,34 @@ function configureBaseURL(): void {
   OpenAPI.CREDENTIALS = "include";
 }
 
-function isAuthTokens(value: unknown): value is AuthTokens {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.accessToken === "string" &&
-    typeof candidate.accessTokenExpiresAt === "string"
-  );
-}
-
 export const authTransport: AuthTransport = {
   async signIn(email: string, password: string) {
     configureBaseURL();
     try {
-      const response = await AuthService.login({
+      await AuthService.login({
         requestBody: {
           email,
           password,
         },
       });
-      return isAuthTokens(response) ? response : null;
+      return true;
     } catch (error) {
       if (error instanceof ApiError) {
-        return null;
+        return false;
       }
       throw error;
     }
   },
 
-  async refreshTokens() {
+  async refreshSession() {
     configureBaseURL();
     try {
-      const response = await AuthService.refreshAuth({
+      await AuthService.refreshAuth({
       });
-      return isAuthTokens(response) ? response : null;
+      return true;
     } catch (error) {
       if (error instanceof ApiError) {
-        return null;
+        return false;
       }
       throw error;
     }

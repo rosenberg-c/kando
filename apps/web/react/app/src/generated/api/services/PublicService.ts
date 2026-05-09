@@ -28,14 +28,23 @@ export class PublicService {
      */
     public static getMe({
         authorization,
+        cookie,
+        secFetchSite,
+        origin,
     }: {
         authorization?: string,
+        cookie?: string,
+        secFetchSite?: string,
+        origin?: string,
     }): CancelablePromise<MeResponse | ErrorModel> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/me',
             headers: {
                 'Authorization': authorization,
+                'Cookie': cookie,
+                'Sec-Fetch-Site': secFetchSite,
+                'Origin': origin,
             },
         });
     }

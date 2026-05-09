@@ -4,10 +4,6 @@ import { AuthProvider, type AuthTransport } from "@kando/auth";
 import { keys, t } from "@kando/locale";
 import App from "./App";
 
-function inFutureIso(minutes: number): string {
-  return new Date(Date.now() + minutes * 60_000).toISOString();
-}
-
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
   const promise = new Promise<T>((res) => {
@@ -25,8 +21,8 @@ function renderApp(transport: AuthTransport) {
 }
 
 const defaultTransport: AuthTransport = {
-  signIn: async () => null,
-  refreshTokens: async () => null,
+  signIn: async () => false,
+  refreshSession: async () => false,
   revokeSession: async () => null,
   getIdentity: async () => null,
 };
@@ -48,11 +44,7 @@ describe("App", () => {
 
   // @req AUTH-001
   it("signs in with email/password and disables submit while request is in flight", async () => {
-    const pending = deferred<{
-      accessToken: string;
-      refreshToken: string;
-      accessTokenExpiresAt: string;
-    } | null>();
+    const pending = deferred<boolean>();
     let signInCalls = 0;
 
     const transport: AuthTransport = {
@@ -77,20 +69,12 @@ describe("App", () => {
     expect(signInCalls).toBe(1);
     expect(screen.getByTestId("auth.signin.submit").hasAttribute("disabled")).toBe(true);
 
-    pending.resolve({
-      accessToken: "access-token",
-      refreshToken: "refresh-token",
-      accessTokenExpiresAt: inFutureIso(10),
-    });
+    pending.resolve(true);
 
     await waitFor(() => {
       expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
       expect(screen.getByText(t(keys.workspace.subtitle, { email: "person@example.com" }))).toBeTruthy();
-      expect(
-        screen.getByText((content) => content.startsWith(t(keys.workspace.tokenExpiry, { at: "" }))),
-      ).toBeTruthy();
       expect(screen.queryByText("Signed in as {email}.")).toBeNull();
-      expect(screen.queryByText("Access token expires at: {at}")).toBeNull();
     });
   });
 
@@ -98,10 +82,7 @@ describe("App", () => {
   it("restores a valid session on app launch via refresh cookie", async () => {
     const transport: AuthTransport = {
       ...defaultTransport,
-      refreshTokens: async () => ({
-        accessToken: "access-token",
-        accessTokenExpiresAt: inFutureIso(10),
-      }),
+      refreshSession: async () => true,
       getIdentity: async () => ({ email: "restore@example.com" }),
     };
 
@@ -117,12 +98,9 @@ describe("App", () => {
     let refreshCalls = 0;
     const transport: AuthTransport = {
       ...defaultTransport,
-      refreshTokens: async () => {
+      refreshSession: async () => {
         refreshCalls += 1;
-        return {
-          accessToken: "new-access-token",
-          accessTokenExpiresAt: inFutureIso(15),
-        };
+        return true;
       },
       getIdentity: async () => ({ email: "refresh@example.com" }),
     };
@@ -142,9 +120,9 @@ describe("App", () => {
 
     const transport: AuthTransport = {
       ...defaultTransport,
-      refreshTokens: async () => {
+      refreshSession: async () => {
         refreshCalls += 1;
-        return null;
+        return false;
       },
     };
 
