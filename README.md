@@ -21,6 +21,15 @@ Workspace includes:
 - Go
 - Node.js + pnpm
 - Make
+- mkcert (required for HTTPS dev targets like `make run-tls` and `make web-dev`)
+
+If `make web-install` fails with `ERR_PNPM_IGNORED_BUILDS` (for example `esbuild`):
+
+```bash
+pnpm --dir ./apps/web/react approve-builds
+```
+
+Approve the prompted build dependencies, then rerun `make web-install`.
 
 ## Quick start
 
