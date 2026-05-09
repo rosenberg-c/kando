@@ -65,6 +65,10 @@ func requireVerifiedIdentityDual(
 }
 
 func verifyJWTIdentity(ctx context.Context, deps Dependencies, token string) (auth.Identity, error) {
+	if deps.Verifier == nil {
+		return auth.Identity{}, authAPIError(authErrorCodeAuthDependenciesNotConfigured)
+	}
+
 	identity, err := deps.Verifier.VerifyJWT(ctx, token)
 	if err != nil {
 		if errors.Is(err, auth.ErrVerifierUnavailable) {

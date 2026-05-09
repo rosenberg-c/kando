@@ -9,34 +9,25 @@ const defaultAuthRefreshCookiePath = "/auth"
 const defaultAuthAccessCookiePath = "/"
 
 func AuthRefreshCookiePath() string {
-	raw := strings.TrimSpace(os.Getenv("AUTH_REFRESH_COOKIE_PATH"))
-	if raw == "" {
-		return defaultAuthRefreshCookiePath
-	}
-	if !strings.HasPrefix(raw, "/") {
-		return defaultAuthRefreshCookiePath
-	}
-	if len(raw) > 1 {
-		raw = strings.TrimRight(raw, "/")
-		if raw == "" {
-			return defaultAuthRefreshCookiePath
-		}
-	}
-	return raw
+	return normalizeCookiePath(os.Getenv("AUTH_REFRESH_COOKIE_PATH"), defaultAuthRefreshCookiePath)
 }
 
 func AuthAccessCookiePath() string {
-	raw := strings.TrimSpace(os.Getenv("AUTH_ACCESS_COOKIE_PATH"))
+	return normalizeCookiePath(os.Getenv("AUTH_ACCESS_COOKIE_PATH"), defaultAuthAccessCookiePath)
+}
+
+func normalizeCookiePath(raw string, fallback string) string {
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return defaultAuthAccessCookiePath
+		return fallback
 	}
 	if !strings.HasPrefix(raw, "/") {
-		return defaultAuthAccessCookiePath
+		return fallback
 	}
 	if len(raw) > 1 {
 		raw = strings.TrimRight(raw, "/")
 		if raw == "" {
-			return defaultAuthAccessCookiePath
+			return fallback
 		}
 	}
 	return raw

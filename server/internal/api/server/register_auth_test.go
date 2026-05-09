@@ -90,6 +90,23 @@ func TestAuthErrorMappingMeVerifierUnavailableReturnsServiceUnavailable(t *testi
 	}
 }
 
+func TestAuthErrorMappingMeBearerAuthWithoutVerifierReturnsInternalServerError(t *testing.T) {
+	// @req MW-AUTH-001
+	t.Parallel()
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{})
+
+	request := httptest.NewRequest(http.MethodGet, "/me", nil)
+	request.Header.Set("Authorization", "Bearer test-token")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusInternalServerError, recorder.Body.String())
+	}
+}
+
 func TestAuthErrorMappingMeCookieAuthReturnsOK(t *testing.T) {
 	// @req AUTH-002
 	t.Parallel()
