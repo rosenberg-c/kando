@@ -1,23 +1,20 @@
 import { Navigate } from "react-router-dom";
 import { WorkspaceCard } from "@kando/auth";
 import { appRoutes } from "../routes";
+import type { AuthUiState } from "./authUiState";
 
 type BoardsPageProps = {
   hasSession: boolean;
   signedInEmail: string;
-  isBusy: boolean;
+  authUiState: AuthUiState;
   onSignOut: () => Promise<void>;
-  statusMessage: string;
-  statusIsError: boolean;
 };
 
 export function BoardsPage({
   hasSession,
   signedInEmail,
-  isBusy,
+  authUiState,
   onSignOut,
-  statusMessage,
-  statusIsError,
 }: BoardsPageProps) {
   if (!hasSession) {
     return <Navigate to={appRoutes.signIn} replace />;
@@ -26,10 +23,10 @@ export function BoardsPage({
   return (
     <WorkspaceCard
       signedInEmail={signedInEmail}
-      isBusy={isBusy}
+      isBusy={authUiState.isBusy}
       onSignOut={onSignOut}
-      statusMessage={statusMessage}
-      statusIsError={statusIsError}
+      statusMessage={authUiState.statusMessage}
+      statusIsError={authUiState.statusIsError}
     />
   );
 }

@@ -3,6 +3,7 @@ import { useAuth } from "@kando/auth";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { BoardsPage } from "./pages/BoardsPage";
 import { SignInPage } from "./pages/SignInPage";
+import type { AuthUiState } from "./pages/authUiState";
 import { appRoutes } from "./routes";
 
 export default function App() {
@@ -16,6 +17,12 @@ export default function App() {
     signOut,
   } = useAuth();
 
+  const authUiState: AuthUiState = {
+    isBusy,
+    statusMessage,
+    statusIsError,
+  };
+
   return (
     <main className="app-shell" data-testid="web.app">
       <Routes>
@@ -24,10 +31,8 @@ export default function App() {
           element={
             <SignInPage
               hasSession={hasSession}
-              isBusy={isBusy}
+              authUiState={authUiState}
               onSignIn={signIn}
-              statusMessage={statusMessage}
-              statusIsError={statusIsError}
             />
           }
         />
@@ -37,10 +42,8 @@ export default function App() {
             <BoardsPage
               hasSession={hasSession}
               signedInEmail={signedInEmail}
-              isBusy={isBusy}
+              authUiState={authUiState}
               onSignOut={signOut}
-              statusMessage={statusMessage}
-              statusIsError={statusIsError}
             />
           }
         />

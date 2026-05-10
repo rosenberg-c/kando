@@ -1,21 +1,18 @@
 import { Navigate } from "react-router-dom";
 import { SignInCard, type SignInParams } from "@kando/auth";
 import { appRoutes } from "../routes";
+import type { AuthUiState } from "./authUiState";
 
 type SignInPageProps = {
   hasSession: boolean;
-  isBusy: boolean;
+  authUiState: AuthUiState;
   onSignIn: (params: SignInParams) => Promise<void>;
-  statusMessage: string;
-  statusIsError: boolean;
 };
 
 export function SignInPage({
   hasSession,
-  isBusy,
+  authUiState,
   onSignIn,
-  statusMessage,
-  statusIsError,
 }: SignInPageProps) {
   if (hasSession) {
     return <Navigate to={appRoutes.boards} replace />;
@@ -23,10 +20,10 @@ export function SignInPage({
 
   return (
     <SignInCard
-      isBusy={isBusy}
+      isBusy={authUiState.isBusy}
       onSubmit={onSignIn}
-      statusMessage={statusMessage}
-      statusIsError={statusIsError}
+      statusMessage={authUiState.statusMessage}
+      statusIsError={authUiState.statusIsError}
     />
   );
 }
