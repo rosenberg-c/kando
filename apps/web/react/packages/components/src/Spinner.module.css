@@ -1,6 +1,9 @@
 .spinner {
+  display: inline-block;
   width: 2rem;
   height: 2rem;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   border: 3px solid var(--kando-color-surface-border);
   border-top-color: var(--kando-color-text);
   border-radius: 9999px;
