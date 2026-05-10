@@ -28,6 +28,10 @@ Native clients use dedicated native auth endpoints for login, refresh, and logou
 
 If refresh-token issuance fails after provider session creation during login, the backend performs best-effort provider-session cleanup and still returns the original refresh-issuance failure.
 
+### `AUTH-008`
+
+Web auth routes enforce session-aware navigation: signed-out users are redirected to `/signin`, signed-in users are redirected away from `/signin` to `/boards`, and unknown routes resolve to the correct auth-aware destination.
+
 ## Platform Applicability
 
 - `AUTH-001`: macOS (required), web (required), iOS (planned), TUI (planned).
@@ -37,3 +41,4 @@ If refresh-token issuance fails after provider session creation during login, th
 - `AUTH-005`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).
 - `AUTH-006`: macOS (required), web (N/A), iOS (planned), TUI (planned).
 - `AUTH-007`: macOS (required), web (required), iOS (planned), TUI (planned).
+- `AUTH-008`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).

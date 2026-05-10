@@ -13,10 +13,10 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderApp(transport: AuthTransport) {
+function renderApp(transport: AuthTransport, initialEntries: string[] = ["/"]) {
   return render(
     <AuthProvider transport={transport}>
-      <MemoryRouter initialEntries={["/"]}>
+      <MemoryRouter initialEntries={initialEntries}>
         <App />
       </MemoryRouter>
     </AuthProvider>,
@@ -135,6 +135,32 @@ describe("App", () => {
       expect(refreshCalls).toBe(1);
       expect(screen.getByTestId("auth.signin.submit")).toBeTruthy();
       expect(screen.queryByTestId("auth.signout.submit")).toBeNull();
+    });
+  });
+
+  // @req AUTH-008
+  it("redirects signed-out users from /boards to /signin", async () => {
+    renderApp(defaultTransport, ["/boards"]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth.signin.submit")).toBeTruthy();
+      expect(screen.queryByTestId("auth.signout.submit")).toBeNull();
+    });
+  });
+
+  // @req AUTH-008
+  it("redirects signed-in users from /signin to /boards", async () => {
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "routes@example.com" }),
+    };
+
+    renderApp(transport, ["/signin"]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
+      expect(screen.queryByTestId("auth.signin.submit")).toBeNull();
     });
   });
 });
