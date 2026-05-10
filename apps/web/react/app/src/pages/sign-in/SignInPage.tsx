@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { SignInCard, type SignInParams } from "@kando/auth";
-import { appRoutes } from "../routes";
-import type { AuthUiState } from "./authUiState";
+import { appRoutes } from "../../routes";
+import type { AuthUiState } from "../authUiState";
 
 type SignInPageProps = {
   hasSession: boolean;

@@ -1,7 +1,17 @@
-.app-shell {
+.app-root {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell {
+  flex: 1;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 4rem 1rem 2rem;
+  padding: 2.5rem 1rem 2rem;
+}
+
+.app-shellBoards {
+  justify-content: flex-start;
 }

@@ -260,6 +260,7 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-040` | Automated | `apps/apple/Sources/Todo/TodoMacOSTests/BoardViewModelTests.swift` (`reorderTasksSupportsCrossColumnBatchMovePayload`) | Covered | - |
 | `UX-041` | Automated | - | Gap | - |
 | `UX-042` | Automated | - | Gap | - |
+| `UX-043` | Automated | `apps/web/react/app/src/App.test.tsx` (`closes settings panel when clicking outside`), `apps/web/react/app/src/App.test.tsx` (`closes settings panel when escape is pressed`), `apps/web/react/app/src/App.test.tsx` (`toggles settings panel when pressing settings button`) | Covered | - |
 
 ## Next Test Additions (Recommended)
 

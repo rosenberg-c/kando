@@ -19,7 +19,6 @@ export function SignInCard({
 }: SignInCardProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [keepSignedIn, setKeepSignedIn] = useState(true);
 
   const canSubmit = useMemo(() => {
     return email.trim().length > 0 && password.length > 0 && !isBusy;
@@ -36,7 +35,7 @@ export function SignInCard({
           if (!canSubmit) {
             return;
           }
-          void onSubmit({ email, password, keepSignedIn });
+          void onSubmit({ email, password });
         }}
       >
         <label>
@@ -62,15 +61,6 @@ export function SignInCard({
             disabled={isBusy}
             data-testid="auth.password"
           />
-        </label>
-        <label className={styles.checkboxRow}>
-          <input
-            type="checkbox"
-            checked={keepSignedIn}
-            onChange={(event) => setKeepSignedIn(event.target.checked)}
-            disabled={isBusy}
-          />
-          <span className={styles.label}>{t(keys.auth.keepSignedIn)}</span>
         </label>
         <Button type="submit" disabled={!canSubmit} data-testid="auth.signin.submit">
           {isBusy ? t(keys.auth.signin.submitting) : t(keys.auth.signin.submit)}

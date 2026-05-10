@@ -1,16 +1,22 @@
+.board {
+  width: min(100%, 720px);
+  min-height: 360px;
+  padding: 1.5rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: var(--kando-radius-card);
+  background: var(--kando-color-surface-card);
+  box-shadow: var(--kando-shadow-card);
+}
+
 .title {
   margin: 0;
   font-size: var(--kando-font-size-title-lg);
 }
 
-.tokenMeta {
+.hint {
   margin-top: 0.8rem;
   color: var(--kando-color-text-muted);
   font-size: var(--kando-font-size-meta);
-}
-
-.actions {
-  margin-top: 1rem;
 }
 
 .status {

@@ -27,12 +27,6 @@
   font: inherit;
 }
 
-.checkboxRow {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 0.65rem;
-}
-
 .status {
   margin: 1rem 0 0;
   padding: 0.6rem 0.75rem;

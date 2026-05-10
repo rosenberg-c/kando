@@ -4,6 +4,11 @@
   font-family: var(--kando-font-family-base);
   line-height: 1.5;
   font-weight: 400;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {

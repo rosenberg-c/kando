@@ -81,7 +81,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
   }, [applySignedInState, transport]);
 
   const signIn = useCallback(
-    async ({ email, password, keepSignedIn }: SignInParams) => {
+    async ({ email, password }: SignInParams) => {
       const nextEmail = email.trim();
       if (!nextEmail || !password) {
         return;
@@ -100,7 +100,6 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
         }
 
         applySignedInState(nextEmail);
-        void keepSignedIn;
         setStatusMessage(t(keys.auth.signin.success));
       } catch (error) {
         setStatusIsError(true);

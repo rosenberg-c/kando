@@ -1,7 +1,6 @@
 export type SignInParams = {
   email: string;
   password: string;
-  keepSignedIn: boolean;
 };
 
 export type AuthTransport = {

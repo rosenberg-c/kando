@@ -4,6 +4,7 @@ import { AuthProvider, type AuthTransport } from "@kando/auth";
 import { keys, t } from "@kando/locale";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
+import { ThemeProvider } from "./theme/ThemeProvider";
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -15,12 +16,18 @@ function deferred<T>() {
 
 function renderApp(transport: AuthTransport, initialEntries: string[] = ["/"]) {
   return render(
-    <AuthProvider transport={transport}>
-      <MemoryRouter initialEntries={initialEntries}>
-        <App />
-      </MemoryRouter>
-    </AuthProvider>,
+    <ThemeProvider>
+      <AuthProvider transport={transport}>
+        <MemoryRouter initialEntries={initialEntries}>
+          <App />
+        </MemoryRouter>
+      </AuthProvider>
+    </ThemeProvider>,
   );
+}
+
+function openSettingsPanel() {
+  fireEvent.click(screen.getByTestId("app.settings.toggle"));
 }
 
 const defaultTransport: AuthTransport = {
@@ -75,10 +82,12 @@ describe("App", () => {
     pending.resolve(true);
 
     await waitFor(() => {
-      expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
-      expect(screen.getByText(t(keys.workspace.subtitle, { email: "person@example.com" }))).toBeTruthy();
+      expect(screen.getByText(t(keys.boards.placeholderMessage))).toBeTruthy();
       expect(screen.queryByText("Signed in as {email}.")).toBeNull();
     });
+
+    openSettingsPanel();
+    expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
   });
 
   // @req AUTH-002
@@ -92,8 +101,11 @@ describe("App", () => {
     renderApp(transport);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
+      expect(screen.getByText(t(keys.boards.placeholderMessage))).toBeTruthy();
     });
+
+    openSettingsPanel();
+    expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
   });
 
   // @req AUTH-003
@@ -112,8 +124,11 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(refreshCalls).toBe(1);
-      expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
+      expect(screen.getByText(t(keys.boards.placeholderMessage))).toBeTruthy();
     });
+
+    openSettingsPanel();
+    expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
   });
 
   // @req AUTH-003
@@ -159,8 +174,55 @@ describe("App", () => {
     renderApp(transport, ["/signin"]);
 
     await waitFor(() => {
-      expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
       expect(screen.queryByTestId("auth.signin.submit")).toBeNull();
+    });
+
+    openSettingsPanel();
+    expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
+  });
+
+  // @req UX-043
+  it("toggles settings panel when pressing settings button", async () => {
+    renderApp(defaultTransport);
+
+    const settingsButton = screen.getByTestId("app.settings.toggle");
+    fireEvent.click(settingsButton);
+
+    expect(screen.getByTestId("app.settings.panel")).toBeTruthy();
+    expect(screen.getByTestId("app.settings.theme.toggle")).toBeTruthy();
+
+    fireEvent.click(settingsButton);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("app.settings.panel")).toBeNull();
+    });
+  });
+
+  // @req UX-043
+  it("closes settings panel when clicking outside", async () => {
+    renderApp(defaultTransport);
+
+    fireEvent.click(screen.getByTestId("app.settings.toggle"));
+    expect(screen.getByTestId("app.settings.panel")).toBeTruthy();
+
+    fireEvent.pointerDown(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("app.settings.panel")).toBeNull();
+    });
+  });
+
+  // @req UX-043
+  it("closes settings panel when escape is pressed", async () => {
+    renderApp(defaultTransport);
+
+    fireEvent.click(screen.getByTestId("app.settings.toggle"));
+    expect(screen.getByTestId("app.settings.panel")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("app.settings.panel")).toBeNull();
     });
   });
 });

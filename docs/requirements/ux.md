@@ -168,6 +168,10 @@ Workspace exposes a hidden top-left edge activation area (pointer/click target) 
 
 The developer status modal displays backend connectivity status and the backend implementation currently in use.
 
+### `UX-043`
+
+Web app header exposes a `Settings` menu that shows current sign-in identity, provides sign-out and light/dark theme actions, and closes when toggled again, when clicking outside the menu, or when pressing `Escape`.
+
 
 ## Platform Applicability
 
@@ -213,3 +217,4 @@ The developer status modal displays backend connectivity status and the backend 
 - `UX-040`: macOS (required), iOS (planned), TUI (planned).
 - `UX-041`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-042`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-043`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).

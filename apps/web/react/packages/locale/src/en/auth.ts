@@ -28,6 +28,5 @@ export const authEn = {
       label: "Password",
       placeholder: "Enter your password",
     },
-    keepSignedIn: "Keep me signed in",
   },
 } as const;

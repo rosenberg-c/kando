@@ -23,3 +23,18 @@
   --kando-radius-status: 9px;
   --kando-shadow-card: 0 20px 60px rgba(12, 22, 44, 0.12);
 }
+
+:root[data-theme="dark"] {
+  --kando-color-text: #e2e8f0;
+  --kando-color-text-muted: #94a3b8;
+  --kando-color-border: #475569;
+  --kando-color-surface-border: #334155;
+  --kando-color-surface-card: rgba(15, 23, 42, 0.9);
+  --kando-color-surface-muted: #1e293b;
+  --kando-color-status-ok-text: #86efac;
+  --kando-color-status-ok-bg: rgba(20, 83, 45, 0.32);
+  --kando-color-status-error-text: #fca5a5;
+  --kando-color-status-error-bg: rgba(127, 29, 29, 0.34);
+  --kando-page-bg: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  --kando-shadow-card: 0 18px 54px rgba(2, 6, 23, 0.65);
+}

@@ -6,14 +6,17 @@ import "@kando/styles/tokens.css";
 import "@kando/styles/base.css";
 import { BrowserRouter } from "react-router-dom";
 import { authTransport } from "./auth/transport";
+import { ThemeProvider } from "./theme/ThemeProvider";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider transport={authTransport}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider transport={authTransport}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 );
