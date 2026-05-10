@@ -23,7 +23,7 @@ SERVER_KEY_FILE := $(SERVER_CERT_DIR)/server-key.pem
 REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
-.PHONY: generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test server-cert fetch-remote-ca trust-remote-ca
+.PHONY: generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -186,3 +186,10 @@ web-build:
 
 web-test:
 	pnpm --dir $(WEB_APP_DIR) test
+
+web-storybook:
+	@sh -c 'for ip in $$(hostname -I 2>/dev/null); do case "$$ip" in 192.*) echo "Storybook LAN (192): http://$$ip:6006/" ;; esac; done'
+	pnpm --dir $(WEB_APP_DIR) storybook
+
+web-storybook-build:
+	pnpm --dir $(WEB_APP_DIR) build-storybook

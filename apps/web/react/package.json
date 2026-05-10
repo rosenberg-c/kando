@@ -6,6 +6,8 @@
     "install:react": "pnpm --dir ./app install",
     "generate:api": "pnpm --dir ./app run generate:api",
     "dev": "pnpm --dir ./app dev",
+    "storybook": "storybook dev -p 6006 --host 0.0.0.0",
+    "build-storybook": "storybook build",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "pnpm --dir ./app exec tsc --noEmit",
     "build": "pnpm --dir ./app build",
@@ -13,7 +15,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@kando/styles": "workspace:*",
+    "@storybook/addon-a11y": "^8.6.18",
+    "@storybook/addon-essentials": "^8.6.18",
+    "@storybook/addon-interactions": "^8.6.18",
+    "@storybook/react": "^8.6.18",
+    "@storybook/react-vite": "^8.6.18",
     "eslint": "^10.3.0",
+    "storybook": "^8.6.18",
     "typescript-eslint": "^8.59.2"
   }
 }
