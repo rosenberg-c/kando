@@ -1,6 +1,6 @@
 .button {
   border: none;
-  border-radius: 10px;
+  border-radius: var(--kando-radius-button);
   padding: 0.7rem 1rem;
   font: inherit;
   font-weight: 600;
@@ -8,18 +8,18 @@
 }
 
 .primary {
-  color: #ffffff;
-  background: linear-gradient(135deg, #0f766e, #0f766e 35%, #1d4ed8);
+  color: var(--kando-color-text-inverse);
+  background: var(--kando-color-accent-end);
 }
 
 .neutral {
-  color: #0f172a;
-  background: #e2e8f0;
+  color: var(--kando-color-text);
+  background: var(--kando-color-surface-muted);
 }
 
 .danger {
-  color: #ffffff;
-  background: #b91c1c;
+  color: var(--kando-color-text-inverse);
+  background: var(--kando-color-danger);
 }
 
 .button:disabled {

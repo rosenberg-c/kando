@@ -1,12 +1,12 @@
 .title {
   margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-size: var(--kando-font-size-title-lg);
 }
 
 .tokenMeta {
   margin-top: 0.8rem;
-  color: #334155;
-  font-size: 0.9rem;
+  color: var(--kando-color-text-muted);
+  font-size: var(--kando-font-size-meta);
 }
 
 .actions {
@@ -16,15 +16,15 @@
 .status {
   margin: 1rem 0 0;
   padding: 0.6rem 0.75rem;
-  border-radius: 9px;
+  border-radius: var(--kando-radius-status);
 }
 
 .statusOk {
-  color: #14532d;
-  background: #dcfce7;
+  color: var(--kando-color-status-ok-text);
+  background: var(--kando-color-status-ok-bg);
 }
 
 .statusError {
-  color: #7f1d1d;
-  background: #fee2e2;
+  color: var(--kando-color-status-error-text);
+  background: var(--kando-color-status-error-bg);
 }

@@ -29,6 +29,9 @@ importers:
       '@kando/locale':
         specifier: workspace:*
         version: link:../packages/locale
+      '@kando/styles':
+        specifier: workspace:*
+        version: link:../packages/styles
       i18next:
         specifier: ^25.6.0
         version: 25.10.10(typescript@5.9.3)
@@ -120,6 +123,8 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(jsdom@26.1.0)(lightningcss@1.32.0)
+
+  packages/styles: {}
 
 packages:
 

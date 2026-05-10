@@ -3,5 +3,5 @@
 }
 
 .muted {
-  color: #334155;
+  color: var(--kando-color-text-muted);
 }

@@ -1,6 +1,6 @@
 .title {
   margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-size: var(--kando-font-size-title-lg);
 }
 
 .form {
@@ -15,14 +15,14 @@
 }
 
 .label {
-  color: #0f172a;
+  color: var(--kando-color-text);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--kando-font-size-label);
 }
 
 .input {
-  border: 1px solid #94a3b8;
-  border-radius: 10px;
+  border: 1px solid var(--kando-color-border);
+  border-radius: var(--kando-radius-input);
   padding: 0.65rem 0.8rem;
   font: inherit;
 }
@@ -36,15 +36,15 @@
 .status {
   margin: 1rem 0 0;
   padding: 0.6rem 0.75rem;
-  border-radius: 9px;
+  border-radius: var(--kando-radius-status);
 }
 
 .statusOk {
-  color: #14532d;
-  background: #dcfce7;
+  color: var(--kando-color-status-ok-text);
+  background: var(--kando-color-status-ok-bg);
 }
 
 .statusError {
-  color: #7f1d1d;
-  background: #fee2e2;
+  color: var(--kando-color-status-error-text);
+  background: var(--kando-color-status-error-bg);
 }

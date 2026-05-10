@@ -1,0 +1,24 @@
+:root {
+  --kando-color-text: #0f172a;
+  --kando-color-text-inverse: #ffffff;
+  --kando-color-text-muted: #334155;
+  --kando-color-border: #94a3b8;
+  --kando-color-surface-border: #cbd5e1;
+  --kando-color-surface-muted: #e2e8f0;
+  --kando-color-danger: #b91c1c;
+  --kando-color-accent-start: #0f766e;
+  --kando-color-accent-end: #1d4ed8;
+  --kando-color-status-ok-text: #14532d;
+  --kando-color-status-ok-bg: #dcfce7;
+  --kando-color-status-error-text: #7f1d1d;
+  --kando-color-status-error-bg: #fee2e2;
+  --kando-page-bg: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  --kando-font-family-base: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --kando-font-size-title-lg: clamp(1.6rem, 3vw, 2rem);
+  --kando-font-size-label: 0.92rem;
+  --kando-font-size-meta: 0.9rem;
+  --kando-radius-card: 14px;
+  --kando-radius-button: 10px;
+  --kando-radius-input: 10px;
+  --kando-radius-status: 9px;
+}
