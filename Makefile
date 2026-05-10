@@ -14,6 +14,8 @@ SERVER_PID_FILE := .server.pid
 SPECSYNC ?= specsync
 WEB_APP_DIR := ./apps/web/react
 WEB_VITE_APP_DIR := $(WEB_APP_DIR)/app
+WEB_PUBLIC_DIR := $(WEB_VITE_APP_DIR)/public
+WEB_FAVICON_SVG := $(WEB_PUBLIC_DIR)/favicon.svg
 WEB_CERT_DIR := $(WEB_VITE_APP_DIR)/.cert
 WEB_CERT_FILE := $(WEB_CERT_DIR)/localhost.pem
 WEB_KEY_FILE := $(WEB_CERT_DIR)/localhost-key.pem
@@ -23,7 +25,7 @@ SERVER_KEY_FILE := $(SERVER_CERT_DIR)/server-key.pem
 REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
-.PHONY: generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
+.PHONY: generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-web-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -39,6 +41,10 @@ generate-apple-api:
 generate-macos-iconset:
 	export_image --source ./art/svg/icon.svg --layer-name "main-1" --target ./art/export/main.png
 	generate_iconset --source ./art/export/main.png --target ./apps/apple/Sources/Todo/TodoMacOS/Assets.xcassets --name AppIcon.appiconset
+
+generate-web-iconset:
+	@mkdir -p $(WEB_PUBLIC_DIR)
+	cp ./art/svg/icon.svg $(WEB_FAVICON_SVG)
 
 generate-all: generate-backend generate-web-api generate-apple-api
 
