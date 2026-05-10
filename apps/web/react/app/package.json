@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@kando/auth": "workspace:*",
+    "@kando/components": "workspace:*",
     "@kando/locale": "workspace:*",
     "i18next": "^25.6.0",
     "react": "^19.2.0",

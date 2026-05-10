@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
-import { WorkspaceCard } from "@kando/auth";
 import { appRoutes } from "../routes";
 import type { AuthUiState } from "./authUiState";
+import { WorkspaceCard } from "../workspace/components/WorkspaceCard";
 
 type BoardsPageProps = {
   hasSession: boolean;

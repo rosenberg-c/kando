@@ -23,6 +23,9 @@ importers:
       '@kando/auth':
         specifier: workspace:*
         version: link:../packages/auth
+      '@kando/components':
+        specifier: workspace:*
+        version: link:../packages/components
       '@kando/locale':
         specifier: workspace:*
         version: link:../packages/locale
