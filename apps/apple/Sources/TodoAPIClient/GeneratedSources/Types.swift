@@ -11,12 +11,12 @@ import struct Foundation.Date
 #endif
 /// A type that performs HTTP operations defined by the OpenAPI document.
 public protocol APIProtocol: Sendable {
-    /// Authenticates a user and returns tokens
+    /// Authenticates a user, returns tokens, and sets browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/login`.
     /// - Remark: Generated from `#/paths//auth/login/post(login)`.
     func login(_ input: Operations.Login.Input) async throws -> Operations.Login.Output
-    /// Revokes session and logs out user
+    /// Revokes session and clears browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/logout`.
     /// - Remark: Generated from `#/paths//auth/logout/post(logout)`.
@@ -36,7 +36,7 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /auth/native/refresh`.
     /// - Remark: Generated from `#/paths//auth/native/refresh/post(nativeRefreshAuth)`.
     func nativeRefreshAuth(_ input: Operations.NativeRefreshAuth.Input) async throws -> Operations.NativeRefreshAuth.Output
-    /// Refreshes an access token using refresh cookie
+    /// Refreshes an access token using browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/refresh`.
     /// - Remark: Generated from `#/paths//auth/refresh/post(refreshAuth)`.
@@ -175,7 +175,7 @@ public protocol APIProtocol: Sendable {
 
 /// Convenience overloads for operation inputs.
 extension APIProtocol {
-    /// Authenticates a user and returns tokens
+    /// Authenticates a user, returns tokens, and sets browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/login`.
     /// - Remark: Generated from `#/paths//auth/login/post(login)`.
@@ -188,7 +188,7 @@ extension APIProtocol {
             body: body
         ))
     }
-    /// Revokes session and logs out user
+    /// Revokes session and clears browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/logout`.
     /// - Remark: Generated from `#/paths//auth/logout/post(logout)`.
@@ -234,7 +234,7 @@ extension APIProtocol {
             body: body
         ))
     }
-    /// Refreshes an access token using refresh cookie
+    /// Refreshes an access token using browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/refresh`.
     /// - Remark: Generated from `#/paths//auth/refresh/post(refreshAuth)`.
@@ -2531,7 +2531,7 @@ public enum Components {
 
 /// API operations, with input and output types, generated from `#/paths` in the OpenAPI document.
 public enum Operations {
-    /// Authenticates a user and returns tokens
+    /// Authenticates a user, returns tokens, and sets browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/login`.
     /// - Remark: Generated from `#/paths//auth/login/post(login)`.
@@ -2753,7 +2753,7 @@ public enum Operations {
             }
         }
     }
-    /// Revokes session and logs out user
+    /// Revokes session and clears browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/logout`.
     /// - Remark: Generated from `#/paths//auth/logout/post(logout)`.
@@ -3524,7 +3524,7 @@ public enum Operations {
             }
         }
     }
-    /// Refreshes an access token using refresh cookie
+    /// Refreshes an access token using browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/refresh`.
     /// - Remark: Generated from `#/paths//auth/refresh/post(refreshAuth)`.
@@ -8238,12 +8238,29 @@ public enum Operations {
         public struct Input: Sendable, Hashable {
             /// - Remark: Generated from `#/paths/me/GET/header`.
             public struct Headers: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/me/GET/header/Cookie`.
+                public var cookie: Swift.String?
+                /// - Remark: Generated from `#/paths/me/GET/header/Sec-Fetch-Site`.
+                public var secFetchSite: Swift.String?
+                /// - Remark: Generated from `#/paths/me/GET/header/Origin`.
+                public var origin: Swift.String?
                 public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.GetMe.AcceptableContentType>]
                 /// Creates a new `Headers`.
                 ///
                 /// - Parameters:
+                ///   - cookie:
+                ///   - secFetchSite:
+                ///   - origin:
                 ///   - accept:
-                public init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.GetMe.AcceptableContentType>] = .defaultValues()) {
+                public init(
+                    cookie: Swift.String? = nil,
+                    secFetchSite: Swift.String? = nil,
+                    origin: Swift.String? = nil,
+                    accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.GetMe.AcceptableContentType>] = .defaultValues()
+                ) {
+                    self.cookie = cookie
+                    self.secFetchSite = secFetchSite
+                    self.origin = origin
                     self.accept = accept
                 }
             }

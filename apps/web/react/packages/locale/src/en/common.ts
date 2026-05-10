@@ -1,6 +1,7 @@
 export const commonEn = {
   app: {
     title: "Kando",
+    loading: "Loading",
     settings: {
       button: "Settings",
       panelLabel: "Settings",

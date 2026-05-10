@@ -37,7 +37,7 @@ public struct Client: APIProtocol {
     private var converter: Converter {
         client.converter
     }
-    /// Authenticates a user and returns tokens
+    /// Authenticates a user, returns tokens, and sets browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/login`.
     /// - Remark: Generated from `#/paths//auth/login/post(login)`.
@@ -158,7 +158,7 @@ public struct Client: APIProtocol {
             }
         )
     }
-    /// Revokes session and logs out user
+    /// Revokes session and clears browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/logout`.
     /// - Remark: Generated from `#/paths//auth/logout/post(logout)`.
@@ -547,7 +547,7 @@ public struct Client: APIProtocol {
             }
         )
     }
-    /// Refreshes an access token using refresh cookie
+    /// Refreshes an access token using browser auth cookies
     ///
     /// - Remark: HTTP `POST /auth/refresh`.
     /// - Remark: Generated from `#/paths//auth/refresh/post(refreshAuth)`.
@@ -2668,6 +2668,21 @@ public struct Client: APIProtocol {
                     method: .get
                 )
                 suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "Cookie",
+                    value: input.headers.cookie
+                )
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "Sec-Fetch-Site",
+                    value: input.headers.secFetchSite
+                )
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "Origin",
+                    value: input.headers.origin
+                )
                 converter.setAcceptHeader(
                     in: &request.headerFields,
                     contentTypes: input.headers.accept

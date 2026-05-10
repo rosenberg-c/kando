@@ -1,5 +1,7 @@
 import "./App.css";
 import { useAuth } from "@kando/auth";
+import { Spinner } from "@kando/components";
+import { keys, t } from "@kando/locale";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppHeader } from "./layout/AppHeader";
 import { BoardsPage } from "./pages/boards/BoardsPage";
@@ -10,6 +12,7 @@ import { appRoutes } from "./routes";
 export default function App() {
   const location = useLocation();
   const {
+    hasInitialized,
     hasSession,
     isBusy,
     signedInEmail,
@@ -28,6 +31,16 @@ export default function App() {
   const shellClassName = location.pathname.startsWith(appRoutes.boards)
     ? "app-shell app-shellBoards"
     : "app-shell";
+
+  if (!hasInitialized) {
+    return (
+      <div className="app-root" data-testid="web.app">
+        <main className="app-shell" data-testid="app.session.loading">
+          <Spinner label={t(keys.app.loading)} data-testid="app.session.spinner" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-root" data-testid="web.app">

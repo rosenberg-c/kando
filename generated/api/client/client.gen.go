@@ -477,6 +477,9 @@ type RestoreArchivedTaskParams struct {
 // GetMeParams defines parameters for GetMe.
 type GetMeParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
+	Cookie        *string `json:"Cookie,omitempty"`
+	SecFetchSite  *string `json:"Sec-Fetch-Site,omitempty"`
+	Origin        *string `json:"Origin,omitempty"`
 }
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
@@ -3027,6 +3030,39 @@ func NewGetMeRequest(server string, params *GetMeParams) (*http.Request, error) 
 			}
 
 			req.Header.Set("Authorization", headerParam0)
+		}
+
+		if params.Cookie != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithLocation("simple", false, "Cookie", runtime.ParamLocationHeader, *params.Cookie)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Cookie", headerParam1)
+		}
+
+		if params.SecFetchSite != nil {
+			var headerParam2 string
+
+			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "Sec-Fetch-Site", runtime.ParamLocationHeader, *params.SecFetchSite)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Sec-Fetch-Site", headerParam2)
+		}
+
+		if params.Origin != nil {
+			var headerParam3 string
+
+			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "Origin", runtime.ParamLocationHeader, *params.Origin)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Origin", headerParam3)
 		}
 
 	}

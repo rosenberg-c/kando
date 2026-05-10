@@ -26,7 +26,14 @@ function renderApp(transport: AuthTransport, initialEntries: string[] = ["/"]) {
   );
 }
 
-function openSettingsPanel() {
+async function waitForInitialSessionCheck() {
+  await waitFor(() => {
+    expect(screen.queryByTestId("app.session.loading")).toBeNull();
+  });
+}
+
+async function openSettingsPanel() {
+  await waitForInitialSessionCheck();
   fireEvent.click(screen.getByTestId("app.settings.toggle"));
 }
 
@@ -43,13 +50,38 @@ describe("App", () => {
   });
 
   // @req AUTH-004
-  it("renders sign in view by default", () => {
+  // @req UX-044
+  it("renders sign in view by default", async () => {
     renderApp(defaultTransport);
 
     expect(screen.getByTestId("web.app")).toBeTruthy();
-    expect(screen.getByTestId("auth.email")).toBeTruthy();
-    expect(screen.getByTestId("auth.password")).toBeTruthy();
-    expect(screen.getByTestId("auth.signin.submit")).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth.email")).toBeTruthy();
+      expect(screen.getByTestId("auth.password")).toBeTruthy();
+      expect(screen.getByTestId("auth.signin.submit")).toBeTruthy();
+    });
+  });
+
+  // @req UX-044
+  it("shows a loading state before initial refresh resolves", async () => {
+    const pendingRefresh = deferred<boolean>();
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => pendingRefresh.promise,
+    };
+
+    renderApp(transport);
+
+    expect(screen.getByTestId("app.session.loading")).toBeTruthy();
+    expect(screen.queryByTestId("auth.signin.submit")).toBeNull();
+
+    pendingRefresh.resolve(false);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth.signin.submit")).toBeTruthy();
+      expect(screen.queryByTestId("app.session.loading")).toBeNull();
+    });
   });
 
   // @req AUTH-001
@@ -66,6 +98,8 @@ describe("App", () => {
     };
 
     renderApp(transport);
+
+    await waitForInitialSessionCheck();
 
     fireEvent.change(screen.getByTestId("auth.email"), { target: { value: "person@example.com" } });
     fireEvent.change(screen.getByTestId("auth.password"), { target: { value: "secret" } });
@@ -86,7 +120,7 @@ describe("App", () => {
       expect(screen.queryByText("Signed in as {email}.")).toBeNull();
     });
 
-    openSettingsPanel();
+    await openSettingsPanel();
     expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
   });
 
@@ -104,7 +138,7 @@ describe("App", () => {
       expect(screen.getByText(t(keys.boards.placeholderMessage))).toBeTruthy();
     });
 
-    openSettingsPanel();
+    await openSettingsPanel();
     expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
   });
 
@@ -127,7 +161,7 @@ describe("App", () => {
       expect(screen.getByText(t(keys.boards.placeholderMessage))).toBeTruthy();
     });
 
-    openSettingsPanel();
+    await openSettingsPanel();
     expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
   });
 
@@ -177,13 +211,15 @@ describe("App", () => {
       expect(screen.queryByTestId("auth.signin.submit")).toBeNull();
     });
 
-    openSettingsPanel();
+    await openSettingsPanel();
     expect(screen.getByTestId("auth.signout.submit")).toBeTruthy();
   });
 
   // @req UX-043
   it("toggles settings panel when pressing settings button", async () => {
     renderApp(defaultTransport);
+
+    await waitForInitialSessionCheck();
 
     const settingsButton = screen.getByTestId("app.settings.toggle");
     fireEvent.click(settingsButton);
@@ -202,6 +238,8 @@ describe("App", () => {
   it("closes settings panel when clicking outside", async () => {
     renderApp(defaultTransport);
 
+    await waitForInitialSessionCheck();
+
     fireEvent.click(screen.getByTestId("app.settings.toggle"));
     expect(screen.getByTestId("app.settings.panel")).toBeTruthy();
 
@@ -215,6 +253,8 @@ describe("App", () => {
   // @req UX-043
   it("closes settings panel when escape is pressed", async () => {
     renderApp(defaultTransport);
+
+    await waitForInitialSessionCheck();
 
     fireEvent.click(screen.getByTestId("app.settings.toggle"));
     expect(screen.getByTestId("app.settings.panel")).toBeTruthy();

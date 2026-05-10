@@ -261,6 +261,7 @@ For UI-facing requirements, Notes include platform applicability as `Platforms: 
 | `UX-041` | Automated | - | Gap | - |
 | `UX-042` | Automated | - | Gap | - |
 | `UX-043` | Automated | `apps/web/react/app/src/App.test.tsx` (`closes settings panel when clicking outside`), `apps/web/react/app/src/App.test.tsx` (`closes settings panel when escape is pressed`), `apps/web/react/app/src/App.test.tsx` (`toggles settings panel when pressing settings button`) | Covered | - |
+| `UX-044` | Automated | `apps/web/react/app/src/App.test.tsx` (`shows a loading state before initial refresh resolves`) | Covered | - |
 
 ## Next Test Additions (Recommended)
 

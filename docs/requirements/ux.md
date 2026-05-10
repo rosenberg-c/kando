@@ -172,6 +172,10 @@ The developer status modal displays backend connectivity status and the backend 
 
 Web app header exposes a `Settings` menu that shows current sign-in identity, provides sign-out and light/dark theme actions, and closes when toggled again, when clicking outside the menu, or when pressing `Escape`.
 
+### `UX-044`
+
+Web app root shows a session-loading state until the initial refresh-session check resolves, so signed-out content does not flash before authenticated routing is known.
+
 
 ## Platform Applicability
 
@@ -218,3 +222,4 @@ Web app header exposes a `Settings` menu that shows current sign-in identity, pr
 - `UX-041`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-042`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-043`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).
+- `UX-044`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).

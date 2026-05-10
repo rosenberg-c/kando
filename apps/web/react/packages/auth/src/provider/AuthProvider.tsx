@@ -18,6 +18,7 @@ const SessionStatus = {
 type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus];
 
 type AuthContextValue = {
+  hasInitialized: boolean;
   hasSession: boolean;
   isBusy: boolean;
   signedInEmail: string;
@@ -42,6 +43,7 @@ function toStatusMessage(error: unknown): string {
 }
 
 export function AuthProvider({ transport, children }: AuthProviderProps) {
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [signedInEmail, setSignedInEmail] = useState("");
   const [status, setStatus] = useState<SessionStatus>(SessionStatus.Idle);
@@ -62,6 +64,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
         const restored = await transport.refreshSession();
         if (!restored) {
           setHasSession(false);
+          setSignedInEmail("");
           return;
         }
 
@@ -74,6 +77,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
         setStatusMessage(t(keys.auth.session.restoreFailed, { reason: String(error) }));
       } finally {
         setStatus(SessionStatus.Idle);
+        setHasInitialized(true);
       }
     };
 
@@ -139,6 +143,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      hasInitialized,
       hasSession,
       isBusy,
       signedInEmail,
@@ -149,6 +154,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
     }),
     [
       isBusy,
+      hasInitialized,
       hasSession,
       signIn,
       signOut,
