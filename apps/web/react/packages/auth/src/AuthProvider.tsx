@@ -18,7 +18,7 @@ const SessionStatus = {
 type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus];
 
 type AuthContextValue = {
-  isSignedIn: boolean;
+  hasSession: boolean;
   isBusy: boolean;
   signedInEmail: string;
   statusMessage: string;
@@ -42,7 +42,7 @@ function toStatusMessage(error: unknown): string {
 }
 
 export function AuthProvider({ transport, children }: AuthProviderProps) {
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [signedInEmail, setSignedInEmail] = useState("");
   const [status, setStatus] = useState<SessionStatus>(SessionStatus.Idle);
   const [statusMessage, setStatusMessage] = useState("");
@@ -51,7 +51,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
   const isBusy = status === SessionStatus.Loading;
 
   const applySignedInState = useCallback((nextEmail: string) => {
-    setIsSignedIn(true);
+    setHasSession(true);
     setSignedInEmail(nextEmail);
   }, []);
 
@@ -61,14 +61,14 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
       try {
         const restored = await transport.refreshSession();
         if (!restored) {
-          setIsSignedIn(false);
+          setHasSession(false);
           return;
         }
 
         const identity = await transport.getIdentity();
         applySignedInState(identity?.email ?? "");
       } catch (error) {
-        setIsSignedIn(false);
+        setHasSession(false);
         setSignedInEmail("");
         setStatusIsError(true);
         setStatusMessage(t(keys.auth.session.restoreFailed, { reason: String(error) }));
@@ -129,7 +129,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
       setStatusIsError(true);
       setStatusMessage(t(keys.auth.signout.networkError, { reason: String(error) }));
     } finally {
-      setIsSignedIn(false);
+      setHasSession(false);
       setSignedInEmail("");
       if (!hasError) {
         setStatusMessage(t(keys.auth.signout.success));
@@ -140,7 +140,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      isSignedIn,
+      hasSession,
       isBusy,
       signedInEmail,
       statusMessage,
@@ -150,7 +150,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
     }),
     [
       isBusy,
-      isSignedIn,
+      hasSession,
       signIn,
       signOut,
       signedInEmail,

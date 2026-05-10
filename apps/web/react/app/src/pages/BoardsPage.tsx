@@ -1,14 +1,15 @@
 import { Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
+import { appRoutes } from "../routes";
 
 type BoardsPageProps = {
-  isSignedIn: boolean;
+  hasSession: boolean;
   card: ReactElement;
 };
 
-export function BoardsPage({ isSignedIn, card }: BoardsPageProps) {
-  if (!isSignedIn) {
-    return <Navigate to="/signin" replace />;
+export function BoardsPage({ hasSession, card }: BoardsPageProps) {
+  if (!hasSession) {
+    return <Navigate to={appRoutes.signIn} replace />;
   }
 
   return card;
