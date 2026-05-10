@@ -4,9 +4,9 @@
   --kando-color-text-muted: #334155;
   --kando-color-border: #94a3b8;
   --kando-color-surface-border: #cbd5e1;
+  --kando-color-surface-card: rgba(255, 255, 255, 0.92);
   --kando-color-surface-muted: #e2e8f0;
   --kando-color-danger: #b91c1c;
-  --kando-color-accent-start: #0f766e;
   --kando-color-accent-end: #1d4ed8;
   --kando-color-status-ok-text: #14532d;
   --kando-color-status-ok-bg: #dcfce7;
@@ -21,4 +21,5 @@
   --kando-radius-button: 10px;
   --kando-radius-input: 10px;
   --kando-radius-status: 9px;
+  --kando-shadow-card: 0 20px 60px rgba(12, 22, 44, 0.12);
 }

@@ -2,7 +2,7 @@
   width: min(460px, 100%);
   border: 1px solid var(--kando-color-surface-border);
   border-radius: var(--kando-radius-card);
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 20px 60px rgba(12, 22, 44, 0.12);
+  background: var(--kando-color-surface-card);
+  box-shadow: var(--kando-shadow-card);
   padding: 1.5rem;
 }
