@@ -3,6 +3,7 @@ import { keys, t } from "@kando/locale";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../theme/ThemeProvider";
 import styles from "./AppHeader.module.css";
+import { SettingsPanel } from "./SettingsPanel";
 
 type AppHeaderProps = {
   hasSession: boolean;
@@ -65,42 +66,16 @@ export function AppHeader({ hasSession, signedInEmail, isBusy, onSignOut }: AppH
           {t(keys.app.settings.button)}
         </Button>
         {isMenuOpen ? (
-          <div
-            id={panelId}
-            className={styles.panel}
-            role="region"
-            aria-label={t(keys.app.settings.panelLabel)}
-            data-testid="app.settings.panel"
-          >
-            <p className={styles.identity}>
-              {hasSession
-                ? t(keys.app.settings.signedInAs, {
-                    email: signedInEmail || t(keys.app.settings.unknownUser),
-                  })
-                : t(keys.app.settings.signedOut)}
-            </p>
-            <Button
-              type="button"
-              variant="neutral"
-              onClick={toggleTheme}
-              data-testid="app.settings.theme.toggle"
-            >
-              {theme === "dark"
-                ? t(keys.app.settings.switchToLight)
-                : t(keys.app.settings.switchToDark)}
-            </Button>
-            {hasSession ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => void onSignOut()}
-                disabled={isBusy}
-                data-testid="auth.signout.submit"
-              >
-                {t(keys.auth.signout.submit)}
-              </Button>
-            ) : null}
-          </div>
+          <SettingsPanel
+            className={styles.panelPopover}
+            hasSession={hasSession}
+            signedInEmail={signedInEmail}
+            isBusy={isBusy}
+            isDarkTheme={theme === "dark"}
+            panelId={panelId}
+            onToggleTheme={toggleTheme}
+            onSignOut={onSignOut}
+          />
         ) : null}
       </div>
     </header>

@@ -143,3 +143,12 @@ Examples include:
 - avoid styling base HTML elements globally (for example `button`, `p`, `h1`, `input`) in feature or app stylesheets
 - when a base element needs shared visual treatment across composites/pages, implement it as a reusable component in `apps/web/react/packages/components`
 - keep feature/package styles focused on layout and feature-specific variants; compose shared base primitives (`Button`, `Text`, etc.) instead of duplicating base element styling
+
+---
+
+## 18. Storybook coverage is required for reusable web UI
+
+- when adding or materially changing reusable UI in `apps/web/react/packages/components` or shared app layout primitives, add/update Storybook stories in the same change
+- include representative story states for critical UI behavior (for example default, busy/disabled, error/success, light/dark when applicable)
+- keep stories deterministic and local: no live network calls, no environment-specific dependencies
+- for Storybook-related changes, verify with `pnpm --dir ./apps/web/react build-storybook` before finalizing

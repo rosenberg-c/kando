@@ -1,0 +1,16 @@
+.panel {
+  min-width: 250px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: var(--kando-radius-card);
+  background: var(--kando-color-surface-card);
+  box-shadow: var(--kando-shadow-card);
+}
+
+.identity {
+  margin: 0;
+  color: var(--kando-color-text-muted);
+  font-size: var(--kando-font-size-meta);
+}
