@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthTransport, SignInParams } from "./types";
+import type { AuthTransport, SignInParams } from "../types/auth";
 
 const SessionStatus = {
   Idle: "idle",

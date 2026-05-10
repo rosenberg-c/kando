@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button, Card, Text } from "@kando/components";
 import { keys, t } from "@kando/locale";
-import type { SignInParams } from "./types";
+import type { SignInParams } from "../types/auth";
 import styles from "./SignInCard.module.css";
 
 type SignInCardProps = {

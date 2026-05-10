@@ -1,5 +1,5 @@
 import "./App.css";
-import { SignInCard, useAuth, WorkspaceCard } from "@kando/auth";
+import { useAuth } from "@kando/auth";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { BoardsPage } from "./pages/BoardsPage";
 import { SignInPage } from "./pages/SignInPage";
@@ -22,33 +22,25 @@ export default function App() {
         <Route
           path={appRoutes.signIn}
           element={
-              <SignInPage
-                hasSession={hasSession}
-                card={
-                <SignInCard
-                  isBusy={isBusy}
-                  onSubmit={signIn}
-                  statusMessage={statusMessage}
-                  statusIsError={statusIsError}
-                />
-              }
+            <SignInPage
+              hasSession={hasSession}
+              isBusy={isBusy}
+              onSignIn={signIn}
+              statusMessage={statusMessage}
+              statusIsError={statusIsError}
             />
           }
         />
         <Route
           path={appRoutes.boards}
           element={
-              <BoardsPage
-                hasSession={hasSession}
-                card={
-                <WorkspaceCard
-                  signedInEmail={signedInEmail}
-                  isBusy={isBusy}
-                  onSignOut={signOut}
-                  statusMessage={statusMessage}
-                  statusIsError={statusIsError}
-                />
-              }
+            <BoardsPage
+              hasSession={hasSession}
+              signedInEmail={signedInEmail}
+              isBusy={isBusy}
+              onSignOut={signOut}
+              statusMessage={statusMessage}
+              statusIsError={statusIsError}
             />
           }
         />

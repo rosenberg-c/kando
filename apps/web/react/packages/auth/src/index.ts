@@ -1,4 +1,4 @@
-export { AuthProvider, useAuth } from "./AuthProvider";
-export { SignInCard } from "./SignInCard";
-export { WorkspaceCard } from "./WorkspaceCard";
-export type { AuthTransport, SignInParams } from "./types";
+export { AuthProvider, useAuth } from "./provider/AuthProvider";
+export { SignInCard } from "./components/SignInCard";
+export { WorkspaceCard } from "./components/WorkspaceCard";
+export type { AuthTransport, SignInParams } from "./types/auth";
