@@ -25,7 +25,8 @@ SERVER_KEY_FILE := $(SERVER_CERT_DIR)/server-key.pem
 REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
-.PHONY: generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-web-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
+.PHONY: iconset generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-web-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends \
+	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -45,6 +46,8 @@ generate-macos-iconset:
 generate-web-iconset:
 	@mkdir -p $(WEB_PUBLIC_DIR)
 	cp ./art/svg/icon.svg $(WEB_FAVICON_SVG)
+
+iconset: generate-macos-iconset generate-web-iconset
 
 generate-all: generate-backend generate-web-api generate-apple-api
 
