@@ -5,7 +5,7 @@
    viewBox="0 0 512 512"
    version="1.1"
    id="svg3"
-   sodipodi:docname="icon.svg"
+   sodipodi:docname="icon 2.svg"
    inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -21,9 +21,9 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
-     inkscape:zoom="0.73757294"
-     inkscape:cx="207.43711"
-     inkscape:cy="299.63138"
+     inkscape:zoom="0.59741257"
+     inkscape:cx="150.64966"
+     inkscape:cy="309.66874"
      inkscape:window-width="1556"
      inkscape:window-height="805"
      inkscape:window-x="0"
@@ -104,13 +104,14 @@
          fill="#ffffff"
          stroke="#cbd5e1"
          stroke-width="15.372"
-         id="rect14" />
+         id="rect14"
+         style="fill:#343434;fill-opacity:1;stroke:#4a6b85;stroke-opacity:1" />
       <circle
          cx="168.10843"
          cy="209.3372"
          fill="#16a34a"
          id="circle18"
-         style="stroke-width:4.162"
+         style="stroke-width:4.162;fill:#18b653;fill-opacity:1"
          r="24.972006" />
       <line
          x1="213.8904"
@@ -126,7 +127,7 @@
          cy="268.36224"
          fill="#16a34a"
          id="circle18-9"
-         style="fill:#ff7f2a;stroke-width:4.162"
+         style="fill:#64748b;stroke-width:4.162;fill-opacity:1"
          r="24.972006" />
       <line
          x1="213.8904"
@@ -142,7 +143,7 @@
          cy="327.38727"
          fill="#16a34a"
          id="circle18-9-5"
-         style="display:inline;fill:#0364ff;stroke-width:4.162;fill-opacity:1"
+         style="display:inline;fill:#64748b;stroke-width:4.162;fill-opacity:1"
          r="24.972006" />
       <line
          x1="213.8904"
