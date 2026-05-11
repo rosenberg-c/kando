@@ -5,7 +5,7 @@ import styles from "./SettingsPanel.module.css";
 type SettingsPanelProps = {
   className?: string;
   hasSession: boolean;
-  signedInEmail: string;
+  signedInEmail: string | null;
   isBusy: boolean;
   isDarkTheme: boolean;
   panelId: string;
@@ -36,7 +36,7 @@ export function SettingsPanel({
       <p className={styles.identity}>
         {hasSession
           ? t(keys.app.settings.signedInAs, {
-              email: signedInEmail || t(keys.app.settings.unknownUser),
+              email: signedInEmail ?? t(keys.app.settings.unknownUser),
             })
           : t(keys.app.settings.signedOut)}
       </p>

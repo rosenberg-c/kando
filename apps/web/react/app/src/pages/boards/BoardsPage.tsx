@@ -7,6 +7,7 @@ import styles from "./BoardsPage.module.css";
 
 type BoardsPageProps = {
   hasSession: boolean;
+  signedInEmail: string | null;
   authUiState: AuthUiState;
 };
 
