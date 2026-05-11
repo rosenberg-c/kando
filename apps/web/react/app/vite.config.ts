@@ -52,8 +52,8 @@ if (!existsSync(certFile) || !existsSync(keyFile)) {
 
 export default defineConfig(({ mode }) => {
   const env = {
-    ...loadEnv(mode, process.cwd(), ""),
     ...parseEnvFile(rootWebEnvFile),
+    ...loadEnv(mode, process.cwd(), ""),
   };
   const apiTarget = env.VITE_KANDO_API_BASE_URL || "https://localhost:8080";
 

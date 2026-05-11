@@ -26,7 +26,7 @@ REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
 .PHONY: iconset generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-web-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends \
-	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
+	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-open web-build web-test web-test-e2e web-test-e2e-headed web-test-e2e-ui web-e2e-install web-e2e-deps web-e2e-deps-debian web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -190,11 +190,34 @@ web-trust:
 web-dev: web-cert
 	pnpm --dir $(WEB_APP_DIR) dev
 
+web-open:
+	@command -v xdg-open >/dev/null 2>&1 || (echo "xdg-open is required" && exit 1)
+	@xdg-open "https://localhost:5173"
+
 web-build:
 	pnpm --dir $(WEB_APP_DIR) build
 
 web-test:
 	pnpm --dir $(WEB_APP_DIR) test
+
+web-e2e-install:
+	pnpm --dir $(WEB_APP_DIR) exec playwright install
+
+web-e2e-deps:
+	pnpm --dir $(WEB_APP_DIR) exec playwright install-deps chromium
+
+web-e2e-deps-debian:
+	sudo apt-get update
+	sudo apt-get install -y libwoff1
+
+web-test-e2e-headed:
+	./scripts/web_e2e.sh --headed
+
+web-test-e2e-ui:
+	./scripts/web_e2e.sh --ui
+
+web-test-e2e:
+	./scripts/web_e2e.sh
 
 web-storybook:
 	@sh -c 'for ip in $$(hostname -I 2>/dev/null); do case "$$ip" in 192.*) echo "Storybook LAN (192): http://$$ip:6006/" ;; esac; done'

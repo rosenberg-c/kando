@@ -11,9 +11,12 @@
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "pnpm --dir ./app exec tsc --noEmit",
     "build": "pnpm --dir ./app build",
-    "test": "pnpm --dir ./app test && pnpm --dir ./packages/locale test"
+    "test": "pnpm --dir ./app test && pnpm --dir ./packages/locale test",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.9.1",
     "@eslint/js": "^10.0.1",
     "@kando/styles": "workspace:*",
     "@storybook/addon-a11y": "^8.6.18",
