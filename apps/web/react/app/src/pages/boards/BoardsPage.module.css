@@ -1,11 +1,42 @@
 .board {
-  width: min(100%, 720px);
-  min-height: 360px;
-  padding: 1.5rem;
-  border: 1px solid var(--kando-color-surface-border);
-  border-radius: var(--kando-radius-card);
-  background: var(--kando-color-surface-card);
-  box-shadow: var(--kando-shadow-card);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.workspaceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.headerMain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settingsMenu {
+  position: relative;
+}
+
+.settingsPopover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.45rem);
 }
 
 .title {
@@ -13,14 +44,108 @@
   font-size: var(--kando-font-size-title-lg);
 }
 
+.boardSelectWrap {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.newBoardButton {
+}
+
+.workspaceBody {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  border: 1px dashed var(--kando-color-surface-border);
+  border-radius: var(--kando-radius-card);
+  padding: 1rem;
+}
+
+.columnsList {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-items: stretch;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.columnCard {
+  min-height: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: var(--kando-radius-card);
+  background: var(--kando-color-surface-card);
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.columnTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.columnMeta {
+  margin-top: 0.5rem;
+}
+
+.workspaceToolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.workspaceMessages {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  margin-top: auto;
+}
+
+.boardSelectLabel {
+  font-size: 0.9rem;
+  color: var(--kando-color-text-muted);
+}
+
+.boardSelect {
+  min-width: 12rem;
+  max-width: 16rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: 0.45rem;
+  background: var(--kando-color-surface-card);
+  color: var(--kando-color-text);
+}
+
+@media (max-width: 640px) {
+  .workspaceHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 .hint {
-  margin-top: 0.8rem;
+  margin-top: 0;
   color: var(--kando-color-text-muted);
   font-size: var(--kando-font-size-meta);
 }
 
 .status {
-  margin: 1rem 0 0;
+  margin: 0;
   padding: 0.6rem 0.75rem;
   border-radius: var(--kando-radius-status);
 }
@@ -33,4 +158,56 @@
 .statusError {
   color: var(--kando-color-status-error-text);
   background: var(--kando-color-status-error-bg);
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 45%);
+}
+
+.modal {
+  width: min(100%, 28rem);
+  padding: 1rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: var(--kando-radius-card);
+  background: var(--kando-color-surface-card);
+  box-shadow: var(--kando-shadow-card);
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: var(--kando-font-size-title-md);
+}
+
+.fieldWrap {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+
+.fieldLabel {
+  font-size: var(--kando-font-size-meta);
+  color: var(--kando-color-text-muted);
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: 0.45rem;
+  background: var(--kando-color-surface-card);
+  color: var(--kando-color-text);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }

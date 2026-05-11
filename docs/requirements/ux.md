@@ -62,7 +62,7 @@ Switching boards shows loading feedback and disables board mutation controls unt
 
 ### `UX-016`
 
-The UI exposes create-board and rename-board actions with success/failure status feedback.
+The UI exposes create-board and rename-board actions with success/failure status feedback; create-board is initiated from a modal that includes title input plus explicit create/cancel actions.
 
 ### `UX-017`
 
@@ -176,7 +176,6 @@ Web app header exposes a `Settings` menu that shows current sign-in identity, pr
 
 Web app root shows a session-loading state until the initial refresh-session check resolves, so signed-out content does not flash before authenticated routing is known.
 
-
 ## Platform Applicability
 
 - `UX-001`: macOS (required), iOS (planned), TUI (N/A).
@@ -192,10 +191,10 @@ Web app root shows a session-loading state until the initial refresh-session che
 - `UX-011`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-012`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-013`: macOS (required), iOS (planned), TUI (N/A).
-- `UX-014`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-014`: macOS (required), web (required), iOS (planned), TUI (N/A).
 - `UX-015`: macOS (required), iOS (planned), TUI (N/A).
-- `UX-016`: macOS (required), iOS (planned), TUI (N/A).
-- `UX-017`: macOS (required), iOS (planned), TUI (N/A).
+- `UX-016`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `UX-017`: macOS (required), web (required), iOS (planned), TUI (N/A).
 - `UX-018`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-019`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-020`: macOS (required), iOS (planned), TUI (N/A).

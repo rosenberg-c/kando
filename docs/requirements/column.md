@@ -131,8 +131,10 @@ Archived tasks remain associated with their original board and column identity.
 
 ## Platform Applicability
 
-- `COL-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
-- `COL-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
+- `COL-001`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `COL-003`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `COL-DEL-001`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `COL-DEL-002`: macOS (required), web (required), iOS (planned), TUI (N/A).
 - `COL-DEL-003`: macOS (required), iOS (planned), TUI (N/A).
 - `COL-DEL-004`: macOS (required), iOS (planned), TUI (N/A).
 - `COL-RULE-003`: macOS (required), iOS (planned), TUI (N/A).

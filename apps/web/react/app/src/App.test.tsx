@@ -1,10 +1,37 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, type AuthTransport } from "@kando/auth";
 import { keys, t } from "@kando/locale";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import type { Board } from "./generated/api";
+import type { Column } from "./generated/api";
+
+const {
+  listOwnedBoardsMock,
+  createOwnedBoardMock,
+  renameOwnedBoardMock,
+  createColumnInBoardMock,
+  listBoardColumnsMock,
+  deleteColumnInBoardMock,
+} = vi.hoisted(() => ({
+  listOwnedBoardsMock: vi.fn<() => Promise<Board[]>>(async () => []),
+  createOwnedBoardMock: vi.fn(async () => true),
+  renameOwnedBoardMock: vi.fn(async () => true),
+  createColumnInBoardMock: vi.fn(async () => true),
+  listBoardColumnsMock: vi.fn<() => Promise<Column[]>>(async () => []),
+  deleteColumnInBoardMock: vi.fn(async () => true),
+}));
+
+vi.mock("./boards/transport", () => ({
+  listOwnedBoards: listOwnedBoardsMock,
+  createOwnedBoard: createOwnedBoardMock,
+  renameOwnedBoard: renameOwnedBoardMock,
+  createColumnInBoard: createColumnInBoardMock,
+  listBoardColumns: listBoardColumnsMock,
+  deleteColumnInBoard: deleteColumnInBoardMock,
+}));
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -34,6 +61,9 @@ async function waitForInitialSessionCheck() {
 
 async function openSettingsPanel() {
   await waitForInitialSessionCheck();
+  await waitFor(() => {
+    expect(screen.getByTestId("app.settings.toggle")).toBeTruthy();
+  });
   fireEvent.click(screen.getByTestId("app.settings.toggle"));
 }
 
@@ -45,6 +75,21 @@ const defaultTransport: AuthTransport = {
 };
 
 describe("App", () => {
+  beforeEach(() => {
+    listOwnedBoardsMock.mockReset();
+    listOwnedBoardsMock.mockResolvedValue([]);
+    createOwnedBoardMock.mockReset();
+    createOwnedBoardMock.mockResolvedValue(true);
+    renameOwnedBoardMock.mockReset();
+    renameOwnedBoardMock.mockResolvedValue(true);
+    createColumnInBoardMock.mockReset();
+    createColumnInBoardMock.mockResolvedValue(true);
+    listBoardColumnsMock.mockReset();
+    listBoardColumnsMock.mockResolvedValue([]);
+    deleteColumnInBoardMock.mockReset();
+    deleteColumnInBoardMock.mockResolvedValue(true);
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -101,6 +146,10 @@ describe("App", () => {
 
     await waitForInitialSessionCheck();
 
+    await waitFor(() => {
+      expect(screen.getByTestId("auth.email")).toBeTruthy();
+    });
+
     fireEvent.change(screen.getByTestId("auth.email"), { target: { value: "person@example.com" } });
     fireEvent.change(screen.getByTestId("auth.password"), { target: { value: "secret" } });
 
@@ -126,6 +175,25 @@ describe("App", () => {
 
   // @req AUTH-002
   it("restores a valid session on app launch via refresh cookie", async () => {
+    listOwnedBoardsMock.mockResolvedValue([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "board-2",
+        title: "Roadmap",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
     const transport: AuthTransport = {
       ...defaultTransport,
       refreshSession: async () => true,
@@ -136,6 +204,10 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText(t(keys.boards.placeholderMessage))).toBeTruthy();
+      expect(screen.getByTestId("app.boards.select")).toBeTruthy();
+      expect(screen.getByRole("option", { name: "Inbox" })).toBeTruthy();
+      expect(screen.getByRole("option", { name: "Roadmap" })).toBeTruthy();
+      expect(listOwnedBoardsMock).toHaveBeenCalledTimes(1);
     });
 
     await openSettingsPanel();
@@ -163,6 +235,268 @@ describe("App", () => {
 
     await openSettingsPanel();
     expect(screen.getAllByTestId("auth.signout.submit").length).toBe(1);
+  });
+
+  // @req UX-014
+  it("shows an empty board option when signed in user has no boards", async () => {
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "empty@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.boards.select")).toBeTruthy();
+      expect(screen.getByRole("option", { name: t(keys.boards.empty) })).toBeTruthy();
+    });
+  });
+
+  // @req UX-016
+  it("creates a board from modal and refreshes board dropdown", async () => {
+    listOwnedBoardsMock
+      .mockResolvedValueOnce([
+        {
+          id: "board-1",
+          title: "Inbox",
+          boardVersion: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          ownerUserId: "user-1",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "board-1",
+          title: "Inbox",
+          boardVersion: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          ownerUserId: "user-1",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: "board-2",
+          title: "Roadmap",
+          boardVersion: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          ownerUserId: "user-1",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ]);
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "creator@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "Inbox" })).toBeTruthy();
+      expect(screen.getByTestId("app.boards.edit.open").hasAttribute("disabled")).toBe(false);
+    });
+
+    fireEvent.click(screen.getByTestId("app.boards.create.open"));
+    fireEvent.change(screen.getByTestId("app.boards.create.input"), {
+      target: { value: "Roadmap" },
+    });
+    fireEvent.click(screen.getByTestId("app.boards.create.submit"));
+
+    await waitFor(() => {
+      expect(createOwnedBoardMock).toHaveBeenCalledWith("Roadmap");
+      expect(screen.getByRole("option", { name: "Roadmap" })).toBeTruthy();
+      expect(screen.queryByTestId("app.boards.create.modal")).toBeNull();
+    });
+  });
+
+  // @req UX-016
+  // @req UX-017
+  it("renames a board from edit modal and refreshes board dropdown", async () => {
+    listOwnedBoardsMock
+      .mockResolvedValueOnce([
+        {
+          id: "board-1",
+          title: "Inbox",
+          boardVersion: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          ownerUserId: "user-1",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "board-1",
+          title: "Roadmap",
+          boardVersion: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          ownerUserId: "user-1",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ]);
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "editor@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "Inbox" })).toBeTruthy();
+      expect(screen.getByTestId("app.boards.edit.open").hasAttribute("disabled")).toBe(false);
+    });
+
+    fireEvent.click(screen.getByTestId("app.boards.edit.open"));
+    fireEvent.click(screen.getByTestId("app.boards.rename.open"));
+    fireEvent.change(screen.getByTestId("app.boards.rename.input"), {
+      target: { value: "Roadmap" },
+    });
+    fireEvent.click(screen.getByTestId("app.boards.rename.submit"));
+
+    await waitFor(() => {
+      expect(renameOwnedBoardMock).toHaveBeenCalledWith("board-1", "Roadmap");
+      expect(screen.getByRole("option", { name: "Roadmap" })).toBeTruthy();
+      expect(screen.queryByTestId("app.boards.rename.modal")).toBeNull();
+    });
+  });
+
+  // @req COL-001
+  it("creates a column from workspace modal", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "column@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.columns.create.open").hasAttribute("disabled")).toBe(false);
+    });
+
+    fireEvent.click(screen.getByTestId("app.columns.create.open"));
+    fireEvent.change(screen.getByTestId("app.columns.create.input"), {
+      target: { value: "Doing" },
+    });
+    fireEvent.click(screen.getByTestId("app.columns.create.submit"));
+
+    await waitFor(() => {
+      expect(createColumnInBoardMock).toHaveBeenCalledWith("board-1", "Doing");
+      expect(screen.queryByTestId("app.columns.create.modal")).toBeNull();
+    });
+  });
+
+  // @req BOARD-001
+  it("shows columns for the selected board", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    listBoardColumnsMock.mockResolvedValueOnce([
+      {
+        id: "column-1",
+        boardId: "board-1",
+        title: "Backlog",
+        position: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "column-2",
+        boardId: "board-1",
+        title: "Doing",
+        position: 2,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "columns@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByText("Backlog")).toBeTruthy();
+      expect(screen.getByText("Doing")).toBeTruthy();
+      expect(screen.getByTestId("app.columns.list")).toBeTruthy();
+    });
+  });
+
+  // @req COL-003
+  // @req COL-DEL-001
+  // @req COL-DEL-002
+  it("deletes a column from confirmation modal", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    listBoardColumnsMock
+      .mockResolvedValueOnce([
+        {
+          id: "column-1",
+          boardId: "board-1",
+          title: "Backlog",
+          position: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "delete-column@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByText("Backlog")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.column.delete.open.column-1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Delete column 'Backlog'?" )).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.columns.delete.submit"));
+
+    await waitFor(() => {
+      expect(deleteColumnInBoardMock).toHaveBeenCalledWith("board-1", "column-1");
+      expect(screen.queryByTestId("app.columns.delete.modal")).toBeNull();
+    });
   });
 
   // @req AUTH-003
@@ -217,9 +551,19 @@ describe("App", () => {
 
   // @req UX-043
   it("toggles settings panel when pressing settings button", async () => {
-    renderApp(defaultTransport);
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "settings@example.com" }),
+    };
+
+    renderApp(transport);
 
     await waitForInitialSessionCheck();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.settings.toggle")).toBeTruthy();
+    });
 
     const settingsButton = screen.getByTestId("app.settings.toggle");
     fireEvent.click(settingsButton);
@@ -236,9 +580,19 @@ describe("App", () => {
 
   // @req UX-043
   it("closes settings panel when clicking outside", async () => {
-    renderApp(defaultTransport);
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "settings@example.com" }),
+    };
+
+    renderApp(transport);
 
     await waitForInitialSessionCheck();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.settings.toggle")).toBeTruthy();
+    });
 
     fireEvent.click(screen.getByTestId("app.settings.toggle"));
     expect(screen.getByTestId("app.settings.panel")).toBeTruthy();
@@ -252,9 +606,19 @@ describe("App", () => {
 
   // @req UX-043
   it("closes settings panel when escape is pressed", async () => {
-    renderApp(defaultTransport);
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "settings@example.com" }),
+    };
+
+    renderApp(transport);
 
     await waitForInitialSessionCheck();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.settings.toggle")).toBeTruthy();
+    });
 
     fireEvent.click(screen.getByTestId("app.settings.toggle"));
     expect(screen.getByTestId("app.settings.panel")).toBeTruthy();
