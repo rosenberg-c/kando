@@ -131,3 +131,7 @@ Archived-task restore/delete endpoints return stable conflict/not-found behavior
 ### `API-033`
 
 Backend API exposes list-based task batch action contracts where each request carries explicit action intent and task membership (`action`, `taskIds[]`) rather than client-side sequential single-task mutation loops. For the Appwrite backend, task batch delete currently uses a non-atomic sequential fallback and does not guarantee all-or-nothing behavior on failure.
+
+### `API-034`
+
+Board/column/task endpoints support authenticated access via bearer token and backend-issued cookie session, with cookie-auth requests subject to middleware origin/fetch-metadata checks.

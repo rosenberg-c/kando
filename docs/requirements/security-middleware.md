@@ -56,6 +56,10 @@ Auth login, refresh, and logout responses include anti-caching headers (`Cache-C
 
 Auth verification layer maps verifier availability failures to `503` without calling next handler.
 
+### `MW-AUTH-009`
+
+Kanban board/column/task endpoints accept either bearer-token auth or cookie-based access-token auth; when cookie-based auth is used, requests are accepted only when fetch metadata indicates `same-origin` or `same-site` and `Origin` matches an allowed origin.
+
 ### `MW-REQID-001`
 
 Request ID middleware preserves incoming request IDs in response and context.

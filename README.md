@@ -16,6 +16,10 @@ Workspace includes:
 - Web app (`apps/web/react`)
 - CLI (`apps/cli`)
 
+API contract workflow:
+- Backend route/schema code is the source of truth.
+- `api/openapi.yaml` is generated from backend code (`make generate-backend`).
+
 ## Prerequisites
 
 - Go

@@ -34,6 +34,14 @@ type Dependencies struct {
 // remoteAddrContextKey stores the request remote address for auth rate-limit keying.
 type remoteAddrContextKey struct{}
 
+type requestAuthHeadersContextKey struct{}
+
+type requestAuthHeaders struct {
+	cookie       string
+	secFetchSite string
+	origin       string
+}
+
 func NewAPI() (*http.ServeMux, huma.API) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(writer http.ResponseWriter, _ *http.Request) {
@@ -53,11 +61,22 @@ func NewAPI() (*http.ServeMux, huma.API) {
 			Scheme:       "bearer",
 			BearerFormat: "JWT",
 		},
+		"cookieAuth": {
+			Type: "apiKey",
+			In:   "cookie",
+			Name: "__Secure-access_token",
+		},
 	}
 
 	api := humago.New(mux, config)
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
-		next(huma.WithValue(ctx, remoteAddrContextKey{}, ctx.RemoteAddr()))
+		withRemoteAddr := huma.WithValue(ctx, remoteAddrContextKey{}, ctx.RemoteAddr())
+		withAuthHeaders := huma.WithValue(withRemoteAddr, requestAuthHeadersContextKey{}, requestAuthHeaders{
+			cookie:       ctx.Header("Cookie"),
+			secFetchSite: ctx.Header("Sec-Fetch-Site"),
+			origin:       ctx.Header("Origin"),
+		})
+		next(withAuthHeaders)
 	})
 
 	return mux, api
