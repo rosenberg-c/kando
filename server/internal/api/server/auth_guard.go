@@ -53,7 +53,11 @@ func requireVerifiedIdentityDual(
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
 
-	if !isTrustedOrigin(origin) {
+	if strings.TrimSpace(origin) == "" {
+		if !strings.EqualFold(strings.TrimSpace(secFetchSite), "same-origin") {
+			return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+		}
+	} else if !isTrustedOrigin(origin) {
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
 

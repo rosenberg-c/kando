@@ -58,7 +58,7 @@ Auth verification layer maps verifier availability failures to `503` without cal
 
 ### `MW-AUTH-009`
 
-Kanban board/column/task endpoints accept either bearer-token auth or cookie-based access-token auth; when cookie-based auth is used, requests are accepted only when fetch metadata indicates `same-origin` or `same-site` and `Origin` matches an allowed origin.
+Kanban board/column/task endpoints accept either bearer-token auth or cookie-based access-token auth; when cookie-based auth is used, requests are accepted only when fetch metadata indicates `same-origin` or `same-site`. For `same-site` requests, `Origin` must match an allowed origin; for `same-origin` requests, `Origin` may be absent.
 
 ### `MW-REQID-001`
 

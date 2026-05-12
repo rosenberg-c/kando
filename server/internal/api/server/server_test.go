@@ -734,11 +734,32 @@ func TestKanbanRoutesRejectCookieAuthWithoutOrigin(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
 	request.Header.Set("Cookie", "__Secure-access_token=cookie-jwt")
-	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Sec-Fetch-Site", "same-site")
 	mux.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestKanbanRoutesAllowCookieAuthWithoutOriginWhenSameOrigin(t *testing.T) {
+	// @req API-003, API-034, MW-AUTH-009
+	t.Parallel()
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{
+		KanbanRepo: kanban.NewService(kanban.NewMemoryRepository()),
+		Verifier:   &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "u@example.com"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	request.Header.Set("Cookie", "__Secure-access_token=cookie-jwt")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 }
 
