@@ -51,9 +51,6 @@
   gap: 0.4rem;
 }
 
-.newBoardButton {
-}
-
 .workspaceBody {
   display: flex;
   flex-direction: column;

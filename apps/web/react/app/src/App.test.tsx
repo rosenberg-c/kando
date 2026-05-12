@@ -446,6 +446,133 @@ describe("App", () => {
     });
   });
 
+  // @req BOARD-001
+  it("keeps latest board columns when board selection changes during in-flight loads", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "board-2",
+        title: "Roadmap",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    const board1Columns = deferred<Column[]>();
+    const board2Columns = deferred<Column[]>();
+    listBoardColumnsMock.mockImplementation(async (boardId: string) => {
+      if (boardId === "board-1") {
+        return board1Columns.promise;
+      }
+      return board2Columns.promise;
+    });
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "switch@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.boards.select")).toBeTruthy();
+      expect(screen.getByRole("option", { name: "Inbox" })).toBeTruthy();
+      expect(screen.getByRole("option", { name: "Roadmap" })).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByTestId("app.boards.select"), {
+      target: { value: "board-2" },
+    });
+
+    board2Columns.resolve([
+      {
+        id: "column-2",
+        boardId: "board-2",
+        title: "Roadmap Doing",
+        position: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Roadmap Doing")).toBeTruthy();
+    });
+
+    board1Columns.resolve([
+      {
+        id: "column-1",
+        boardId: "board-1",
+        title: "Inbox Backlog",
+        position: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Roadmap Doing")).toBeTruthy();
+      expect(screen.queryByText("Inbox Backlog")).toBeNull();
+    });
+  });
+
+  // @req UX-015
+  it("disables board selector while columns are loading", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "board-2",
+        title: "Roadmap",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    const pendingColumns = deferred<Column[]>();
+    listBoardColumnsMock.mockImplementation(async () => pendingColumns.promise);
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "loading@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.boards.select")).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.boards.select").hasAttribute("disabled")).toBe(true);
+    });
+
+    pendingColumns.resolve([]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.boards.select").hasAttribute("disabled")).toBe(false);
+    });
+  });
+
   // @req COL-003
   // @req COL-DEL-001
   // @req COL-DEL-002

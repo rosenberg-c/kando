@@ -65,6 +65,12 @@ export function BoardsPage({
   const [columns, setColumns] = useState<Column[]>([]);
   const [actionStatusMessage, setActionStatusMessage] = useState<string | null>(null);
   const [actionStatusIsError, setActionStatusIsError] = useState(false);
+  // Keep both protections: selector disable avoids extra requests while loading,
+  // request IDs prevent stale async responses from overwriting current board state.
+  const columnsLoadRequestID = useRef(0);
+  const [isLoadingColumns, setIsLoadingColumns] = useState(false);
+
+  const isMutating = isCreatingBoard || isRenamingBoard || isCreatingColumn || isDeletingColumn;
 
   useEffect(() => {
     if (!isSettingsOpen) {
@@ -117,15 +123,25 @@ export function BoardsPage({
   useEffect(() => {
     if (!selectedBoardID) {
       setColumns([]);
+      setIsLoadingColumns(false);
       return;
     }
 
     let isCancelled = false;
+    const requestID = columnsLoadRequestID.current + 1;
+    columnsLoadRequestID.current = requestID;
 
     const loadColumns = async () => {
-      const nextColumns = await onLoadBoardColumns(selectedBoardID);
-      if (!isCancelled) {
-        setColumns(nextColumns);
+      setIsLoadingColumns(true);
+      try {
+        const nextColumns = await onLoadBoardColumns(selectedBoardID);
+        if (!isCancelled && columnsLoadRequestID.current === requestID) {
+          setColumns(nextColumns);
+        }
+      } finally {
+        if (!isCancelled && columnsLoadRequestID.current === requestID) {
+          setIsLoadingColumns(false);
+        }
       }
     };
 
@@ -286,6 +302,7 @@ export function BoardsPage({
               className={styles.boardSelect}
               data-testid="app.boards.select"
               value={selectedBoardID ?? ""}
+              disabled={isMutating || isLoadingColumns}
               onChange={(event) => {
                 setSelectedBoardID(event.target.value || null);
               }}
@@ -306,8 +323,8 @@ export function BoardsPage({
           <Button
             type="button"
             variant="neutral"
-            className={styles.newBoardButton}
             data-testid="app.boards.create.open"
+            disabled={isMutating}
             onClick={() => {
               setIsCreateModalOpen(true);
               setActionStatusMessage(null);
@@ -319,9 +336,8 @@ export function BoardsPage({
           <Button
             type="button"
             variant="neutral"
-            className={styles.editBoardButton}
             data-testid="app.boards.edit.open"
-            disabled={!selectedBoardID}
+            disabled={!selectedBoardID || isMutating}
             onClick={() => {
               setIsEditModalOpen(true);
               setActionStatusMessage(null);
@@ -337,6 +353,7 @@ export function BoardsPage({
               onClick={() => {
                 setIsSettingsOpen((currentOpen) => !currentOpen);
               }}
+              disabled={isMutating}
               aria-controls={isSettingsOpen ? settingsPanelID : undefined}
               aria-expanded={isSettingsOpen}
               data-testid="app.settings.toggle"
@@ -364,7 +381,7 @@ export function BoardsPage({
             type="button"
             variant="neutral"
             data-testid="app.columns.create.open"
-            disabled={!selectedBoardID}
+            disabled={!selectedBoardID || isMutating}
             onClick={() => {
               setIsCreateColumnModalOpen(true);
               setActionStatusMessage(null);
@@ -384,6 +401,7 @@ export function BoardsPage({
                     type="button"
                     variant="neutral"
                     data-testid={`app.column.delete.open.${column.id}`}
+                    disabled={isMutating}
                     onClick={() => {
                       setColumnPendingDelete(column);
                       setIsDeleteColumnModalOpen(true);

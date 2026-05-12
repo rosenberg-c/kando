@@ -15,7 +15,7 @@ export const commonEn = {
   boards: {
     title: "Board",
     placeholderTitle: "Board workspace",
-    placeholderMessage: "Boards not implemented yet.",
+    placeholderMessage: "No columns yet. Create your first column to get started.",
     dropdownLabel: "Board",
     empty: "No boards",
     create: {

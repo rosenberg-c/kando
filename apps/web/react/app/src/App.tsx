@@ -44,8 +44,11 @@ export default function App() {
   } = useAuth();
   const [boards, setBoards] = useState<BoardOption[]>([]);
 
-  const loadBoards = useCallback(async () => {
+  const loadBoards = useCallback(async (shouldApply: () => boolean = () => true) => {
     const fetchedBoards = await listOwnedBoards();
+    if (!shouldApply()) {
+      return;
+    }
     setBoards(mapBoardsToOptions(fetchedBoards));
   }, []);
 
@@ -87,11 +90,7 @@ export default function App() {
 
     const loadBoardsForSession = async () => {
       try {
-        const fetchedBoards = await listOwnedBoards();
-        if (isCancelled) {
-          return;
-        }
-        setBoards(mapBoardsToOptions(fetchedBoards));
+        await loadBoards(() => !isCancelled);
       } catch {
         if (!isCancelled) {
           setBoards([]);
@@ -104,7 +103,7 @@ export default function App() {
     return () => {
       isCancelled = true;
     };
-  }, [hasSession]);
+  }, [hasSession, loadBoards]);
 
   const authUiState: AuthUiState = {
     isBusy,
