@@ -26,7 +26,7 @@ REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
 .PHONY: iconset generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-web-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends \
-	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-dev-local web-open web-build web-test web-test-e2e web-test-e2e-headed web-test-e2e-ui web-e2e-install web-e2e-deps web-e2e-deps-debian run-sqlite-local web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
+	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-dev-local web-open web-build web-test web-test-e2e web-test-e2e-headed web-test-e2e-ui web-e2e-install web-e2e-deps web-e2e-deps-debian run-sqlite-local web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca trust-remote-ca-debian
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -107,6 +107,10 @@ fetch-remote-ca:
 
 trust-remote-ca: fetch-remote-ca
 	@security add-trusted-cert -d -r trustRoot -k "$${HOME}/Library/Keychains/login.keychain-db" "$(REMOTE_CA_PEM)"
+
+trust-remote-ca-debian: fetch-remote-ca
+	@sudo cp "$(REMOTE_CA_PEM)" /usr/local/share/ca-certificates/remote-rootCA.crt
+	@sudo update-ca-certificates
 
 run-sqlite: kill-server
 	@sh -c 'KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
