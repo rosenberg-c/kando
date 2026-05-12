@@ -56,7 +56,8 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px dashed var(--kando-color-surface-border);
   border-radius: var(--kando-radius-card);
   padding: 1rem;
@@ -64,14 +65,17 @@
 
 .columnsList {
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
   align-items: stretch;
   gap: 0.75rem;
   min-height: 0;
 }
 
 .columnCard {
+  flex: 0 0 min(18rem, 80vw);
   min-height: 100%;
   padding: 0.75rem;
   border: 1px solid var(--kando-color-surface-border);
