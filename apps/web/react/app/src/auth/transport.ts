@@ -1,11 +1,9 @@
 import { type AuthTransport } from "@kando/auth";
-import { AuthService, ApiError, OpenAPI, PublicService } from "../generated/api";
-import { apiBaseUrl } from "../config/env";
+import { AuthService, ApiError, PublicService } from "../generated/api";
+import { configureOpenApiClient } from "../api/openApi";
 
 function configureBaseURL(): void {
-  OpenAPI.BASE = apiBaseUrl();
-  OpenAPI.WITH_CREDENTIALS = true;
-  OpenAPI.CREDENTIALS = "include";
+  configureOpenApiClient();
 }
 
 export const authTransport: AuthTransport = {

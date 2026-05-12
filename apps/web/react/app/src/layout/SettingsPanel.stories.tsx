@@ -35,7 +35,7 @@ export const SignedIn: Story = {};
 export const SignedOut: Story = {
   args: {
     hasSession: false,
-    signedInEmail: "",
+    signedInEmail: null,
   },
 };
 

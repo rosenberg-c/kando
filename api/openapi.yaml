@@ -738,6 +738,10 @@ components:
       bearerFormat: JWT
       scheme: bearer
       type: http
+    cookieAuth:
+      in: cookie
+      name: __Secure-access_token
+      type: apiKey
 info:
   title: Go MacOS Task API
   version: 0.1.0
@@ -1003,6 +1007,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: List boards for the authenticated user
       tags:
         - boards
@@ -1034,6 +1039,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Create a board
       tags:
         - boards
@@ -1063,6 +1069,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: List archived boards for the authenticated user
       tags:
         - boards
@@ -1095,6 +1102,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Export selected boards as a multi-board task bundle
       tags:
         - boards
@@ -1127,6 +1135,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Import selected snapshots from a multi-board task bundle
       tags:
         - boards
@@ -1154,6 +1163,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Delete a board
       tags:
         - boards
@@ -1184,6 +1194,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Get board with columns and tasks
       tags:
         - boards
@@ -1220,6 +1231,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Update board title
       tags:
         - boards
@@ -1247,6 +1259,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Permanently delete an archived board
       tags:
         - boards
@@ -1277,6 +1290,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Archive a board
       tags:
         - boards
@@ -1314,6 +1328,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Create a column
       tags:
         - boards
@@ -1354,6 +1369,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Replace board column order
       tags:
         - boards
@@ -1386,6 +1402,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Delete a column
       tags:
         - boards
@@ -1427,6 +1444,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Update column title
       tags:
         - boards
@@ -1463,6 +1481,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Archive all active tasks in a column
       tags:
         - boards
@@ -1500,6 +1519,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Restore an archived board
       tags:
         - boards
@@ -1537,6 +1557,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Create a task
       tags:
         - boards
@@ -1577,6 +1598,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Apply list-based task batch action
       tags:
         - boards
@@ -1611,6 +1633,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: List archived tasks for a board
       tags:
         - boards
@@ -1651,6 +1674,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Replace board task order
       tags:
         - boards
@@ -1683,6 +1707,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Delete a task
       tags:
         - boards
@@ -1724,6 +1749,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Update a task
       tags:
         - boards
@@ -1756,6 +1782,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Permanently delete an archived task
       tags:
         - boards
@@ -1792,6 +1819,7 @@ paths:
           description: Error
       security:
         - bearerAuth: []
+        - cookieAuth: []
       summary: Restore an archived task
       tags:
         - boards

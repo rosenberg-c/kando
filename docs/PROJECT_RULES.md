@@ -19,16 +19,17 @@ Examples include:
 
 - define new API behavior in an OpenAPI-compatible contract
 - keep endpoints, schemas, and error responses generation-friendly
-- avoid designs that block contract-first workflows
+- avoid designs that block code-first OpenAPI generation workflows
 
 ---
 
-## 3. OpenAPI is the transport source of truth
+## 3. Backend code is the transport source of truth
 
-- keep the API contract in `api/openapi.yaml` as the single transport source of truth
-- generate transport models/clients from OpenAPI; do not handwrite duplicate DTOs or endpoint paths
+- keep backend route/contract declarations in `server/internal/api/server` as the transport source of truth
+- generate `api/openapi.yaml` from backend code via `go run ./server/cmd/gen_openapi`; do not hand-edit `api/openapi.yaml`
+- generate transport models/clients from the generated OpenAPI; do not handwrite duplicate DTOs or endpoint paths
 - map between transport and domain models at boundary adapters
-- keep generated artifacts read-only and regenerate on contract changes
+- keep generated artifacts read-only and regenerate after backend contract changes
 
 ---
 

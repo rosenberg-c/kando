@@ -21,7 +21,7 @@ type AuthContextValue = {
   hasInitialized: boolean;
   hasSession: boolean;
   isBusy: boolean;
-  signedInEmail: string;
+  signedInEmail: string | null;
   statusMessage: string;
   statusIsError: boolean;
   signIn: (params: SignInParams) => Promise<void>;
@@ -45,14 +45,14 @@ function toStatusMessage(error: unknown): string {
 export function AuthProvider({ transport, children }: AuthProviderProps) {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasSession, setHasSession] = useState(false);
-  const [signedInEmail, setSignedInEmail] = useState("");
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [status, setStatus] = useState<SessionStatus>(SessionStatus.Idle);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusIsError, setStatusIsError] = useState(false);
 
   const isBusy = status === SessionStatus.Loading;
 
-  const applySignedInState = useCallback((nextEmail: string) => {
+  const applySignedInState = useCallback((nextEmail: string | null) => {
     setHasSession(true);
     setSignedInEmail(nextEmail);
   }, []);
@@ -64,15 +64,15 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
         const restored = await transport.refreshSession();
         if (!restored) {
           setHasSession(false);
-          setSignedInEmail("");
+          setSignedInEmail(null);
           return;
         }
 
         const identity = await transport.getIdentity();
-        applySignedInState(identity?.email ?? "");
+        applySignedInState(identity?.email ?? null);
       } catch (error) {
         setHasSession(false);
-        setSignedInEmail("");
+        setSignedInEmail(null);
         setStatusIsError(true);
         setStatusMessage(t(keys.auth.session.restoreFailed, { reason: String(error) }));
       } finally {
@@ -133,7 +133,7 @@ export function AuthProvider({ transport, children }: AuthProviderProps) {
       setStatusMessage(t(keys.auth.signout.networkError, { reason: String(error) }));
     } finally {
       setHasSession(false);
-      setSignedInEmail("");
+      setSignedInEmail(null);
       if (!hasError) {
         setStatusMessage(t(keys.auth.signout.success));
       }

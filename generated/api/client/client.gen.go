@@ -20,6 +20,7 @@ import (
 
 const (
 	BearerAuthScopes = "bearerAuth.Scopes"
+	CookieAuthScopes = "cookieAuth.Scopes"
 )
 
 // Defines values for RestoreBoardRequestTitleMode.

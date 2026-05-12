@@ -699,6 +699,91 @@ func TestKanbanRoutesRequireBearerToken(t *testing.T) {
 	}
 }
 
+func TestKanbanRoutesAllowCookieAuthWithTrustedHeaders(t *testing.T) {
+	// @req API-003, API-034, MW-AUTH-009
+	t.Parallel()
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{
+		KanbanRepo: kanban.NewService(kanban.NewMemoryRepository()),
+		Verifier:   &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "u@example.com"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	request.Header.Set("Cookie", "__Secure-access_token=cookie-jwt")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	request.Header.Set("Origin", "http://localhost:5173")
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
+func TestKanbanRoutesRejectCookieAuthWithoutOrigin(t *testing.T) {
+	// @req API-003, API-034, MW-AUTH-009
+	t.Parallel()
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{
+		KanbanRepo: kanban.NewService(kanban.NewMemoryRepository()),
+		Verifier:   &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "u@example.com"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	request.Header.Set("Cookie", "__Secure-access_token=cookie-jwt")
+	request.Header.Set("Sec-Fetch-Site", "same-site")
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestKanbanRoutesAllowCookieAuthWithoutOriginWhenSameOrigin(t *testing.T) {
+	// @req API-003, API-034, MW-AUTH-009
+	t.Parallel()
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{
+		KanbanRepo: kanban.NewService(kanban.NewMemoryRepository()),
+		Verifier:   &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "u@example.com"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	request.Header.Set("Cookie", "__Secure-access_token=cookie-jwt")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+}
+
+func TestKanbanRoutesRejectCookieAuthWithoutSecFetchSite(t *testing.T) {
+	// @req API-003, API-034, MW-AUTH-009
+	t.Parallel()
+
+	mux, api := NewAPI()
+	Register(api, Dependencies{
+		KanbanRepo: kanban.NewService(kanban.NewMemoryRepository()),
+		Verifier:   &stubVerifier{identity: auth.Identity{UserID: "user-1", Email: "u@example.com"}},
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/boards", nil)
+	request.Header.Set("Cookie", "__Secure-access_token=cookie-jwt")
+	request.Header.Set("Origin", "http://localhost:5173")
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
 func TestKanbanRouteReturnsForbiddenForOtherOwner(t *testing.T) {
 	// @req API-003
 	t.Parallel()
@@ -846,6 +931,39 @@ func TestOpenAPIDefinesKanbanPaths(t *testing.T) {
 	assertPathMethod("/boards/{boardId}/tasks/actions", http.MethodPost)
 	assertPathMethod("/boards/tasks/export", http.MethodPost)
 	assertPathMethod("/boards/tasks/import", http.MethodPost)
+}
+
+func TestOpenAPIDefinesKanbanSecurityAsBearerOrCookie(t *testing.T) {
+	// @req PUBLIC-003, API-034, MW-AUTH-009
+	t.Parallel()
+
+	_, api := NewAPI()
+	Register(api, Dependencies{})
+
+	boardsPath := api.OpenAPI().Paths["/boards"]
+	if boardsPath == nil || boardsPath.Get == nil {
+		t.Fatal("missing GET /boards operation in OpenAPI")
+	}
+
+	security := boardsPath.Get.Security
+	if len(security) != 2 {
+		t.Fatalf("security entries = %d, want %d", len(security), 2)
+	}
+
+	hasBearer := false
+	hasCookie := false
+	for _, entry := range security {
+		if _, ok := entry["bearerAuth"]; ok {
+			hasBearer = true
+		}
+		if _, ok := entry["cookieAuth"]; ok {
+			hasCookie = true
+		}
+	}
+
+	if !hasBearer || !hasCookie {
+		t.Fatalf("security missing expected schemes: %#v", security)
+	}
 }
 
 func TestOpenAPIDefinesReorderColumnsContract(t *testing.T) {

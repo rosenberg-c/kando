@@ -26,7 +26,7 @@ REMOTE_CA_PEM := $(SERVER_CERT_DIR)/remote-rootCA.pem
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
 
 .PHONY: iconset generate-backend generate-web-api generate-apple-api generate-macos-iconset generate-web-iconset generate-all verify-generate sync-test-matrix verify-test-matrix build build-macos clean-macos run run-tls run-sqlite run-cli run-macos open-macos open ready test test-core test-macos-unit test-macos-ui test-appwrite-integration test-api-backends \
-	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-build web-test web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca
+	cli-install install-cli install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema kill-server web-install web-cert web-trust web-dev web-dev-local web-open web-build web-test web-test-e2e web-test-e2e-headed web-test-e2e-ui web-e2e-install web-e2e-deps web-e2e-deps-debian run-sqlite-local web-storybook web-storybook-build server-cert fetch-remote-ca trust-remote-ca trust-remote-ca-debian
 
 generate-backend:
 	go run ./server/cmd/gen_openapi
@@ -108,8 +108,15 @@ fetch-remote-ca:
 trust-remote-ca: fetch-remote-ca
 	@security add-trusted-cert -d -r trustRoot -k "$${HOME}/Library/Keychains/login.keychain-db" "$(REMOTE_CA_PEM)"
 
+trust-remote-ca-debian: fetch-remote-ca
+	@sudo cp "$(REMOTE_CA_PEM)" /usr/local/share/ca-certificates/remote-rootCA.crt
+	@sudo update-ca-certificates
+
 run-sqlite: kill-server
 	@sh -c 'KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
+
+run-sqlite-local: kill-server
+	@sh -c 'CORS_ALLOWED_ORIGINS="$${CORS_ALLOWED_ORIGINS:-https://localhost:5173,https://127.0.0.1:5173,https://$${DEV_LAN_IP:-192.168.56.2}:5173}" KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban-local.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
 appwrite-bootstrap:
 	go run ./server/cmd/bootstrap_appwrite
@@ -190,11 +197,37 @@ web-trust:
 web-dev: web-cert
 	pnpm --dir $(WEB_APP_DIR) dev
 
+web-dev-local: web-cert
+	@sh -c 'VITE_KANDO_API_BASE_URL="$${VITE_KANDO_API_BASE_URL:-http://127.0.0.1:8080}" pnpm --dir $(WEB_APP_DIR) dev'
+
+web-open:
+	@command -v xdg-open >/dev/null 2>&1 || (echo "xdg-open is required" && exit 1)
+	@xdg-open "https://localhost:5173"
+
 web-build:
 	pnpm --dir $(WEB_APP_DIR) build
 
 web-test:
 	pnpm --dir $(WEB_APP_DIR) test
+
+web-e2e-install:
+	pnpm --dir $(WEB_APP_DIR) exec playwright install
+
+web-e2e-deps:
+	pnpm --dir $(WEB_APP_DIR) exec playwright install-deps chromium
+
+web-e2e-deps-debian:
+	sudo apt-get update
+	sudo apt-get install -y libwoff1
+
+web-test-e2e-headed:
+	./scripts/web_e2e.sh --headed
+
+web-test-e2e-ui:
+	./scripts/web_e2e.sh --ui
+
+web-test-e2e:
+	./scripts/web_e2e.sh
 
 web-storybook:
 	@sh -c 'for ip in $$(hostname -I 2>/dev/null); do case "$$ip" in 192.*) echo "Storybook LAN (192): http://$$ip:6006/" ;; esac; done'

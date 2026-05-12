@@ -2,12 +2,33 @@ import "./App.css";
 import { useAuth } from "@kando/auth";
 import { Spinner } from "@kando/components";
 import { keys, t } from "@kando/locale";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppHeader } from "./layout/AppHeader";
+import type { Board } from "./generated/api";
+import {
+  createColumnInBoard,
+  createOwnedBoard,
+  deleteColumnInBoard,
+  listBoardColumns,
+  listOwnedBoards,
+  renameOwnedBoard,
+} from "./boards/transport";
 import { BoardsPage } from "./pages/boards/BoardsPage";
 import type { AuthUiState } from "./pages/authUiState";
 import { SignInPage } from "./pages/sign-in/SignInPage";
 import { appRoutes } from "./routes";
+
+type BoardOption = {
+  id: string;
+  title: string;
+};
+
+function mapBoardsToOptions(boards: Board[]): BoardOption[] {
+  return boards.map((board) => ({
+    id: board.id,
+    title: board.title,
+  }));
+}
 
 export default function App() {
   const location = useLocation();
@@ -21,6 +42,68 @@ export default function App() {
     signIn,
     signOut,
   } = useAuth();
+  const [boards, setBoards] = useState<BoardOption[]>([]);
+
+  const loadBoards = useCallback(async (shouldApply: () => boolean = () => true) => {
+    const fetchedBoards = await listOwnedBoards();
+    if (!shouldApply()) {
+      return;
+    }
+    setBoards(mapBoardsToOptions(fetchedBoards));
+  }, []);
+
+  const createBoard = useCallback(async (title: string) => {
+    const didCreate = await createOwnedBoard(title);
+    if (didCreate) {
+      await loadBoards();
+    }
+    return didCreate;
+  }, [loadBoards]);
+
+  const renameBoard = useCallback(async (boardId: string, title: string) => {
+    const didRename = await renameOwnedBoard(boardId, title);
+    if (didRename) {
+      await loadBoards();
+    }
+    return didRename;
+  }, [loadBoards]);
+
+  const createColumn = useCallback(async (boardId: string, title: string) => {
+    return createColumnInBoard(boardId, title);
+  }, []);
+
+  const deleteColumn = useCallback(async (boardId: string, columnId: string) => {
+    return deleteColumnInBoard(boardId, columnId);
+  }, []);
+
+  const loadBoardColumns = useCallback(async (boardId: string) => {
+    return listBoardColumns(boardId);
+  }, []);
+
+  useEffect(() => {
+    if (!hasSession) {
+      setBoards([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadBoardsForSession = async () => {
+      try {
+        await loadBoards(() => !isCancelled);
+      } catch {
+        if (!isCancelled) {
+          setBoards([]);
+        }
+      }
+    };
+
+    void loadBoardsForSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [hasSession, loadBoards]);
 
   const authUiState: AuthUiState = {
     isBusy,
@@ -44,12 +127,6 @@ export default function App() {
 
   return (
     <div className="app-root" data-testid="web.app">
-      <AppHeader
-        hasSession={hasSession}
-        signedInEmail={signedInEmail}
-        isBusy={isBusy}
-        onSignOut={signOut}
-      />
       <main className={shellClassName}>
         <Routes>
           <Route
@@ -67,7 +144,15 @@ export default function App() {
             element={
               <BoardsPage
                 hasSession={hasSession}
+                signedInEmail={signedInEmail}
                 authUiState={authUiState}
+                boards={boards}
+                onCreateBoard={createBoard}
+                onRenameBoard={renameBoard}
+                onCreateColumn={createColumn}
+                onDeleteColumn={deleteColumn}
+                onLoadBoardColumns={loadBoardColumns}
+                onSignOut={signOut}
               />
             }
           />

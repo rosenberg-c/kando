@@ -53,7 +53,11 @@ func requireVerifiedIdentityDual(
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
 
-	if origin != "" && !isTrustedOrigin(origin) {
+	if strings.TrimSpace(origin) == "" {
+		if !strings.EqualFold(strings.TrimSpace(secFetchSite), "same-origin") {
+			return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
+		}
+	} else if !isTrustedOrigin(origin) {
 		return auth.Identity{}, authAPIError(authErrorCodeUnauthorized)
 	}
 
@@ -78,4 +82,9 @@ func verifyJWTIdentity(ctx context.Context, deps Dependencies, token string) (au
 	}
 
 	return identity, nil
+}
+
+func requestAuthHeadersFromContext(ctx context.Context) requestAuthHeaders {
+	headers, _ := ctx.Value(requestAuthHeadersContextKey{}).(requestAuthHeaders)
+	return headers
 }

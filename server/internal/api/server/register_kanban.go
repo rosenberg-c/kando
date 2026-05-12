@@ -17,6 +17,10 @@ import (
 	"kando/server/internal/kanban"
 )
 
+// OpenAPI security uses OR semantics across array entries.
+// Kanban endpoints allow either bearer token auth or cookie auth.
+var kanbanEndpointSecurity = []map[string][]string{{"bearerAuth": {}}, {"cookieAuth": {}}}
+
 type authHeaderInput struct {
 	Authorization string `header:"Authorization"`
 }
@@ -158,7 +162,7 @@ const (
 	taskExportFormatVersionV2       = 2
 	taskExportBundleFormatVersionV2 = 2
 	taskExportBundleFormatVersionV3 = 3
-	kanbanTag                      = "boards"
+	kanbanTag                       = "boards"
 )
 
 type archiveRepository interface {
@@ -178,7 +182,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards",
 		Summary:     "List boards for the authenticated user",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *authHeaderInput) (*listBoardsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -203,7 +207,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/archived",
 		Summary:     "List archived boards for the authenticated user",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *authHeaderInput) (*listBoardsOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -228,7 +232,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards",
 		Summary:     "Create a board",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *createBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -249,7 +253,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}",
 		Summary:     "Get board with columns and tasks",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *boardPathInput) (*boardDetailsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -284,7 +288,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}",
 		Summary:     "Update board title",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *updateBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -306,7 +310,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Summary:       "Delete a board",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{kanbanTag},
-		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+		Security:      kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *boardPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -326,7 +330,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/archive",
 		Summary:     "Archive a board",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *boardPathInput) (*boardOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -347,7 +351,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/restore",
 		Summary:     "Restore an archived board",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *restoreBoardInput) (*boardOutput, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -374,7 +378,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Summary:       "Permanently delete an archived board",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{kanbanTag},
-		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+		Security:      kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *boardPathInput) (*struct{}, error) {
 		repo, identity, err := requireArchiveKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -394,7 +398,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/columns",
 		Summary:     "Create a column",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *createColumnInput) (*columnOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -415,7 +419,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/columns/{columnId}",
 		Summary:     "Update column title",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *updateColumnInput) (*columnOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -436,7 +440,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/columns/order",
 		Summary:     "Replace board column order",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *reorderColumnsInput) (*columnsOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -467,7 +471,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Summary:       "Delete a column",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{kanbanTag},
-		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+		Security:      kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *columnPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -487,7 +491,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/columns/{columnId}/archive-tasks",
 		Summary:     "Archive all active tasks in a column",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *columnPathInput) (*archiveColumnTasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -516,7 +520,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/tasks",
 		Summary:     "Create a task",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *createTaskInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -537,7 +541,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/tasks/archived",
 		Summary:     "List archived tasks for a board",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *boardPathInput) (*archivedTasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -568,7 +572,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/tasks/{taskId}/restore",
 		Summary:     "Restore an archived task",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *taskPathInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -595,7 +599,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Summary:       "Permanently delete an archived task",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{kanbanTag},
-		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+		Security:      kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *taskPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -620,7 +624,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/tasks/{taskId}",
 		Summary:     "Update a task",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *updateTaskInput) (*taskOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -641,7 +645,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/tasks/order",
 		Summary:     "Replace board task order",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *reorderTasksInput) (*tasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -676,7 +680,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/{boardId}/tasks/actions",
 		Summary:     "Apply list-based task batch action",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *taskBatchMutationInput) (*tasksOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -710,7 +714,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/tasks/export",
 		Summary:     "Export selected boards as a multi-board task bundle",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *exportTasksBundleInput) (*exportTasksBundleOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -731,7 +735,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Path:        "/boards/tasks/import",
 		Summary:     "Import selected snapshots from a multi-board task bundle",
 		Tags:        []string{kanbanTag},
-		Security:    []map[string][]string{{"bearerAuth": []string{}}},
+		Security:    kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *importTasksBundleInput) (*importTasksBundleOutput, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -753,7 +757,7 @@ func registerKanban(api huma.API, deps Dependencies) {
 		Summary:       "Delete a task",
 		DefaultStatus: http.StatusNoContent,
 		Tags:          []string{kanbanTag},
-		Security:      []map[string][]string{{"bearerAuth": []string{}}},
+		Security:      kanbanEndpointSecurity,
 	}, func(ctx context.Context, input *taskPathInput) (*struct{}, error) {
 		repo, identity, err := requireKanban(ctx, deps, input.Authorization)
 		if err != nil {
@@ -773,7 +777,15 @@ func requireKanban(ctx context.Context, deps Dependencies, authorization string)
 		return nil, auth.Identity{}, huma.Error500InternalServerError("kanban dependencies are not configured")
 	}
 
-	identity, err := requireVerifiedIdentity(ctx, deps, authorization)
+	headers := requestAuthHeadersFromContext(ctx)
+	identity, err := requireVerifiedIdentityDual(
+		ctx,
+		deps,
+		authorization,
+		headers.cookie,
+		headers.secFetchSite,
+		headers.origin,
+	)
 	if err != nil {
 		return nil, auth.Identity{}, err
 	}
