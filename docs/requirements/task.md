@@ -172,6 +172,14 @@ On macOS, pressing `a` opens a column shortcut picker that lists up to the first
 
 On macOS, inside the column shortcut picker, pressing `Enter` opens the create-task sheet for the currently selected shortcut column target, and saving creates the task in that target column.
 
+### `TASK-044`
+
+When task creation is initiated from a specific column action in workspace, the create-task modal/sheet does not include a column selector and only collects task content fields.
+
+### `TASK-045`
+
+In the board workspace, each visible task row shows both task title and task description when description is non-empty.
+
 
 ## Delete Task Confirmation
 
@@ -230,6 +238,8 @@ Confirming the dialog executes the delete request.
 - `TASK-041`: macOS (required), iOS (planned), TUI (planned).
 - `TASK-042`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-043`: macOS (required), iOS (planned), TUI (N/A).
+- `TASK-044`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `TASK-045`: macOS (required), web (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-001`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-002`: macOS (required), iOS (planned), TUI (N/A).
 - `TASK-DEL-003`: macOS (required), iOS (planned), TUI (N/A).

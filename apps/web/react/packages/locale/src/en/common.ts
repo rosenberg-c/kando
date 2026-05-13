@@ -71,4 +71,28 @@ export const commonEn = {
       failed: "Could not delete column.",
     },
   },
+  tasks: {
+    create: {
+      button: "Add task",
+      title: "Create task",
+      titlePlaceholder: "Task title",
+      descriptionPlaceholder: "Description (optional)",
+      titleAriaLabel: "Task title",
+      descriptionAriaLabel: "Task description",
+      cancel: "Cancel",
+      submit: "Create",
+      success: "Task created.",
+      failed: "Could not create task.",
+      validationError: "Task title is required.",
+    },
+    delete: {
+      button: "Delete",
+      title: "Delete task",
+      confirm: "Delete task '{{title}}'?",
+      cancel: "Cancel",
+      submit: "Delete",
+      success: "Task deleted.",
+      failed: "Could not delete task.",
+    },
+  },
 } as const;

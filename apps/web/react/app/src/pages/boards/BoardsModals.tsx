@@ -177,6 +177,77 @@ export function CreateColumnModal({ isBusy, value, onChange, onCancel, onSubmit 
   );
 }
 
+type CreateTaskModalProps = {
+  isBusy: boolean;
+  title: string;
+  description: string;
+  onChangeTitle: (value: string) => void;
+  onChangeDescription: (value: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+};
+
+export function CreateTaskModal({
+  isBusy,
+  title,
+  description,
+  onChangeTitle,
+  onChangeDescription,
+  onCancel,
+  onSubmit,
+}: CreateTaskModalProps) {
+  return (
+    <div className={styles.modalBackdrop} data-testid="app.tasks.create.modal.backdrop">
+      <div
+        className={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app.tasks.create.modal.title"
+        data-testid="app.tasks.create.modal"
+      >
+        <h2 id="app.tasks.create.modal.title" className={styles.modalTitle}>
+          {t(keys.tasks.create.title)}
+        </h2>
+        <div className={styles.fieldWrap}>
+          <input
+            id="app.tasks.create.title"
+            className={styles.fieldInput}
+            data-testid="app.tasks.create.title"
+            aria-label={t(keys.tasks.create.titleAriaLabel)}
+            value={title}
+            onChange={(event) => {
+              onChangeTitle(event.target.value);
+            }}
+            placeholder={t(keys.tasks.create.titlePlaceholder)}
+            disabled={isBusy}
+          />
+          <textarea
+            id="app.tasks.create.description"
+            className={styles.fieldInput}
+            data-testid="app.tasks.create.description"
+            aria-label={t(keys.tasks.create.descriptionAriaLabel)}
+            value={description}
+            onChange={(event) => {
+              onChangeDescription(event.target.value);
+            }}
+            placeholder={t(keys.tasks.create.descriptionPlaceholder)}
+            disabled={isBusy}
+            rows={4}
+          />
+        </div>
+        <div className={styles.modalActions}>
+          <Button type="button" variant="neutral" data-testid="app.tasks.create.cancel" disabled={isBusy} onClick={onCancel}>
+            {t(keys.tasks.create.cancel)}
+          </Button>
+          <Button type="button" variant="primary" data-testid="app.tasks.create.submit" disabled={isBusy} onClick={onSubmit}>
+            {t(keys.tasks.create.submit)}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type DeleteColumnModalProps = {
   isBusy: boolean;
   columnTitle: string;
@@ -204,6 +275,40 @@ export function DeleteColumnModal({ isBusy, columnTitle, onCancel, onSubmit }: D
           </Button>
           <Button type="button" variant="primary" data-testid="app.columns.delete.submit" disabled={isBusy} onClick={onSubmit}>
             {t(keys.columns.delete.submit)}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type DeleteTaskModalProps = {
+  isBusy: boolean;
+  taskTitle: string;
+  onCancel: () => void;
+  onSubmit: () => void;
+};
+
+export function DeleteTaskModal({ isBusy, taskTitle, onCancel, onSubmit }: DeleteTaskModalProps) {
+  return (
+    <div className={styles.modalBackdrop} data-testid="app.tasks.delete.modal.backdrop">
+      <div
+        className={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app.tasks.delete.modal.title"
+        data-testid="app.tasks.delete.modal"
+      >
+        <h2 id="app.tasks.delete.modal.title" className={styles.modalTitle}>
+          {t(keys.tasks.delete.title)}
+        </h2>
+        <Text>{t(keys.tasks.delete.confirm, { title: taskTitle })}</Text>
+        <div className={styles.modalActions}>
+          <Button type="button" variant="neutral" data-testid="app.tasks.delete.cancel" disabled={isBusy} onClick={onCancel}>
+            {t(keys.tasks.delete.cancel)}
+          </Button>
+          <Button type="button" variant="primary" data-testid="app.tasks.delete.submit" disabled={isBusy} onClick={onSubmit}>
+            {t(keys.tasks.delete.submit)}
           </Button>
         </div>
       </div>

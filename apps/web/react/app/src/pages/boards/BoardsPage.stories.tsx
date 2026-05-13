@@ -32,25 +32,41 @@ const meta = {
     onCreateBoard: async () => true,
     onRenameBoard: async () => true,
     onCreateColumn: async () => true,
+    onCreateTask: async () => true,
     onDeleteColumn: async () => true,
-    onLoadBoardColumns: async () => [
-      {
-        id: "column-1",
-        boardId: "board-1",
-        title: "Backlog",
-        position: 1,
-        createdAt: "2026-01-01T00:00:00Z",
-        updatedAt: "2026-01-01T00:00:00Z",
-      },
-      {
-        id: "column-2",
-        boardId: "board-1",
-        title: "Doing",
-        position: 2,
-        createdAt: "2026-01-01T00:00:00Z",
-        updatedAt: "2026-01-01T00:00:00Z",
-      },
-    ],
+    onDeleteTask: async () => true,
+    onLoadWorkspace: async () => ({
+      columns: [
+        {
+          id: "column-1",
+          boardId: "board-1",
+          title: "Backlog",
+          position: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: "column-2",
+          boardId: "board-1",
+          title: "Doing",
+          position: 2,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+      tasks: [
+        {
+          id: "task-1",
+          boardId: "board-1",
+          columnId: "column-1",
+          title: "Draft requirements",
+          description: "",
+          position: 1,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+    }),
     onSignOut: async () => {},
   },
 } satisfies Meta<typeof BoardsPage>;
@@ -64,7 +80,7 @@ export const Default: Story = {};
 export const EmptyBoards: Story = {
   args: {
     boards: [],
-    onLoadBoardColumns: async () => [],
+    onLoadWorkspace: async () => ({ columns: [], tasks: [] }),
   },
 };
 

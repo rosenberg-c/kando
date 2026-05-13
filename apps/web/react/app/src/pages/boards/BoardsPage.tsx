@@ -6,11 +6,15 @@ import { useTheme } from "../../theme/ThemeProvider";
 import { SettingsPanel } from "../../layout/SettingsPanel";
 import { appRoutes } from "../../routes";
 import type { Column } from "../../generated/api";
+import type { Task } from "../../generated/api";
+import type { BoardWorkspace } from "../../boards/transport";
 import type { AuthUiState } from "../authUiState";
 import {
   CreateBoardModal,
   CreateColumnModal,
+  CreateTaskModal,
   DeleteColumnModal,
+  DeleteTaskModal,
   EditBoardModal,
   RenameBoardModal,
 } from "./BoardsModals";
@@ -27,10 +31,44 @@ type BoardsPageProps = {
   onCreateBoard: (title: string) => Promise<boolean>;
   onRenameBoard: (boardId: string, title: string) => Promise<boolean>;
   onCreateColumn: (boardId: string, title: string) => Promise<boolean>;
+  onCreateTask: (boardId: string, columnId: string, title: string, description: string) => Promise<boolean>;
   onDeleteColumn: (boardId: string, columnId: string) => Promise<boolean>;
-  onLoadBoardColumns: (boardId: string) => Promise<Column[]>;
+  onDeleteTask: (boardId: string, taskId: string) => Promise<boolean>;
+  onLoadWorkspace: (boardId: string) => Promise<BoardWorkspace>;
   onSignOut: () => Promise<void>;
 };
+
+type TaskCardProps = {
+  task: Task;
+  isMutating: boolean;
+  onDeleteTask: (task: Task) => void;
+};
+
+function TaskCard({ task, isMutating, onDeleteTask }: TaskCardProps) {
+  return (
+    <div key={task.id} className={styles.taskItem} data-testid={`app.task.${task.id}`}>
+      <Text>{task.title}</Text>
+      {task.description ? (
+        <Text variant="muted" className={styles.taskDescription} data-testid={`app.task.description.${task.id}`}>
+          {task.description}
+        </Text>
+      ) : null}
+      <div className={styles.taskActions}>
+        <Button
+          type="button"
+          variant="neutral"
+          data-testid={`app.task.delete.open.${task.id}`}
+          disabled={isMutating}
+          onClick={() => {
+            onDeleteTask(task);
+          }}
+        >
+          {t(keys.tasks.delete.button)}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function BoardsPage({
   hasSession,
@@ -40,8 +78,10 @@ export function BoardsPage({
   onCreateBoard,
   onRenameBoard,
   onCreateColumn,
+  onCreateTask,
   onDeleteColumn,
-  onLoadBoardColumns,
+  onDeleteTask,
+  onLoadWorkspace,
   onSignOut,
 }: BoardsPageProps) {
   const { theme, toggleTheme } = useTheme();
@@ -53,16 +93,25 @@ export function BoardsPage({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [isCreateColumnModalOpen, setIsCreateColumnModalOpen] = useState(false);
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  const [columnPendingTaskCreate, setColumnPendingTaskCreate] = useState<Column | null>(null);
   const [newBoardTitle, setNewBoardTitle] = useState("");
   const [renameBoardTitle, setRenameBoardTitle] = useState("");
   const [newColumnTitle, setNewColumnTitle] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [isRenamingBoard, setIsRenamingBoard] = useState(false);
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isDeleteColumnModalOpen, setIsDeleteColumnModalOpen] = useState(false);
   const [columnPendingDelete, setColumnPendingDelete] = useState<Column | null>(null);
   const [isDeletingColumn, setIsDeletingColumn] = useState(false);
+  const [isDeleteTaskModalOpen, setIsDeleteTaskModalOpen] = useState(false);
+  const [taskPendingDelete, setTaskPendingDelete] = useState<Task | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [columns, setColumns] = useState<Column[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [actionStatusMessage, setActionStatusMessage] = useState<string | null>(null);
   const [actionStatusIsError, setActionStatusIsError] = useState(false);
   // Keep both protections: selector disable avoids extra requests while loading,
@@ -70,7 +119,7 @@ export function BoardsPage({
   const columnsLoadRequestID = useRef(0);
   const [isLoadingColumns, setIsLoadingColumns] = useState(false);
 
-  const isMutating = isCreatingBoard || isRenamingBoard || isCreatingColumn || isDeletingColumn;
+  const isMutating = isCreatingBoard || isRenamingBoard || isCreatingColumn || isCreatingTask || isDeletingColumn || isDeletingTask;
 
   useEffect(() => {
     if (!isSettingsOpen) {
@@ -120,9 +169,23 @@ export function BoardsPage({
     return selectedBoard?.title ?? t(keys.boards.title);
   }, [boards, selectedBoardID]);
 
+  const tasksByColumnID = useMemo(() => {
+    const grouped = new Map<string, Task[]>();
+    for (const task of tasks) {
+      const columnTasks = grouped.get(task.columnId);
+      if (columnTasks) {
+        columnTasks.push(task);
+      } else {
+        grouped.set(task.columnId, [task]);
+      }
+    }
+    return grouped;
+  }, [tasks]);
+
   useEffect(() => {
     if (!selectedBoardID) {
       setColumns([]);
+      setTasks([]);
       setIsLoadingColumns(false);
       return;
     }
@@ -134,9 +197,10 @@ export function BoardsPage({
     const loadColumns = async () => {
       setIsLoadingColumns(true);
       try {
-        const nextColumns = await onLoadBoardColumns(selectedBoardID);
+        const workspace = await onLoadWorkspace(selectedBoardID);
         if (!isCancelled && columnsLoadRequestID.current === requestID) {
-          setColumns(nextColumns);
+          setColumns(workspace.columns);
+          setTasks(workspace.tasks);
         }
       } finally {
         if (!isCancelled && columnsLoadRequestID.current === requestID) {
@@ -150,7 +214,13 @@ export function BoardsPage({
     return () => {
       isCancelled = true;
     };
-  }, [onLoadBoardColumns, selectedBoardID]);
+  }, [onLoadWorkspace, selectedBoardID]);
+
+  async function refreshWorkspace(boardId: string) {
+    const workspace = await onLoadWorkspace(boardId);
+    setColumns(workspace.columns);
+    setTasks(workspace.tasks);
+  }
 
   if (!hasSession) {
     return <Navigate to={appRoutes.signIn} replace />;
@@ -251,8 +321,7 @@ export function BoardsPage({
       setActionStatusMessage(t(keys.columns.create.success));
       setIsCreateColumnModalOpen(false);
       setNewColumnTitle("");
-      const nextColumns = await onLoadBoardColumns(selectedBoardID);
-      setColumns(nextColumns);
+      await refreshWorkspace(selectedBoardID);
     } catch {
       setActionStatusIsError(true);
       setActionStatusMessage(t(keys.columns.create.failed));
@@ -281,13 +350,80 @@ export function BoardsPage({
       setActionStatusMessage(t(keys.columns.delete.success));
       setIsDeleteColumnModalOpen(false);
       setColumnPendingDelete(null);
-      const nextColumns = await onLoadBoardColumns(selectedBoardID);
-      setColumns(nextColumns);
+      await refreshWorkspace(selectedBoardID);
     } catch {
       setActionStatusIsError(true);
       setActionStatusMessage(t(keys.columns.delete.failed));
     } finally {
       setIsDeletingColumn(false);
+    }
+  }
+
+  async function handleCreateTask() {
+    const trimmedTitle = newTaskTitle.trim();
+    if (!selectedBoardID || !columnPendingTaskCreate) {
+      setActionStatusIsError(true);
+      setActionStatusMessage(t(keys.tasks.create.failed));
+      return;
+    }
+    if (!trimmedTitle) {
+      setActionStatusIsError(true);
+      setActionStatusMessage(t(keys.tasks.create.validationError));
+      return;
+    }
+
+    setIsCreatingTask(true);
+    setActionStatusMessage(null);
+    setActionStatusIsError(false);
+
+    try {
+      const didCreate = await onCreateTask(selectedBoardID, columnPendingTaskCreate.id, trimmedTitle, newTaskDescription);
+      if (!didCreate) {
+        setActionStatusIsError(true);
+        setActionStatusMessage(t(keys.tasks.create.failed));
+        return;
+      }
+
+      await refreshWorkspace(selectedBoardID);
+      setActionStatusMessage(t(keys.tasks.create.success));
+      setIsCreateTaskModalOpen(false);
+      setColumnPendingTaskCreate(null);
+      setNewTaskTitle("");
+      setNewTaskDescription("");
+    } catch {
+      setActionStatusIsError(true);
+      setActionStatusMessage(t(keys.tasks.create.failed));
+    } finally {
+      setIsCreatingTask(false);
+    }
+  }
+
+  async function handleDeleteTask() {
+    if (!selectedBoardID || !taskPendingDelete) {
+      return;
+    }
+
+    setIsDeletingTask(true);
+    setActionStatusMessage(null);
+    setActionStatusIsError(false);
+
+    try {
+      const didDelete = await onDeleteTask(selectedBoardID, taskPendingDelete.id);
+      if (!didDelete) {
+        setActionStatusIsError(true);
+        setActionStatusMessage(t(keys.tasks.delete.failed));
+        return;
+      }
+
+      await refreshWorkspace(selectedBoardID);
+      setActionStatusMessage(t(keys.tasks.delete.success));
+      setIsDeleteTaskModalOpen(false);
+      setTaskPendingDelete(null);
+    } catch {
+      setActionStatusIsError(true);
+      setActionStatusMessage(t(keys.tasks.delete.failed));
+    } finally {
+      setIsDeletingTask(false);
     }
   }
 
@@ -393,7 +529,9 @@ export function BoardsPage({
         </div>
         {columns.length > 0 ? (
           <div className={styles.columnsList} data-testid="app.columns.list">
-            {columns.map((column) => (
+            {columns.map((column) => {
+              const columnTasks = tasksByColumnID.get(column.id) ?? [];
+              return (
               <section key={column.id} className={styles.columnCard} data-testid={`app.column.${column.id}`}>
                 <div className={styles.columnHeader}>
                   <h2 className={styles.columnTitle}>{column.title}</h2>
@@ -413,10 +551,44 @@ export function BoardsPage({
                   </Button>
                 </div>
                 <Text variant="muted" className={styles.columnMeta}>
-                  {t(keys.columns.count.tasks, { count: "0" })}
+                  {t(keys.columns.count.tasks, {
+                    count: String(columnTasks.length),
+                  })}
                 </Text>
+                <div className={styles.taskList}>
+                  {columnTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      isMutating={isMutating}
+                      onDeleteTask={(nextTask) => {
+                        setTaskPendingDelete(nextTask);
+                        setIsDeleteTaskModalOpen(true);
+                        setActionStatusMessage(null);
+                        setActionStatusIsError(false);
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className={styles.columnFooter}>
+                  <Button
+                    type="button"
+                    variant="neutral"
+                    data-testid={`app.tasks.create.open.${column.id}`}
+                    disabled={isMutating}
+                    onClick={() => {
+                      setColumnPendingTaskCreate(column);
+                      setIsCreateTaskModalOpen(true);
+                      setActionStatusMessage(null);
+                      setActionStatusIsError(false);
+                    }}
+                  >
+                    {t(keys.tasks.create.button)}
+                  </Button>
+                </div>
               </section>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <>
@@ -509,6 +681,37 @@ export function BoardsPage({
           }}
           onSubmit={() => {
             void handleDeleteColumn();
+          }}
+        />
+      ) : null}
+      {isCreateTaskModalOpen && columnPendingTaskCreate ? (
+        <CreateTaskModal
+          isBusy={isCreatingTask}
+          title={newTaskTitle}
+          description={newTaskDescription}
+          onChangeTitle={setNewTaskTitle}
+          onChangeDescription={setNewTaskDescription}
+          onCancel={() => {
+            setIsCreateTaskModalOpen(false);
+            setColumnPendingTaskCreate(null);
+            setNewTaskTitle("");
+            setNewTaskDescription("");
+          }}
+          onSubmit={() => {
+            void handleCreateTask();
+          }}
+        />
+      ) : null}
+      {isDeleteTaskModalOpen && taskPendingDelete ? (
+        <DeleteTaskModal
+          isBusy={isDeletingTask}
+          taskTitle={taskPendingDelete.title}
+          onCancel={() => {
+            setIsDeleteTaskModalOpen(false);
+            setTaskPendingDelete(null);
+          }}
+          onSubmit={() => {
+            void handleDeleteTask();
           }}
         />
       ) : null}

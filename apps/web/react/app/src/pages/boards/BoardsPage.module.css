@@ -76,6 +76,8 @@
 
 .columnCard {
   flex: 0 0 min(18rem, 80vw);
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
   padding: 0.75rem;
   border: 1px solid var(--kando-color-surface-border);
@@ -97,6 +99,36 @@
 
 .columnMeta {
   margin-top: 0.5rem;
+}
+
+.taskList {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.taskItem {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--kando-color-surface-border);
+  border-radius: 0.35rem;
+}
+
+.taskDescription {
+  margin-top: 0.3rem;
+  white-space: pre-wrap;
+}
+
+.taskActions {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.columnFooter {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .workspaceToolbar {

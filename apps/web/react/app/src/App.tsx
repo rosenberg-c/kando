@@ -6,13 +6,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import type { Board } from "./generated/api";
 import {
+  createTaskInBoard,
   createColumnInBoard,
   createOwnedBoard,
   deleteColumnInBoard,
-  listBoardColumns,
+  deleteTaskInBoard,
+  loadBoardWorkspace,
   listOwnedBoards,
   renameOwnedBoard,
 } from "./boards/transport";
+import type { BoardWorkspace } from "./boards/transport";
 import { BoardsPage } from "./pages/boards/BoardsPage";
 import type { AuthUiState } from "./pages/authUiState";
 import { SignInPage } from "./pages/sign-in/SignInPage";
@@ -76,8 +79,16 @@ export default function App() {
     return deleteColumnInBoard(boardId, columnId);
   }, []);
 
-  const loadBoardColumns = useCallback(async (boardId: string) => {
-    return listBoardColumns(boardId);
+  const deleteTask = useCallback(async (boardId: string, taskId: string) => {
+    return deleteTaskInBoard(boardId, taskId);
+  }, []);
+
+  const loadWorkspace = useCallback(async (boardId: string): Promise<BoardWorkspace> => {
+    return loadBoardWorkspace(boardId);
+  }, []);
+
+  const createTask = useCallback(async (boardId: string, columnId: string, title: string, description: string) => {
+    return createTaskInBoard(boardId, columnId, title, description);
   }, []);
 
   useEffect(() => {
@@ -150,8 +161,10 @@ export default function App() {
                 onCreateBoard={createBoard}
                 onRenameBoard={renameBoard}
                 onCreateColumn={createColumn}
+                onCreateTask={createTask}
                 onDeleteColumn={deleteColumn}
-                onLoadBoardColumns={loadBoardColumns}
+                onDeleteTask={deleteTask}
+                onLoadWorkspace={loadWorkspace}
                 onSignOut={signOut}
               />
             }

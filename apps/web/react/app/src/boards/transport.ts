@@ -1,6 +1,11 @@
 import { ApiError, BoardsService, type Board } from "../generated/api";
 import { configureOpenApiClient } from "../api/openApi";
-import type { Column } from "../generated/api";
+import type { BoardDetailsResponse, Column, Task } from "../generated/api";
+
+export type BoardWorkspace = {
+  columns: Column[];
+  tasks: Task[];
+};
 
 function isBoardList(value: unknown): value is Board[] {
   return Array.isArray(value);
@@ -76,24 +81,68 @@ export async function createColumnInBoard(boardId: string, title: string): Promi
   }
 }
 
-export async function listBoardColumns(boardId: string): Promise<Column[]> {
+function mapBoardWorkspace(response: BoardDetailsResponse): BoardWorkspace {
+  const columns = Array.isArray(response.columns)
+    ? [...response.columns].sort((left, right) => left.position - right.position)
+    : [];
+  const tasks = Array.isArray(response.tasks)
+    ? [...response.tasks].sort((left, right) => left.position - right.position)
+    : [];
+
+  return { columns, tasks };
+}
+
+export async function loadBoardWorkspace(boardId: string): Promise<BoardWorkspace> {
   configureOpenApiClient();
 
   try {
     const response = await BoardsService.getBoard({ boardId });
-    if (!response || typeof response !== "object" || !("columns" in response)) {
-      return [];
+    if (!response || typeof response !== "object" || !("columns" in response) || !("tasks" in response)) {
+      return { columns: [], tasks: [] };
     }
 
-    const columns = (response as { columns: Column[] | null }).columns;
-    if (!Array.isArray(columns)) {
-      return [];
-    }
-
-    return [...columns].sort((left, right) => left.position - right.position);
+    return mapBoardWorkspace(response as BoardDetailsResponse);
   } catch (error) {
     if (error instanceof ApiError) {
-      return [];
+      return { columns: [], tasks: [] };
+    }
+    throw error;
+  }
+}
+
+export async function createTaskInBoard(boardId: string, columnId: string, title: string, description: string): Promise<boolean> {
+  configureOpenApiClient();
+
+  try {
+    await BoardsService.createTask({
+      boardId,
+      requestBody: {
+        columnId,
+        title,
+        description,
+      },
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+export async function deleteTaskInBoard(boardId: string, taskId: string): Promise<boolean> {
+  configureOpenApiClient();
+
+  try {
+    await BoardsService.deleteTask({
+      boardId,
+      taskId,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return false;
     }
     throw error;
   }

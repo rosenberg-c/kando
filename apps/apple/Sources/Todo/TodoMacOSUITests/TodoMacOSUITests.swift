@@ -1184,12 +1184,13 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateTaskAppearsInSelectedColumn() throws {
-        // @req TASK-011
+        // @req TASK-011, TASK-044, UX-045
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let addTaskButton = app.buttons["task-add-column-empty"]
+        let emptyColumnDropZone = app.otherElements["column-drop-zone-column-empty"]
         let createSheetTitle = preferredElement(
             primary: app.otherElements["task-editor-sheet"],
             fallback: app.staticTexts["Create task"],
@@ -1203,8 +1204,19 @@ final class TodoMacOSUITests: XCTestCase {
         let createdTaskTitle = "Created in empty column"
 
         XCTAssertTrue(emptyColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected empty column task count")
+        XCTAssertTrue(emptyColumnDropZone.waitForExistence(timeout: uiTimeout), "Expected empty column container")
         XCTAssertTrue(addTaskButton.waitForExistence(timeout: uiTimeout), "Expected add-task button for empty column")
         XCTAssertTrue(waitForCountValue(element: emptyColumnTaskCount, equals: 0, timeout: 3), "Expected empty column to start with zero tasks")
+        XCTAssertGreaterThanOrEqual(
+            addTaskButton.frame.minX,
+            emptyColumnDropZone.frame.minX,
+            "Expected add-task button to align with left edge of selected column"
+        )
+        XCTAssertLessThanOrEqual(
+            addTaskButton.frame.minX,
+            emptyColumnDropZone.frame.minX + 40,
+            "Expected add-task button to stay near left edge of selected column"
+        )
 
         addTaskButton.tap()
 
@@ -1217,6 +1229,8 @@ final class TodoMacOSUITests: XCTestCase {
 
         XCTAssertTrue(createSheetTitle.waitForExistence(timeout: uiTimeout), "Expected create-task sheet title")
         XCTAssertTrue(taskTitleField.waitForExistence(timeout: uiTimeout), "Expected task title input")
+        let sheetPickers = app.otherElements["task-editor-sheet"].descendants(matching: .picker)
+        XCTAssertEqual(sheetPickers.count, 0, "Expected create-task sheet opened from column action to have no column selector")
         let createButtonQuery = app.buttons.matching(
             NSPredicate(format: "identifier == %@ OR label == %@", "task-editor-submit", "Create")
         )
@@ -1354,7 +1368,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateTaskDescriptionInputEnterSubmitsAndShiftEnterDoesNot() throws {
-        // @req TASK-022
+        // @req TASK-022, TASK-045
         let app = launchSignedInApp()
         let uiTimeout = UITimeout.extended
 
@@ -1410,6 +1424,10 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(
             app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
             "Expected task created via description enter to be visible"
+        )
+        XCTAssertTrue(
+            app.staticTexts["first line"].waitForExistence(timeout: uiTimeout),
+            "Expected created task description to be visible when non-empty"
         )
     }
 

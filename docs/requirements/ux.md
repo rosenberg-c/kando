@@ -176,6 +176,10 @@ Web app header exposes a `Settings` menu that shows current sign-in identity, pr
 
 Web app root shows a session-loading state until the initial refresh-session check resolves, so signed-out content does not flash before authenticated routing is known.
 
+### `UX-045`
+
+In the board workspace, each column places the `Add task` action at the bottom-left of the column.
+
 ## Platform Applicability
 
 - `UX-001`: macOS (required), iOS (planned), TUI (N/A).
@@ -222,3 +226,4 @@ Web app root shows a session-loading state until the initial refresh-session che
 - `UX-042`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-043`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).
 - `UX-044`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).
+- `UX-045`: macOS (required), web (required), iOS (planned), TUI (N/A).

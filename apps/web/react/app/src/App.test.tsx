@@ -7,20 +7,26 @@ import App from "./App";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import type { Board } from "./generated/api";
 import type { Column } from "./generated/api";
+import type { Task } from "./generated/api";
+import type { BoardWorkspace } from "./boards/transport";
 
 const {
   listOwnedBoardsMock,
   createOwnedBoardMock,
   renameOwnedBoardMock,
   createColumnInBoardMock,
-  listBoardColumnsMock,
+  loadBoardWorkspaceMock,
+  createTaskInBoardMock,
+  deleteTaskInBoardMock,
   deleteColumnInBoardMock,
 } = vi.hoisted(() => ({
   listOwnedBoardsMock: vi.fn<() => Promise<Board[]>>(async () => []),
   createOwnedBoardMock: vi.fn(async () => true),
   renameOwnedBoardMock: vi.fn(async () => true),
   createColumnInBoardMock: vi.fn(async () => true),
-  listBoardColumnsMock: vi.fn<() => Promise<Column[]>>(async () => []),
+  loadBoardWorkspaceMock: vi.fn<() => Promise<BoardWorkspace>>(async () => ({ columns: [], tasks: [] })),
+  createTaskInBoardMock: vi.fn(async () => true),
+  deleteTaskInBoardMock: vi.fn(async () => true),
   deleteColumnInBoardMock: vi.fn(async () => true),
 }));
 
@@ -29,9 +35,53 @@ vi.mock("./boards/transport", () => ({
   createOwnedBoard: createOwnedBoardMock,
   renameOwnedBoard: renameOwnedBoardMock,
   createColumnInBoard: createColumnInBoardMock,
-  listBoardColumns: listBoardColumnsMock,
+  createTaskInBoard: createTaskInBoardMock,
+  deleteTaskInBoard: deleteTaskInBoardMock,
+  loadBoardWorkspace: loadBoardWorkspaceMock,
   deleteColumnInBoard: deleteColumnInBoardMock,
 }));
+
+function workspace(columns: Column[], tasks: Task[] = []): BoardWorkspace {
+  return { columns, tasks };
+}
+
+function makeBoard(overrides: Partial<Board> = {}): Board {
+  return {
+    id: "board-1",
+    title: "Inbox",
+    boardVersion: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    ownerUserId: "user-1",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function makeColumn(overrides: Partial<Column> = {}): Column {
+  return {
+    id: "column-1",
+    boardId: "board-1",
+    title: "Backlog",
+    position: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function makeTask(overrides: Partial<Task> = {}): Task {
+  return {
+    id: "task-1",
+    boardId: "board-1",
+    columnId: "column-1",
+    title: "First task",
+    description: "",
+    position: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -84,8 +134,12 @@ describe("App", () => {
     renameOwnedBoardMock.mockResolvedValue(true);
     createColumnInBoardMock.mockReset();
     createColumnInBoardMock.mockResolvedValue(true);
-    listBoardColumnsMock.mockReset();
-    listBoardColumnsMock.mockResolvedValue([]);
+    loadBoardWorkspaceMock.mockReset();
+    loadBoardWorkspaceMock.mockResolvedValue({ columns: [], tasks: [] });
+    createTaskInBoardMock.mockReset();
+    createTaskInBoardMock.mockResolvedValue(true);
+    deleteTaskInBoardMock.mockReset();
+    deleteTaskInBoardMock.mockResolvedValue(true);
     deleteColumnInBoardMock.mockReset();
     deleteColumnInBoardMock.mockResolvedValue(true);
   });
@@ -365,16 +419,7 @@ describe("App", () => {
 
   // @req COL-001
   it("creates a column from workspace modal", async () => {
-    listOwnedBoardsMock.mockResolvedValueOnce([
-      {
-        id: "board-1",
-        title: "Inbox",
-        boardVersion: 1,
-        createdAt: "2026-01-01T00:00:00Z",
-        ownerUserId: "user-1",
-        updatedAt: "2026-01-01T00:00:00Z",
-      },
-    ]);
+    listOwnedBoardsMock.mockResolvedValueOnce([makeBoard()]);
 
     const transport: AuthTransport = {
       ...defaultTransport,
@@ -400,6 +445,163 @@ describe("App", () => {
     });
   });
 
+  // @req TASK-001
+  // @req TASK-011
+  // @req UX-045
+  it("creates a task from column footer add-task action", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([
+      {
+        id: "board-1",
+        title: "Inbox",
+        boardVersion: 1,
+        createdAt: "2026-01-01T00:00:00Z",
+        ownerUserId: "user-1",
+        updatedAt: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    loadBoardWorkspaceMock
+      .mockResolvedValueOnce(
+        workspace([makeColumn()]),
+      )
+      .mockResolvedValueOnce(
+        workspace(
+          [makeColumn()],
+          [makeTask({ description: "Optional description" })],
+        ),
+      );
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "task@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.tasks.create.open.column-1")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.tasks.create.open.column-1"));
+    fireEvent.change(screen.getByTestId("app.tasks.create.title"), {
+      target: { value: "First task" },
+    });
+    fireEvent.change(screen.getByTestId("app.tasks.create.description"), {
+      target: { value: "Optional description" },
+    });
+    fireEvent.click(screen.getByTestId("app.tasks.create.submit"));
+
+    await waitFor(() => {
+      expect(createTaskInBoardMock).toHaveBeenCalledWith("board-1", "column-1", "First task", "Optional description");
+      expect(screen.getByText("First task")).toBeTruthy();
+      expect(screen.getByText("Optional description")).toBeTruthy();
+      expect(screen.queryByTestId("app.tasks.create.modal")).toBeNull();
+    });
+  });
+
+  // @req TASK-045
+  it("does not render a task description block when description is empty", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([makeBoard()]);
+    loadBoardWorkspaceMock.mockResolvedValueOnce(
+      workspace(
+        [makeColumn()],
+        [makeTask()],
+      ),
+    );
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "task-description-empty@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.task.task-1")).toBeTruthy();
+      expect(screen.queryByTestId("app.task.description.task-1")).toBeNull();
+    });
+  });
+
+  // @req TASK-003
+  // @req TASK-DEL-001
+  // @req TASK-DEL-002
+  // @req TASK-DEL-004
+  it("deletes a task from confirmation modal", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([makeBoard()]);
+    loadBoardWorkspaceMock
+      .mockResolvedValueOnce(
+        workspace(
+          [makeColumn()],
+          [makeTask({ description: "desc" })],
+        ),
+      )
+      .mockResolvedValueOnce(workspace([makeColumn()]));
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "task-delete@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.task.delete.open.task-1")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.task.delete.open.task-1"));
+
+    await waitFor(() => {
+      const confirmText = screen.getByText("Delete task 'First task'?");
+      expect(confirmText).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.tasks.delete.submit"));
+
+    await waitFor(() => {
+      expect(deleteTaskInBoardMock).toHaveBeenCalledWith("board-1", "task-1");
+      expect(screen.queryByTestId("app.tasks.delete.modal")).toBeNull();
+    });
+  });
+
+  // @req TASK-DEL-003
+  it("does not delete a task when delete confirmation is canceled", async () => {
+    listOwnedBoardsMock.mockResolvedValueOnce([makeBoard()]);
+    loadBoardWorkspaceMock.mockResolvedValueOnce(
+      workspace(
+        [makeColumn()],
+        [makeTask({ description: "desc" })],
+      ),
+    );
+
+    const transport: AuthTransport = {
+      ...defaultTransport,
+      refreshSession: async () => true,
+      getIdentity: async () => ({ email: "task-delete-cancel@example.com" }),
+    };
+
+    renderApp(transport);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.task.delete.open.task-1")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.task.delete.open.task-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("app.tasks.delete.modal")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("app.tasks.delete.cancel"));
+
+    await waitFor(() => {
+      expect(deleteTaskInBoardMock).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("app.tasks.delete.modal")).toBeNull();
+      expect(screen.getByText("First task")).toBeTruthy();
+    });
+  });
+
   // @req BOARD-001
   it("shows columns for the selected board", async () => {
     listOwnedBoardsMock.mockResolvedValueOnce([
@@ -412,7 +614,7 @@ describe("App", () => {
         updatedAt: "2026-01-01T00:00:00Z",
       },
     ]);
-    listBoardColumnsMock.mockResolvedValueOnce([
+    loadBoardWorkspaceMock.mockResolvedValueOnce(workspace([
       {
         id: "column-1",
         boardId: "board-1",
@@ -429,7 +631,7 @@ describe("App", () => {
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
       },
-    ]);
+    ]));
 
     const transport: AuthTransport = {
       ...defaultTransport,
@@ -467,9 +669,9 @@ describe("App", () => {
       },
     ]);
 
-    const board1Columns = deferred<Column[]>();
-    const board2Columns = deferred<Column[]>();
-    listBoardColumnsMock.mockImplementation(async (boardId: string) => {
+    const board1Columns = deferred<BoardWorkspace>();
+    const board2Columns = deferred<BoardWorkspace>();
+    loadBoardWorkspaceMock.mockImplementation(async (boardId: string) => {
       if (boardId === "board-1") {
         return board1Columns.promise;
       }
@@ -494,7 +696,7 @@ describe("App", () => {
       target: { value: "board-2" },
     });
 
-    board2Columns.resolve([
+    board2Columns.resolve(workspace([
       {
         id: "column-2",
         boardId: "board-2",
@@ -503,13 +705,13 @@ describe("App", () => {
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
       },
-    ]);
+    ]));
 
     await waitFor(() => {
       expect(screen.getByText("Roadmap Doing")).toBeTruthy();
     });
 
-    board1Columns.resolve([
+    board1Columns.resolve(workspace([
       {
         id: "column-1",
         boardId: "board-1",
@@ -518,7 +720,7 @@ describe("App", () => {
         createdAt: "2026-01-01T00:00:00Z",
         updatedAt: "2026-01-01T00:00:00Z",
       },
-    ]);
+    ]));
 
     await waitFor(() => {
       expect(screen.getByText("Roadmap Doing")).toBeTruthy();
@@ -547,8 +749,8 @@ describe("App", () => {
       },
     ]);
 
-    const pendingColumns = deferred<Column[]>();
-    listBoardColumnsMock.mockImplementation(async () => pendingColumns.promise);
+    const pendingColumns = deferred<BoardWorkspace>();
+    loadBoardWorkspaceMock.mockImplementation(async () => pendingColumns.promise);
 
     const transport: AuthTransport = {
       ...defaultTransport,
@@ -566,7 +768,7 @@ describe("App", () => {
       expect(screen.getByTestId("app.boards.select").hasAttribute("disabled")).toBe(true);
     });
 
-    pendingColumns.resolve([]);
+    pendingColumns.resolve(workspace([]));
 
     await waitFor(() => {
       expect(screen.getByTestId("app.boards.select").hasAttribute("disabled")).toBe(false);
@@ -587,8 +789,8 @@ describe("App", () => {
         updatedAt: "2026-01-01T00:00:00Z",
       },
     ]);
-    listBoardColumnsMock
-      .mockResolvedValueOnce([
+    loadBoardWorkspaceMock
+      .mockResolvedValueOnce(workspace([
         {
           id: "column-1",
           boardId: "board-1",
@@ -597,8 +799,8 @@ describe("App", () => {
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
         },
-      ])
-      .mockResolvedValueOnce([]);
+      ]))
+      .mockResolvedValueOnce(workspace([]));
 
     const transport: AuthTransport = {
       ...defaultTransport,
@@ -615,7 +817,8 @@ describe("App", () => {
     fireEvent.click(screen.getByTestId("app.column.delete.open.column-1"));
 
     await waitFor(() => {
-      expect(screen.getByText("Delete column 'Backlog'?" )).toBeTruthy();
+      const confirmText = screen.getByText("Delete column 'Backlog'?");
+      expect(confirmText).toBeTruthy();
     });
 
     fireEvent.click(screen.getByTestId("app.columns.delete.submit"));
