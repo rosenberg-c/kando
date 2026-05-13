@@ -6,9 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import type { Board } from "./generated/api";
-import type { Column } from "./generated/api";
-import type { Task } from "./generated/api";
-import type { BoardWorkspace } from "./api/adapters/boards";
+import type { BoardWorkspace, WorkspaceColumn, WorkspaceTask } from "./api/adapters/boards";
 
 const {
   listOwnedBoardsMock,
@@ -41,7 +39,7 @@ vi.mock("./api/adapters/boards", () => ({
   deleteColumnInBoard: deleteColumnInBoardMock,
 }));
 
-function workspace(columns: Column[], tasks: Task[] = []): BoardWorkspace {
+function workspace(columns: WorkspaceColumn[], tasks: WorkspaceTask[] = []): BoardWorkspace {
   return { columns, tasks };
 }
 
@@ -57,7 +55,7 @@ function makeBoard(overrides: Partial<Board> = {}): Board {
   };
 }
 
-function makeColumn(overrides: Partial<Column> = {}): Column {
+function makeColumn(overrides: Partial<WorkspaceColumn> = {}): WorkspaceColumn {
   return {
     id: "column-1",
     boardId: "board-1",
@@ -69,7 +67,7 @@ function makeColumn(overrides: Partial<Column> = {}): Column {
   };
 }
 
-function makeTask(overrides: Partial<Task> = {}): Task {
+function makeTask(overrides: Partial<WorkspaceTask> = {}): WorkspaceTask {
   return {
     id: "task-1",
     boardId: "board-1",

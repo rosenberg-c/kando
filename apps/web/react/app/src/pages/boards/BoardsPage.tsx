@@ -5,9 +5,7 @@ import { keys, t } from "@kando/locale";
 import { useTheme } from "../../theme/ThemeProvider";
 import { SettingsPanel } from "../../layout/SettingsPanel";
 import { appRoutes } from "../../routes";
-import type { Column } from "../../generated/api";
-import type { Task } from "../../generated/api";
-import type { BoardWorkspace } from "../../api/adapters/boards";
+import type { BoardWorkspace, WorkspaceColumn, WorkspaceTask } from "../../api/adapters/boards";
 import type { AuthUiState } from "../authUiState";
 import {
   CreateBoardModal,
@@ -39,9 +37,9 @@ type BoardsPageProps = {
 };
 
 type TaskCardProps = {
-  task: Task;
+  task: WorkspaceTask;
   isMutating: boolean;
-  onDeleteTask: (task: Task) => void;
+  onDeleteTask: (task: WorkspaceTask) => void;
 };
 
 function TaskCard({ task, isMutating, onDeleteTask }: TaskCardProps) {
@@ -94,7 +92,7 @@ export function BoardsPage({
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [isCreateColumnModalOpen, setIsCreateColumnModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
-  const [columnPendingTaskCreate, setColumnPendingTaskCreate] = useState<Column | null>(null);
+  const [columnPendingTaskCreate, setColumnPendingTaskCreate] = useState<WorkspaceColumn | null>(null);
   const [newBoardTitle, setNewBoardTitle] = useState("");
   const [renameBoardTitle, setRenameBoardTitle] = useState("");
   const [newColumnTitle, setNewColumnTitle] = useState("");
@@ -105,13 +103,13 @@ export function BoardsPage({
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isDeleteColumnModalOpen, setIsDeleteColumnModalOpen] = useState(false);
-  const [columnPendingDelete, setColumnPendingDelete] = useState<Column | null>(null);
+  const [columnPendingDelete, setColumnPendingDelete] = useState<WorkspaceColumn | null>(null);
   const [isDeletingColumn, setIsDeletingColumn] = useState(false);
   const [isDeleteTaskModalOpen, setIsDeleteTaskModalOpen] = useState(false);
-  const [taskPendingDelete, setTaskPendingDelete] = useState<Task | null>(null);
+  const [taskPendingDelete, setTaskPendingDelete] = useState<WorkspaceTask | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
-  const [columns, setColumns] = useState<Column[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [columns, setColumns] = useState<WorkspaceColumn[]>([]);
+  const [tasks, setTasks] = useState<WorkspaceTask[]>([]);
   const [actionStatusMessage, setActionStatusMessage] = useState<string | null>(null);
   const [actionStatusIsError, setActionStatusIsError] = useState(false);
   // Keep both protections: selector disable avoids extra requests while loading,
@@ -170,7 +168,7 @@ export function BoardsPage({
   }, [boards, selectedBoardID]);
 
   const tasksByColumnID = useMemo(() => {
-    const grouped = new Map<string, Task[]>();
+    const grouped = new Map<string, WorkspaceTask[]>();
     for (const task of tasks) {
       const columnTasks = grouped.get(task.columnId);
       if (columnTasks) {

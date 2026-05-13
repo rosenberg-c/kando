@@ -1,12 +1,34 @@
 import { BoardsService, type Board } from "../../generated/api";
-import type { BoardDetailsResponse, Column, Task } from "../../generated/api";
+import type { BoardDetailsResponse, Column as ApiColumn, Task as ApiTask } from "../../generated/api";
 import { ensureApiClientConfigured } from "../client";
 import { mapApiError } from "../handleApiError";
+import type { BoardWorkspace, WorkspaceColumn, WorkspaceTask } from "./models";
 
-export type BoardWorkspace = {
-  columns: Column[];
-  tasks: Task[];
-};
+export type { BoardWorkspace, WorkspaceColumn, WorkspaceTask } from "./models";
+
+function mapWorkspaceColumn(column: ApiColumn): WorkspaceColumn {
+  return {
+    id: column.id,
+    boardId: column.boardId,
+    title: column.title,
+    position: column.position,
+    createdAt: column.createdAt,
+    updatedAt: column.updatedAt,
+  };
+}
+
+function mapWorkspaceTask(task: ApiTask): WorkspaceTask {
+  return {
+    id: task.id,
+    boardId: task.boardId,
+    columnId: task.columnId,
+    title: task.title,
+    description: task.description,
+    position: task.position,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+  };
+}
 
 function isBoardList(value: unknown): value is Board[] {
   return Array.isArray(value);
@@ -72,10 +94,14 @@ export async function createColumnInBoard(boardId: string, title: string): Promi
 
 function mapBoardWorkspace(response: BoardDetailsResponse): BoardWorkspace {
   const columns = Array.isArray(response.columns)
-    ? [...response.columns].sort((left, right) => left.position - right.position)
+    ? [...response.columns]
+      .sort((left, right) => left.position - right.position)
+      .map(mapWorkspaceColumn)
     : [];
   const tasks = Array.isArray(response.tasks)
-    ? [...response.tasks].sort((left, right) => left.position - right.position)
+    ? [...response.tasks]
+      .sort((left, right) => left.position - right.position)
+      .map(mapWorkspaceTask)
     : [];
 
   return { columns, tasks };
