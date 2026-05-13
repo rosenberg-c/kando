@@ -8,7 +8,7 @@ import { ThemeProvider } from "./theme/ThemeProvider";
 import type { Board } from "./generated/api";
 import type { Column } from "./generated/api";
 import type { Task } from "./generated/api";
-import type { BoardWorkspace } from "./boards/transport";
+import type { BoardWorkspace } from "./api/adapters/boards";
 
 const {
   listOwnedBoardsMock,
@@ -30,7 +30,7 @@ const {
   deleteColumnInBoardMock: vi.fn(async () => true),
 }));
 
-vi.mock("./boards/transport", () => ({
+vi.mock("./api/adapters/boards", () => ({
   listOwnedBoards: listOwnedBoardsMock,
   createOwnedBoard: createOwnedBoardMock,
   renameOwnedBoard: renameOwnedBoardMock,

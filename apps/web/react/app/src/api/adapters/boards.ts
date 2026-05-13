@@ -1,6 +1,7 @@
-import { ApiError, BoardsService, type Board } from "../generated/api";
-import { configureOpenApiClient } from "../api/openApi";
-import type { BoardDetailsResponse, Column, Task } from "../generated/api";
+import { BoardsService, type Board } from "../../generated/api";
+import type { BoardDetailsResponse, Column, Task } from "../../generated/api";
+import { ensureApiClientConfigured } from "../client";
+import { mapApiError } from "../handleApiError";
 
 export type BoardWorkspace = {
   columns: Column[];
@@ -12,21 +13,18 @@ function isBoardList(value: unknown): value is Board[] {
 }
 
 export async function listOwnedBoards(): Promise<Board[]> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     const response = await BoardsService.listBoards({});
     return isBoardList(response) ? response : [];
   } catch (error) {
-    if (error instanceof ApiError) {
-      return [];
-    }
-    throw error;
+    return mapApiError(error, () => []);
   }
 }
 
 export async function createOwnedBoard(title: string): Promise<boolean> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     await BoardsService.createBoard({
@@ -36,15 +34,12 @@ export async function createOwnedBoard(title: string): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    if (error instanceof ApiError) {
-      return false;
-    }
-    throw error;
+    return mapApiError(error, () => false);
   }
 }
 
 export async function renameOwnedBoard(boardId: string, title: string): Promise<boolean> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     await BoardsService.updateBoard({
@@ -55,15 +50,12 @@ export async function renameOwnedBoard(boardId: string, title: string): Promise<
     });
     return true;
   } catch (error) {
-    if (error instanceof ApiError) {
-      return false;
-    }
-    throw error;
+    return mapApiError(error, () => false);
   }
 }
 
 export async function createColumnInBoard(boardId: string, title: string): Promise<boolean> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     await BoardsService.createColumn({
@@ -74,10 +66,7 @@ export async function createColumnInBoard(boardId: string, title: string): Promi
     });
     return true;
   } catch (error) {
-    if (error instanceof ApiError) {
-      return false;
-    }
-    throw error;
+    return mapApiError(error, () => false);
   }
 }
 
@@ -93,7 +82,7 @@ function mapBoardWorkspace(response: BoardDetailsResponse): BoardWorkspace {
 }
 
 export async function loadBoardWorkspace(boardId: string): Promise<BoardWorkspace> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     const response = await BoardsService.getBoard({ boardId });
@@ -103,15 +92,12 @@ export async function loadBoardWorkspace(boardId: string): Promise<BoardWorkspac
 
     return mapBoardWorkspace(response as BoardDetailsResponse);
   } catch (error) {
-    if (error instanceof ApiError) {
-      return { columns: [], tasks: [] };
-    }
-    throw error;
+    return mapApiError(error, () => ({ columns: [], tasks: [] }));
   }
 }
 
 export async function createTaskInBoard(boardId: string, columnId: string, title: string, description: string): Promise<boolean> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     await BoardsService.createTask({
@@ -124,15 +110,12 @@ export async function createTaskInBoard(boardId: string, columnId: string, title
     });
     return true;
   } catch (error) {
-    if (error instanceof ApiError) {
-      return false;
-    }
-    throw error;
+    return mapApiError(error, () => false);
   }
 }
 
 export async function deleteTaskInBoard(boardId: string, taskId: string): Promise<boolean> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     await BoardsService.deleteTask({
@@ -141,15 +124,12 @@ export async function deleteTaskInBoard(boardId: string, taskId: string): Promis
     });
     return true;
   } catch (error) {
-    if (error instanceof ApiError) {
-      return false;
-    }
-    throw error;
+    return mapApiError(error, () => false);
   }
 }
 
 export async function deleteColumnInBoard(boardId: string, columnId: string): Promise<boolean> {
-  configureOpenApiClient();
+  ensureApiClientConfigured();
 
   try {
     await BoardsService.deleteColumn({
@@ -158,9 +138,6 @@ export async function deleteColumnInBoard(boardId: string, columnId: string): Pr
     });
     return true;
   } catch (error) {
-    if (error instanceof ApiError) {
-      return false;
-    }
-    throw error;
+    return mapApiError(error, () => false);
   }
 }

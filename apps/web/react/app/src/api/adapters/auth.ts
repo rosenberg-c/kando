@@ -1,14 +1,11 @@
 import { type AuthTransport } from "@kando/auth";
-import { AuthService, ApiError, PublicService } from "../generated/api";
-import { configureOpenApiClient } from "../api/openApi";
-
-function configureBaseURL(): void {
-  configureOpenApiClient();
-}
+import { AuthService, PublicService } from "../../generated/api";
+import { ensureApiClientConfigured } from "../client";
+import { mapApiError } from "../handleApiError";
 
 export const authTransport: AuthTransport = {
   async signIn(email: string, password: string) {
-    configureBaseURL();
+    ensureApiClientConfigured();
     try {
       await AuthService.login({
         requestBody: {
@@ -18,43 +15,32 @@ export const authTransport: AuthTransport = {
       });
       return true;
     } catch (error) {
-      if (error instanceof ApiError) {
-        return false;
-      }
-      throw error;
+      return mapApiError(error, () => false);
     }
   },
 
   async refreshSession() {
-    configureBaseURL();
+    ensureApiClientConfigured();
     try {
-      await AuthService.refreshAuth({
-      });
+      await AuthService.refreshAuth({});
       return true;
     } catch (error) {
-      if (error instanceof ApiError) {
-        return false;
-      }
-      throw error;
+      return mapApiError(error, () => false);
     }
   },
 
   async revokeSession() {
-    configureBaseURL();
+    ensureApiClientConfigured();
     try {
-      await AuthService.logout({
-      });
+      await AuthService.logout({});
       return null;
     } catch (error) {
-      if (error instanceof ApiError) {
-        return error.status;
-      }
-      throw error;
+      return mapApiError(error, (apiError) => apiError.status);
     }
   },
 
   async getIdentity() {
-    configureBaseURL();
+    ensureApiClientConfigured();
     try {
       const response = await PublicService.getMe({});
       if (!response || typeof response !== "object") {
@@ -63,10 +49,7 @@ export const authTransport: AuthTransport = {
       const candidate = response as Record<string, unknown>;
       return typeof candidate.email === "string" ? { email: candidate.email } : null;
     } catch (error) {
-      if (error instanceof ApiError) {
-        return null;
-      }
-      throw error;
+      return mapApiError(error, () => null);
     }
   },
 };

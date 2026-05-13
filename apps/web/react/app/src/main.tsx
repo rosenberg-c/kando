@@ -5,7 +5,7 @@ import { AuthProvider } from "@kando/auth";
 import "@kando/styles/tokens.css";
 import "@kando/styles/base.css";
 import { BrowserRouter } from "react-router-dom";
-import { authTransport } from "./auth/transport";
+import { authTransport } from "./api/adapters/auth";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import "./styles.css";
 

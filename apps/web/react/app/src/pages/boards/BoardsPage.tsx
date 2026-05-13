@@ -7,7 +7,7 @@ import { SettingsPanel } from "../../layout/SettingsPanel";
 import { appRoutes } from "../../routes";
 import type { Column } from "../../generated/api";
 import type { Task } from "../../generated/api";
-import type { BoardWorkspace } from "../../boards/transport";
+import type { BoardWorkspace } from "../../api/adapters/boards";
 import type { AuthUiState } from "../authUiState";
 import {
   CreateBoardModal,

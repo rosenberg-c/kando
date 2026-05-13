@@ -14,8 +14,8 @@ import {
   loadBoardWorkspace,
   listOwnedBoards,
   renameOwnedBoard,
-} from "./boards/transport";
-import type { BoardWorkspace } from "./boards/transport";
+} from "./api/adapters/boards";
+import type { BoardWorkspace } from "./api/adapters/boards";
 import { BoardsPage } from "./pages/boards/BoardsPage";
 import type { AuthUiState } from "./pages/authUiState";
 import { SignInPage } from "./pages/sign-in/SignInPage";
