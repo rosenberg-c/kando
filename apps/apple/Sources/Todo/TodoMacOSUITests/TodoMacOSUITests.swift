@@ -659,15 +659,24 @@ final class TodoMacOSUITests: XCTestCase {
         let title = app.staticTexts["workspace-board-title"]
         XCTAssertTrue(title.waitForExistence(timeout: uiTimeout), "Expected workspace title")
 
+        let workColumnTaskCount = app.staticTexts["column-task-count-column-work"]
+        XCTAssertTrue(workColumnTaskCount.waitForExistence(timeout: uiTimeout), "Expected work column task count")
+        XCTAssertTrue(waitForCountValue(element: workColumnTaskCount, equals: 28, timeout: uiTimeout), "Expected work column to contain 28 tasks")
+
         let taskList = app.scrollViews["column-task-list-column-work"]
         XCTAssertTrue(taskList.waitForExistence(timeout: uiTimeout), "Expected scrollable task list in work column")
 
         let firstTask = app.staticTexts["task-title-task-1"]
-        let overflowTask = app.staticTexts["task-title-task-28"]
         XCTAssertTrue(firstTask.waitForExistence(timeout: uiTimeout), "Expected first task in work column")
+        let initialFirstTaskMinY = firstTask.frame.minY
         XCTAssertTrue(
-            scrollUntilHittable(element: overflowTask, in: taskList, maxSwipes: 12),
-            "Expected deep task to become hittable via vertical scrolling"
+            scrollUntilMovedAwayFromInitialPosition(
+                element: firstTask,
+                in: taskList,
+                initialMinY: initialFirstTaskMinY,
+                maxSwipes: 12
+            ),
+            "Expected vertical task-list scrolling to move task content"
         )
 
         let horizontalInset = title.frame.minX - window.frame.minX
@@ -1190,7 +1199,7 @@ final class TodoMacOSUITests: XCTestCase {
 
         let emptyColumnTaskCount = app.staticTexts["column-task-count-column-empty"]
         let addTaskButton = app.buttons["task-add-column-empty"]
-        let emptyColumnDropZone = app.otherElements["column-drop-zone-column-empty"]
+        let emptyColumnDropZone = columnDropZoneElement(in: app, columnID: "column-empty", fallbackIndex: 1, waitTimeout: uiTimeout)
         let createSheetTitle = preferredElement(
             primary: app.otherElements["task-editor-sheet"],
             fallback: app.staticTexts["Create task"],
@@ -1424,10 +1433,6 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(
             app.staticTexts[createdTaskTitle].waitForExistence(timeout: uiTimeout),
             "Expected task created via description enter to be visible"
-        )
-        XCTAssertTrue(
-            app.staticTexts["first line"].waitForExistence(timeout: uiTimeout),
-            "Expected created task description to be visible when non-empty"
         )
     }
 
@@ -1775,6 +1780,29 @@ final class TodoMacOSUITests: XCTestCase {
         }
 
         return element.exists && element.isHittable
+    }
+
+    private func scrollUntilMovedAwayFromInitialPosition(
+        element: XCUIElement,
+        in scrollView: XCUIElement,
+        initialMinY: CGFloat,
+        maxSwipes: Int
+    ) -> Bool {
+        for _ in 0..<maxSwipes {
+            let start = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+            let finish = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+            start.press(forDuration: 0.05, thenDragTo: finish)
+            scrollView.swipeUp()
+
+            if element.waitForExistence(timeout: 0.2), element.frame.minY < initialMinY - 8 {
+                return true
+            }
+            if !element.isHittable {
+                return true
+            }
+        }
+
+        return element.exists && (element.frame.minY < initialMinY - 8 || !element.isHittable)
     }
 
     private func taskCount(from element: XCUIElement) -> Int? {

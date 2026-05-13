@@ -2364,6 +2364,7 @@ private struct TaskCardView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
+                    .accessibilityIdentifier("task-description-\(task.id)")
             }
 
             if taskControlVisibility.showsUpDown || taskControlVisibility.showsEditDelete {
