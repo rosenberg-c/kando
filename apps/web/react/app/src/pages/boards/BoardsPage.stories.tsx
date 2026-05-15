@@ -29,7 +29,7 @@ const meta = {
       { id: "board-1", title: "Inbox" },
       { id: "board-2", title: "Roadmap" },
     ],
-    onCreateBoard: async () => true,
+    onCreateBoard: async () => "board-created",
     onRenameBoard: async () => true,
     onCreateColumn: async () => true,
     onCreateTask: async () => true,

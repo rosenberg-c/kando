@@ -56,11 +56,11 @@ export default function App() {
   }, []);
 
   const createBoard = useCallback(async (title: string) => {
-    const didCreate = await createOwnedBoard(title);
-    if (didCreate) {
+    const createdBoardID = await createOwnedBoard(title);
+    if (createdBoardID) {
       await loadBoards();
     }
-    return didCreate;
+    return createdBoardID;
   }, [loadBoards]);
 
   const renameBoard = useCallback(async (boardId: string, title: string) => {

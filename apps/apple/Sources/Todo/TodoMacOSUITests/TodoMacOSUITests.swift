@@ -138,7 +138,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsButtonAnchorsTopRightAndShowsActions() throws {
-        // @req UX-010, UX-011, UX-012, UX-022, UX-023
+        // @req UX-010, UX-011, UX-012, UX-022, UX-023, UX-043
         let app = launchSignedInApp()
 
         let window = app.windows.firstMatch
@@ -220,7 +220,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testCreateAndRenameBoardFromHeaderAndEditBoardPanel() throws {
-        // @req BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016, UX-017
+        // @req BOARD-009, BOARD-010, BOARD-011, UX-014, UX-016, UX-017, UX-046
         let app = launchSignedInApp()
 
         let boardSelector = app.popUpButtons["board-selector-picker"]
@@ -261,6 +261,10 @@ final class TodoMacOSUITests: XCTestCase {
         XCTAssertTrue(
             app.staticTexts["New Board"].waitForExistence(timeout: UITimeout.standard),
             "Expected new board title after create"
+        )
+        XCTAssertTrue(
+            waitUntil(timeout: 3) { titleLabel.label == "New Board" },
+            "Expected newly created board to become active"
         )
 
         editModeToggle.tap()
@@ -910,7 +914,7 @@ final class TodoMacOSUITests: XCTestCase {
 
     @MainActor
     func testSettingsTaskControlTogglesHideButtonsAndPersistLocally() throws {
-        // @req TASK-019, TASK-020, TASK-021, TASK-033, UX-023, UX-037
+        // @req TASK-019, TASK-020, TASK-021, TASK-033, UX-023, UX-037, UX-043
         let app = launchSignedInApp(extraEnvironment: [UITestEnvKey.workTaskCount: "4"])
         let uiTimeout = UITimeout.extended
 

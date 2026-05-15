@@ -170,15 +170,19 @@ The developer status modal displays backend connectivity status and the backend 
 
 ### `UX-043`
 
-Web app header exposes a `Settings` menu that shows current sign-in identity, provides sign-out and light/dark theme actions, and closes when toggled again, when clicking outside the menu, or when pressing `Escape`.
+Workspace exposes a `Settings` menu/sheet that shows current sign-in identity, provides sign-out and theme actions, and supports user dismissal.
 
 ### `UX-044`
 
-Web app root shows a session-loading state until the initial refresh-session check resolves, so signed-out content does not flash before authenticated routing is known.
+App startup performs initial session-restore resolution before settling into signed-in or signed-out UI, preventing incorrect auth-state content flashes.
 
 ### `UX-045`
 
 In the board workspace, each column places the `Add task` action at the bottom-left of the column.
+
+### `UX-046`
+
+After a new board is created, the workspace switches active selection to that newly created board.
 
 ## Platform Applicability
 
@@ -224,6 +228,7 @@ In the board workspace, each column places the `Add task` action at the bottom-l
 - `UX-040`: macOS (required), iOS (planned), TUI (planned).
 - `UX-041`: macOS (required), iOS (planned), TUI (N/A).
 - `UX-042`: macOS (required), iOS (planned), TUI (N/A).
-- `UX-043`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).
-- `UX-044`: macOS (N/A), web (required), iOS (N/A), TUI (N/A).
+- `UX-043`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `UX-044`: macOS (required), web (required), iOS (planned), TUI (N/A).
 - `UX-045`: macOS (required), web (required), iOS (planned), TUI (N/A).
+- `UX-046`: macOS (required), web (required), iOS (planned), TUI (N/A).

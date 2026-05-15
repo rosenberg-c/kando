@@ -45,18 +45,23 @@ export async function listOwnedBoards(): Promise<Board[]> {
   }
 }
 
-export async function createOwnedBoard(title: string): Promise<boolean> {
+export async function createOwnedBoard(title: string): Promise<string | null> {
   ensureApiClientConfigured();
 
   try {
-    await BoardsService.createBoard({
+    const response = await BoardsService.createBoard({
       requestBody: {
         title,
       },
     });
-    return true;
+
+    if (response && typeof response === "object" && "id" in response && typeof response.id === "string") {
+      return response.id;
+    }
+
+    return null;
   } catch (error) {
-    return mapApiError(error, () => false);
+    return mapApiError(error, () => null);
   }
 }
 

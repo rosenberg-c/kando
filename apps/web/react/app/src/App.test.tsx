@@ -19,7 +19,7 @@ const {
   deleteColumnInBoardMock,
 } = vi.hoisted(() => ({
   listOwnedBoardsMock: vi.fn<() => Promise<Board[]>>(async () => []),
-  createOwnedBoardMock: vi.fn(async () => true),
+  createOwnedBoardMock: vi.fn(async () => "board-created"),
   renameOwnedBoardMock: vi.fn(async () => true),
   createColumnInBoardMock: vi.fn(async () => true),
   loadBoardWorkspaceMock: vi.fn<() => Promise<BoardWorkspace>>(async () => ({ columns: [], tasks: [] })),
@@ -127,7 +127,7 @@ describe("App", () => {
     listOwnedBoardsMock.mockReset();
     listOwnedBoardsMock.mockResolvedValue([]);
     createOwnedBoardMock.mockReset();
-    createOwnedBoardMock.mockResolvedValue(true);
+    createOwnedBoardMock.mockResolvedValue("board-created");
     renameOwnedBoardMock.mockReset();
     renameOwnedBoardMock.mockResolvedValue(true);
     createColumnInBoardMock.mockReset();
@@ -306,7 +306,10 @@ describe("App", () => {
   });
 
   // @req UX-016
+  // @req UX-046
   it("creates a board from modal and refreshes board dropdown", async () => {
+    createOwnedBoardMock.mockResolvedValueOnce("board-2");
+
     listOwnedBoardsMock
       .mockResolvedValueOnce([
         {
@@ -359,6 +362,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(createOwnedBoardMock).toHaveBeenCalledWith("Roadmap");
       expect(screen.getByRole("option", { name: "Roadmap" })).toBeTruthy();
+      expect((screen.getByTestId("app.boards.select") as HTMLSelectElement).value).toBe("board-2");
       expect(screen.queryByTestId("app.boards.create.modal")).toBeNull();
     });
   });

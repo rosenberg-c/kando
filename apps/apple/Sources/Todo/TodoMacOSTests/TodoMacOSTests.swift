@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct TodoMacOSTests {
     @Test func restoreSessionSkipsWhenNoPersistedSession() async {
-        // @req AUTH-004
+        // @req AUTH-004, UX-044
         let store = InMemorySessionStore()
         let viewModel = AuthSessionViewModel(sessionStore: store, now: { fixedNow })
 
@@ -19,7 +19,7 @@ struct TodoMacOSTests {
     }
 
     @Test func restoreSessionUsesPersistedValidToken() async {
-        // @req AUTH-002
+        // @req AUTH-002, UX-044
         let session = PersistedSession(
             email: "alice@example.com",
             accessToken: "access-token",

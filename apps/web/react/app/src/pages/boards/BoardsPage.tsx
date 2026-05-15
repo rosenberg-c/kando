@@ -26,7 +26,7 @@ type BoardsPageProps = {
     id: string;
     title: string;
   }>;
-  onCreateBoard: (title: string) => Promise<boolean>;
+  onCreateBoard: (title: string) => Promise<string | null>;
   onRenameBoard: (boardId: string, title: string) => Promise<boolean>;
   onCreateColumn: (boardId: string, title: string) => Promise<boolean>;
   onCreateTask: (boardId: string, columnId: string, title: string, description: string) => Promise<boolean>;
@@ -237,13 +237,14 @@ export function BoardsPage({
     setActionStatusIsError(false);
 
     try {
-      const didCreate = await onCreateBoard(trimmedTitle);
-      if (!didCreate) {
+      const createdBoardID = await onCreateBoard(trimmedTitle);
+      if (!createdBoardID) {
         setActionStatusIsError(true);
         setActionStatusMessage(t(keys.boards.create.failed));
         return;
       }
 
+      setSelectedBoardID(createdBoardID);
       setActionStatusMessage(t(keys.boards.create.success));
       setIsCreateModalOpen(false);
       setNewBoardTitle("");
