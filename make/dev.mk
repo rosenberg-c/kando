@@ -1,5 +1,5 @@
 ready:
-	$(MAKE) generate-all && $(MAKE) sync-test-matrix && $(MAKE) test && $(MAKE) test-macos-unit && $(MAKE) test-macos-ui
+	$(MAKE) generate-all && $(MAKE) sync-test-matrix && $(MAKE) test && $(MAKE) macos-test-unit && $(MAKE) macos-test-ui
 
 install-go:
 	@if command -v go >/dev/null 2>&1; then \

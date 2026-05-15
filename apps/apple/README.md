@@ -33,13 +33,13 @@ Generated OpenAPI types are mapped in `GeneratedAuthAPI` (`Sources/Todo/TodoMacO
 
 ```bash
 swift build --package-path apps/apple
-make run-macos
-make test-macos-unit
+make macos-run
+make macos-test-unit
 ```
 
-`make run-macos` builds the Xcode target and opens the app bundle.
+`make macos-run` builds the Xcode target and opens the app bundle.
 
-`make test-macos-unit` runs only macOS unit tests via the shared `TodoMacOSUnit` scheme.
+`make macos-test-unit` runs only macOS unit tests via the shared `TodoMacOSUnit` scheme.
 
 Run UI/end-to-end tests manually from Xcode using the `TodoMacOS` scheme.
 

@@ -1,9 +1,9 @@
-build:
+server-build:
 	mkdir -p $(BIN_DIR)
 	go build -o $(BIN_SERVER) $(APP_SERVER)
 	go build -o $(BIN_CLI) $(APP_CLI)
 
-kill-server:
+server-stop:
 	@PID=""; \
 	if [ -f "$(SERVER_PID_FILE)" ]; then \
 		PID="$$(cat "$(SERVER_PID_FILE)" 2>/dev/null || true)"; \
@@ -17,7 +17,7 @@ kill-server:
 		kill $$PIDS; \
 	fi
 
-run: kill-server
+server-run: server-stop
 	@sh -c 'KANBAN_REPOSITORY=appwrite go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
 server-cert:
@@ -25,7 +25,7 @@ server-cert:
 	@mkdir -p $(SERVER_CERT_DIR)
 	@sh -c 'if [ -f ./.env.server ]; then set -a; . ./.env.server; set +a; fi; NAMES="localhost 127.0.0.1 ::1"; if [ -n "$${DEV_LAN_IP:-}" ]; then NAMES="$$NAMES $${DEV_LAN_IP}"; fi; mkcert -cert-file "$(SERVER_CERT_FILE)" -key-file "$(SERVER_KEY_FILE)" $$NAMES'
 
-run-tls: kill-server server-cert
+server-run-tls: server-stop server-cert
 	@sh -c 'TLS_CERT_FILE="$(SERVER_CERT_FILE)" TLS_KEY_FILE="$(SERVER_KEY_FILE)" KANBAN_REPOSITORY=appwrite go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
 fetch-remote-ca:
@@ -40,10 +40,10 @@ trust-remote-ca-debian: fetch-remote-ca
 	@sudo cp "$(REMOTE_CA_PEM)" /usr/local/share/ca-certificates/remote-rootCA.crt
 	@sudo update-ca-certificates
 
-run-sqlite: kill-server
+server-run-sqlite: server-stop
 	@sh -c 'KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
-run-sqlite-local: kill-server
+server-run-sqlite-local: server-stop
 	@sh -c 'CORS_ALLOWED_ORIGINS="$${CORS_ALLOWED_ORIGINS:-https://localhost:5173,https://127.0.0.1:5173,https://$${DEV_LAN_IP:-192.168.56.2}:5173}" KANBAN_REPOSITORY=sqlite SQLITE_PATH="$${SQLITE_PATH:-$(CURDIR)/data/kanban-local.db}" go run $(APP_SERVER) & pid=$$!; echo $$pid > $(SERVER_PID_FILE); wait $$pid; code=$$?; rm -f $(SERVER_PID_FILE); exit $$code'
 
 appwrite-bootstrap:

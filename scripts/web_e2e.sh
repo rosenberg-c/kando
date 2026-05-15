@@ -7,7 +7,7 @@ DB_PATH="$DB_DIR/web-e2e-$(date +%s)-$$.db"
 E2E_ENV_FILE="$ROOT_DIR/.env.e2e.web"
 
 if lsof -iTCP:8080 -sTCP:LISTEN -t >/dev/null 2>&1; then
-  echo "port 8080 is already in use; stop existing server first (for example: make kill-server)"
+  echo "port 8080 is already in use; stop existing server first (for example: make server-stop)"
   exit 1
 fi
 

@@ -1,5 +1,5 @@
 test:
-	@. ./scripts/test_summary.sh; run_with_test_summary sh -c '$(MAKE) test-core && if command -v xcodebuild >/dev/null 2>&1; then $(MAKE) test-macos-unit; else echo "skipping test-macos-unit (xcodebuild not available)"; fi'
+	@. ./scripts/test_summary.sh; run_with_test_summary sh -c '$(MAKE) test-core && if command -v xcodebuild >/dev/null 2>&1; then $(MAKE) macos-test-unit; else echo "skipping macos-test-unit (xcodebuild not available)"; fi'
 
 test-core:
 	@. ./scripts/test_summary.sh; run_with_test_summary sh -c 'go test ./... && $(MAKE) verify-generate && $(MAKE) verify-test-matrix'

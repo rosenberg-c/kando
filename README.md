@@ -25,7 +25,7 @@ API contract workflow:
 - Go
 - Node.js + pnpm
 - Make
-- mkcert (required for HTTPS dev targets like `make run-tls` and `make web-dev`)
+- mkcert (required for HTTPS dev targets like `make server-run-tls` and `make web-dev`)
 
 If `make web-install` fails with `ERR_PNPM_IGNORED_BUILDS` (for example `esbuild`):
 
@@ -49,7 +49,7 @@ cp .env.app.web.example .env.app.web
 
 ```bash
 make generate-backend
-make run
+make server-run
 ```
 
 Backend runs at `http://localhost:8080`.
@@ -57,7 +57,7 @@ Backend runs at `http://localhost:8080`.
 For HTTPS backend (recommended for web auth dev):
 
 ```bash
-make run-tls
+make server-run-tls
 ```
 
 This generates local certs in `certs/` (via `mkcert`) and starts backend at `https://localhost:8080`.
@@ -77,7 +77,7 @@ pnpm --dir ./apps/web/react test
 In another terminal:
 
 ```bash
-make run-macos
+make macos-run
 ```
 
 For the web version (not fully implemented yet):
@@ -95,7 +95,7 @@ Use this setup when testing cookie-based web auth:
 1) Backend:
 
 ```bash
-make run-tls
+make server-run-tls
 ```
 
 2) Web app env (`.env.app.web`):
@@ -123,11 +123,11 @@ Example:
 - backend machine: `192.168.56.3`
 
 Backend machine:
-- set `DEV_LAN_IP=192.168.56.3` in `.env.server` (used by `make server-cert`/`make run-tls`)
+- set `DEV_LAN_IP=192.168.56.3` in `.env.server` (used by `make server-cert`/`make server-run-tls`)
 - set `CORS_ALLOWED_ORIGINS=https://192.168.56.2:5173`
 - set `AUTH_REFRESH_COOKIE_PATH=/api/auth`
 - set `AUTH_ACCESS_COOKIE_PATH=/api`
-- run `make run-tls`
+- run `make server-run-tls`
 
 Frontend machine:
 - set `DEV_LAN_IP=192.168.56.2` in `.env.app.apple` (used by `make web-cert`/`make web-dev`)
@@ -143,8 +143,8 @@ Use this when running the macOS app against a LAN backend over TLS.
 
 Backend machine:
 - set `DEV_LAN_IP=<backend-lan-ip>` in `.env.server`
-- run `make server-cert` (or `make run-tls`, which depends on it)
-- run `make run-tls`
+- run `make server-cert` (or `make server-run-tls`, which depends on it)
+- run `make server-run-tls`
 
 macOS machine (this repo):
 1) Trust the backend machine's `mkcert` root CA (copied over SSH):
@@ -168,7 +168,7 @@ KANDO_API_BASE_URL=https://<backend-lan-ip>:8080
 3) Run app:
 
 ```bash
-make run-macos
+make macos-run
 ```
 
 Notes:
