@@ -214,3 +214,9 @@ make verify-appwrite-schema
 - Agent/process rules: `AGENT.md`
 - Project constraints: `docs/PROJECT_RULES.md`
 - Auth details: `docs/AUTH.md`
+
+If you keep shared agent docs in a sibling repo at `../agent`, create symlinks in this repo:
+
+```bash
+make link-agent-docs
+```

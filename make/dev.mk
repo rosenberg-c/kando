@@ -1,6 +1,12 @@
 ready:
 	$(MAKE) generate-all && $(MAKE) sync-test-matrix && $(MAKE) test && $(MAKE) macos-test-unit && $(MAKE) macos-test-ui
 
+link-agent-docs:
+	ln -snf ../agent/AGENT.md AGENT.md
+	ln -snf ../../agent/docs/RULES.md docs/RULES.md
+	ln -snf ../../agent/docs/RULES_TYPESCRIPT.md docs/RULES_TYPESCRIPT.md
+	@echo "Linked AGENT.md and docs/RULES* from ../agent"
+
 install-go:
 	@if command -v go >/dev/null 2>&1; then \
 		echo "Go is already installed: $$(go version)"; \

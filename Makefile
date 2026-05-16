@@ -29,6 +29,7 @@ LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current
 	server-build server-run server-run-tls server-run-sqlite server-run-sqlite-local server-stop server-cert fetch-remote-ca trust-remote-ca trust-remote-ca-debian \
 	macos-build macos-clean macos-run macos-open macos-test-unit macos-test-ui \
 	cli-run cli-install install-go appwrite-bootstrap appwrite-prune appwrite-prune-apply verify-appwrite-schema \
+	link-agent-docs \
 	ready test test-core test-appwrite-integration test-api-backends \
 	web-install web-cert web-trust web-dev web-dev-local web-open web-build web-test web-test-e2e web-test-e2e-headed web-test-e2e-ui web-e2e-install web-e2e-deps web-e2e-deps-debian web-storybook web-storybook-build
 
